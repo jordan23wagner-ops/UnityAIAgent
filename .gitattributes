@@ -1,0 +1,55 @@
+# Normalize line endings in repo (reduces CRLF/LF warning noise on Windows)
+* text=auto
+
+# Unity YAML-ish assets should be treated as text
+*.meta          text eol=lf
+*.unity         text eol=lf
+*.prefab        text eol=lf
+*.asset         text eol=lf
+*.mat           text eol=lf
+*.anim          text eol=lf
+*.controller    text eol=lf
+*.overrideController text eol=lf
+*.playable      text eol=lf
+*.renderTexture text eol=lf
+*.physicMaterial text eol=lf
+*.physicsMaterial2D text eol=lf
+*.spriteatlas   text eol=lf
+*.brush         text eol=lf
+*.mask          text eol=lf
+*.cubemap       text eol=lf
+*.inputactions  text eol=lf
+
+# Common text formats
+*.cs    text eol=lf
+*.shader text eol=lf
+*.cginc text eol=lf
+*.hlsl  text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.txt   text eol=lf
+*.md    text eol=lf
+
+# Binary assets
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.tga  binary
+*.psd  binary
+*.gif  binary
+*.bmp  binary
+*.exr  binary
+
+*.fbx  binary
+*.blend binary
+
+*.wav  binary
+*.mp3  binary
+*.ogg  binary
+
+*.dll  binary
+*.exe  binary
+
+*.zip  binary
+*.7z   binary
