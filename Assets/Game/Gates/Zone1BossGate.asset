@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22df973de8dd0d946b8b001f02e9d8f3, type: 3}
+  m_Name: Zone1BossGate
+  m_EditorClassIdentifier: Assembly-CSharp::GateDefinition
+  requiredItem: {fileID: 11400000, guid: 0fcaef1ba36d27540991233311fe1926, type: 2}
+  lockedHintText: Abyssal Sigil is required to enter.

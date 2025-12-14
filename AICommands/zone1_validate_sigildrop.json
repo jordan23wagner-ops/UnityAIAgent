@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.1",
+  "requestId": "zone1_validate_sigildrop",
+  "scope": {
+    "allowedRoots": ["_AI_WORKSPACE", "_RUNTIME"],
+    "deniedRoots": ["ZONE_1_LOCKED"],
+    "maxOperations": 10
+  },
+  "commands": {
+    "commands": [
+      {
+        "op": "validateDropTable",
+        "dropTableId": "abyssal_sigil_basic",
+        "expectedItems": ["AbyssalSigil"],
+        "minDropChance": 0.05
+      }
+    ]
+  }
+}

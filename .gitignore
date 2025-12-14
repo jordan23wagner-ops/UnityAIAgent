@@ -1,0 +1,47 @@
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+
+# AI assistant logs / local artifacts
+ProjectSettings/AIAssistantLogs/
+
+# Nested repo (do not commit as embedded repo)
+UnityAIAgent/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.suo
+*.user
+*.userprefs
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity meta (keep)
+!*.meta
+
+# Local editor config assets (may contain secrets)
+Assets/Editor/AIAssistant/OpenAIConfig.asset
+Assets/Editor/AIAssistant/OpenAIConfig.asset.meta
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Crash reports
+sysinfo.txt

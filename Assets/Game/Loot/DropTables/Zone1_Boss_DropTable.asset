@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f12daf1627bcba47bfa70adc36cfdb4, type: 3}
+  m_Name: Zone1_Boss_DropTable
+  m_EditorClassIdentifier: Assembly-CSharp::DropTable
+  fodderDrops: []
+  normalDrops:
+  - item: {fileID: 11400000, guid: 876b0021a2bdf10488cde9e20d580d56, type: 2}
+    dropChance: 1
+  eliteDrops: []
+  miniBossDrops: []
+  guaranteedEquipmentDrop:
+    enabled: 1
+    category: 1
+    minRarity: 3
+    rolls: 1
+  matsTable: {fileID: 11400000, guid: 71f5810abd7028f47948ee2c5e444061, type: 2}
+  specialDropsTable: {fileID: 11400000, guid: 532102f532e75a04aa1f6c185ee163df, type: 2}
