@@ -10,6 +10,55 @@ namespace AIAssistant
 {
     public static class UnityTools
     {
+#if UNITY_EDITOR
+        private const string SceneRootName = "__SCENE";
+        private const string SystemsRootName = "_Systems";
+
+        [Serializable]
+        private class SceneRootsReport
+        {
+            public bool pass;
+            public string sceneName;
+            public string zoneRootName;
+            public string[] missing;
+            public string[] created;
+        }
+
+        [Serializable]
+        private class FoundationReport
+        {
+            public bool pass;
+            public string playerPath;
+            public string cameraPath;
+            public bool hasCanvas;
+            public bool hasEventSystem;
+            public bool cameraHasTopDownFollow;
+            public bool cameraHasTarget;
+            public bool hasPlayerHealth;
+            public bool hasSimplePlayerCombat;
+            public bool hasBootstrapper;
+            public string[] notes;
+        }
+
+        [Serializable]
+        private class ScaleIssue
+        {
+            public string severity; // "error" | "warning"
+            public string category;
+            public string path;
+            public Vector3 scale;
+        }
+
+        [Serializable]
+        private class NoScaledParentsReport
+        {
+            public bool pass;
+            public string sceneName;
+            public string zoneRootName;
+            public ScaleIssue[] issues;
+        }
+#endif
+
         private static void AddLog(AiExecutionResult result, string op, string message)
         {
             if (result == null) return;
@@ -28,6 +77,675 @@ namespace AIAssistant
             result.errors.Add($"{op}: {message}");
             result.success = false;
         }
+
+#if UNITY_EDITOR
+        private static SceneRootsReport EnsureSceneRootsInternal(AiExecutionResult result, ExecutionMode mode)
+        {
+            const string opName = "ensureSceneRoots";
+            var created = new List<string>();
+            var missing = new List<string>();
+
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+            string sceneName = scene.IsValid() ? scene.name : "<invalid>";
+            string zoneRootName = GetZoneRootName(sceneName);
+
+            var sceneRoot = GameObject.Find(SceneRootName);
+            if (sceneRoot == null)
+            {
+                if (mode == ExecutionMode.Apply)
+                {
+                    sceneRoot = new GameObject(SceneRootName);
+                    UnityEditor.Undo.RegisterCreatedObjectUndo(sceneRoot, "AI ensureSceneRoots");
+                    created.Add(SceneRootName);
+                }
+                else
+                {
+                    missing.Add(SceneRootName);
+                }
+            }
+
+            // If we can't create (DryRun), we still return what would be missing.
+            if (sceneRoot == null)
+            {
+                return new SceneRootsReport
+                {
+                    pass = false,
+                    sceneName = sceneName,
+                    zoneRootName = zoneRootName,
+                    missing = missing.ToArray(),
+                    created = created.ToArray()
+                };
+            }
+
+            var systems = EnsureChild(sceneRoot.transform, SystemsRootName, mode, created);
+            var zone = EnsureChild(sceneRoot.transform, zoneRootName, mode, created);
+
+            // Under zone
+            EnsureChild(zone, "_ENV", mode, created);
+            EnsureChild(zone, "_GAMEPLAY", mode, created);
+            EnsureChild(zone, "_ENCOUNTERS", mode, created);
+            EnsureChild(zone, "_ACTORS", mode, created);
+
+            if (mode == ExecutionMode.Apply)
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+
+            AddLog(result, opName, created.Count > 0 ? $"Created: [{string.Join(", ", created)}]" : "No changes.");
+
+            return new SceneRootsReport
+            {
+                pass = true,
+                sceneName = sceneName,
+                zoneRootName = zoneRootName,
+                missing = Array.Empty<string>(),
+                created = created.ToArray()
+            };
+        }
+
+        private static SceneRootsReport ValidateSceneRootsInternal(AiExecutionResult result)
+        {
+            var missing = new List<string>();
+            var created = Array.Empty<string>();
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+            string sceneName = scene.IsValid() ? scene.name : "<invalid>";
+            string zoneRootName = GetZoneRootName(sceneName);
+
+            var sceneRoot = GameObject.Find(SceneRootName);
+            if (sceneRoot == null)
+            {
+                missing.Add(SceneRootName);
+                return new SceneRootsReport
+                {
+                    pass = false,
+                    sceneName = sceneName,
+                    zoneRootName = zoneRootName,
+                    missing = missing.ToArray(),
+                    created = created
+                };
+            }
+
+            ValidateChild(sceneRoot.transform, SystemsRootName, missing);
+            var zone = FindChild(sceneRoot.transform, zoneRootName);
+            if (zone == null)
+                missing.Add($"{SceneRootName}/{zoneRootName}");
+            else
+            {
+                ValidateChild(zone, "_ENV", missing);
+                ValidateChild(zone, "_GAMEPLAY", missing);
+                ValidateChild(zone, "_ENCOUNTERS", missing);
+                ValidateChild(zone, "_ACTORS", missing);
+            }
+
+            return new SceneRootsReport
+            {
+                pass = missing.Count == 0,
+                sceneName = sceneName,
+                zoneRootName = zoneRootName,
+                missing = missing.ToArray(),
+                created = created
+            };
+        }
+
+        private static NoScaledParentsReport ValidateNoScaledParentsInternal(AiExecutionResult result)
+        {
+            const string opName = "validateNoScaledParents";
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+            string sceneName = scene.IsValid() ? scene.name : "<invalid>";
+            string zoneRootName = GetZoneRootName(sceneName);
+
+            // Find zone roots (supports either __SCENE/ZoneName or bare ZoneName).
+            Transform zoneRoot = null;
+            var sceneRoot = GameObject.Find(SceneRootName);
+            if (sceneRoot != null)
+                zoneRoot = FindChild(sceneRoot.transform, zoneRootName);
+            if (zoneRoot == null)
+            {
+                var fallback = GameObject.Find(zoneRootName);
+                if (fallback != null) zoneRoot = fallback.transform;
+            }
+
+            var issues = new List<ScaleIssue>();
+
+            // Build some roots for category checks.
+            Transform envRoot = null;
+            if (zoneRoot != null)
+                envRoot = FindChild(zoneRoot, "_ENV");
+
+            var all = GameObject.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < all.Length; i++)
+            {
+                var t = all[i];
+                if (t == null) continue;
+                if (!t.gameObject.scene.IsValid()) continue;
+                if (string.Equals(t.gameObject.scene.name, "DontDestroyOnLoad", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var scale = t.localScale;
+                bool isOne = ApproximatelyOne(scale);
+                if (isOne) continue;
+
+                // Rule A: any parent under Zone roots except _ENV.
+                if (zoneRoot != null && t.IsChildOf(zoneRoot))
+                {
+                    bool underEnv = envRoot != null && t.IsChildOf(envRoot);
+                    if (!underEnv)
+                    {
+                        issues.Add(new ScaleIssue
+                        {
+                            severity = "error",
+                            category = "ZoneNonEnvScaled",
+                            path = GetTransformPath(t),
+                            scale = scale
+                        });
+                        continue;
+                    }
+
+                    // ENV scaled: warning (preferred warning)
+                    issues.Add(new ScaleIssue
+                    {
+                        severity = "warning",
+                        category = "EnvScaled",
+                        path = GetTransformPath(t),
+                        scale = scale
+                    });
+                    continue;
+                }
+
+                // Rule B: actor/gameplay components disallow non-1 scale.
+                if (HasAnyComponentByName(t.gameObject, "EnemyHealth", "DropOnDeath", "PlayerHealth", "SimplePlayerCombat"))
+                {
+                    issues.Add(new ScaleIssue
+                    {
+                        severity = "error",
+                        category = "ActorScaled",
+                        path = GetTransformPath(t),
+                        scale = scale
+                    });
+                    continue;
+                }
+
+                // Rule C: encounter controllers / spawn points / gates / triggers.
+                if (HasAnyComponentByName(t.gameObject, "BossEncounterController", "BossGate") ||
+                    NameContainsAny(t.gameObject.name, "Encounter", "Spawner", "Spawn", "Waypoint", "Gate", "Trigger", "Portal"))
+                {
+                    // Collider trigger is a strong hint.
+                    issues.Add(new ScaleIssue
+                    {
+                        severity = "error",
+                        category = "GameplayScaled",
+                        path = GetTransformPath(t),
+                        scale = scale
+                    });
+                    continue;
+                }
+
+                // If it didn't match any category, ignore.
+            }
+
+            bool pass = true;
+            for (int i = 0; i < issues.Count; i++)
+            {
+                if (string.Equals(issues[i].severity, "error", StringComparison.OrdinalIgnoreCase))
+                {
+                    pass = false;
+                    break;
+                }
+            }
+
+            AddLog(result, opName, $"Issues found: {issues.Count} (errors fail, warnings allowed)");
+            for (int i = 0; i < issues.Count; i++)
+            {
+                var it = issues[i];
+                AddLog(result, opName, $"{it.severity.ToUpperInvariant()} {it.category} {it.path} scale={it.scale}");
+            }
+
+            return new NoScaledParentsReport
+            {
+                pass = pass,
+                sceneName = sceneName,
+                zoneRootName = zoneRootName,
+                issues = issues.ToArray()
+            };
+        }
+
+        private static FoundationReport EnsureFoundationInternal(AiExecutionResult result, ExecutionMode mode)
+        {
+            const string opName = "ensureFoundation";
+            var notes = new List<string>();
+
+            // Prefer bridging to an existing bootstrapper.
+            var bootstrapper = FindFirstObjectByTypeInOpenScenes("GameBootstrapper");
+            bool hasBootstrapper = bootstrapper != null;
+
+            if (!hasBootstrapper && mode == ExecutionMode.Apply)
+            {
+                var go = GameObject.Find("_GameBootstrapper");
+                if (go == null)
+                {
+                    go = new GameObject("_GameBootstrapper");
+                    UnityEditor.Undo.RegisterCreatedObjectUndo(go, "AI ensureFoundation");
+                    notes.Add("Created _GameBootstrapper");
+                }
+
+                // Add the component by type name via reflection to avoid hard dependency.
+                var t = go.GetComponent("GameBootstrapper");
+                if (t == null)
+                {
+                    UnityEditor.Undo.AddComponent(go, typeof(GameBootstrapper));
+                    notes.Add("Added GameBootstrapper");
+                }
+
+                bootstrapper = go;
+                hasBootstrapper = true;
+            }
+
+            if (hasBootstrapper)
+            {
+                // Trigger its EnsureFoundation method if present (private is fine via reflection).
+                var comp = bootstrapper.GetComponent("GameBootstrapper");
+                if (comp != null)
+                {
+                    var mi = comp.GetType().GetMethod("EnsureFoundation", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                    if (mi != null)
+                    {
+                        mi.Invoke(comp, null);
+                        notes.Add("Invoked GameBootstrapper.EnsureFoundation() via reflection");
+                    }
+                    else
+                    {
+                        // Fallback: call Awake if it exists (should be public Unity message; not ideal).
+                        notes.Add("GameBootstrapper.EnsureFoundation() not found; foundation may still be ensured by Awake/scene load.");
+                    }
+                }
+            }
+            else
+            {
+                // No bootstrapper; do minimal in-scene ensure for editor use only.
+                notes.Add("No GameBootstrapper found; using minimal editor ensure.");
+                if (mode == ExecutionMode.Apply)
+                    MinimalEnsureFoundationInEditor(notes);
+            }
+
+            var validation = ValidateFoundationInternal(result);
+            validation.notes = notes.ToArray();
+            AddLog(result, opName, string.Join(" | ", notes));
+            return validation;
+        }
+
+        private static FoundationReport ValidateFoundationInternal(AiExecutionResult result)
+        {
+            const string opName = "validateFoundation";
+            var report = new FoundationReport { pass = true };
+
+            var player = FindPlayer();
+            report.playerPath = player != null ? GetTransformPath(player.transform) : null;
+            if (player == null)
+            {
+                report.pass = false;
+                AddError(result, opName, "Missing Player tagged 'Player'.");
+            }
+
+            var cam = Camera.main;
+            if (cam == null)
+            {
+                // fallback: any camera
+                cam = FindFirstObjectByType<Camera>();
+            }
+            report.cameraPath = cam != null ? GetTransformPath(cam.transform) : null;
+            if (cam == null)
+            {
+                report.pass = false;
+                AddError(result, opName, "Missing Main Camera.");
+            }
+            else
+            {
+                var follow = cam.GetComponent<TopDownFollowCamera>();
+                report.cameraHasTopDownFollow = follow != null;
+                if (follow == null)
+                {
+                    report.pass = false;
+                    AddError(result, opName, "Main Camera missing TopDownFollowCamera.");
+                }
+                else
+                {
+                    var target = follow.GetTarget();
+                    report.cameraHasTarget = target != null;
+                    if (target == null)
+                    {
+                        report.pass = false;
+                        AddError(result, opName, "TopDownFollowCamera has no target.");
+                    }
+                    else if (player != null && !ReferenceEquals(target, player.transform))
+                    {
+                        AddWarning(result, opName, $"TopDownFollowCamera target is '{target.name}', expected Player '{player.name}'.");
+                    }
+                }
+            }
+
+            var canvas = FindFirstObjectByType<Canvas>();
+            report.hasCanvas = canvas != null;
+            if (canvas == null)
+            {
+                report.pass = false;
+                AddError(result, opName, "Missing Canvas.");
+            }
+
+            var es = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
+            report.hasEventSystem = es != null;
+            if (es == null)
+            {
+                report.pass = false;
+                AddError(result, opName, "Missing EventSystem.");
+            }
+
+            if (player != null)
+            {
+                report.hasPlayerHealth = player.GetComponent<PlayerHealth>() != null;
+                report.hasSimplePlayerCombat = player.GetComponent<SimplePlayerCombat>() != null;
+                if (!report.hasPlayerHealth)
+                {
+                    report.pass = false;
+                    AddError(result, opName, "Player missing PlayerHealth.");
+                }
+                if (!report.hasSimplePlayerCombat)
+                {
+                    report.pass = false;
+                    AddError(result, opName, "Player missing SimplePlayerCombat.");
+                }
+            }
+
+            var bootstrapper = FindFirstObjectByTypeInOpenScenes("GameBootstrapper");
+            report.hasBootstrapper = bootstrapper != null || GameObject.Find("_GameBootstrapper") != null;
+
+            return report;
+        }
+
+        private static void RunRecipeInternal(AiExecutionResult result, ExecutionMode mode, AiCommand cmd)
+        {
+            const string opName = "runRecipe";
+            var recipeName = cmd?.recipeName;
+            if (string.IsNullOrWhiteSpace(recipeName))
+            {
+                AddError(result, opName, "recipeName is required.");
+                return;
+            }
+
+            string[] ops;
+            if (cmd.recipeOps != null && cmd.recipeOps.Length > 0)
+            {
+                ops = cmd.recipeOps;
+                AddLog(result, opName, $"Using provided recipeOps override (count={ops.Length}).");
+            }
+            else
+            {
+                ops = GetBuiltInRecipeOps(recipeName);
+                if (ops == null || ops.Length == 0)
+                {
+                    AddError(result, opName, $"Unknown recipe '{recipeName}'.");
+                    return;
+                }
+                AddLog(result, opName, $"Running built-in recipe '{recipeName}' (steps={ops.Length}).");
+            }
+
+            for (int i = 0; i < ops.Length; i++)
+            {
+                var op = ops[i];
+                if (string.IsNullOrWhiteSpace(op))
+                    continue;
+
+                AddLog(result, opName, $"Step {i + 1}/{ops.Length}: {op}");
+
+                // Execute by dispatching directly to internal handlers.
+                switch (op)
+                {
+                    case "ensureSceneRoots":
+                        EnsureSceneRootsInternal(result, mode);
+                        break;
+                    case "validateSceneRoots":
+                        ValidateSceneRootsInternal(result);
+                        break;
+                    case "ensureFoundation":
+                        EnsureFoundationInternal(result, mode);
+                        break;
+                    case "validateFoundation":
+                        ValidateFoundationInternal(result);
+                        break;
+                    case "validateNoScaledParents":
+                        ValidateNoScaledParentsInternal(result);
+                        break;
+                    default:
+                        AddWarning(result, opName, $"Unknown recipe op '{op}' skipped.");
+                        break;
+                }
+            }
+        }
+
+        private static string[] GetBuiltInRecipeOps(string recipeName)
+        {
+            if (string.Equals(recipeName, "zone1_foundation_validate", StringComparison.OrdinalIgnoreCase))
+            {
+                return new[]
+                {
+                    "ensureSceneRoots",
+                    "validateSceneRoots",
+                    "ensureFoundation",
+                    "validateFoundation",
+                    "validateNoScaledParents"
+                };
+            }
+            return null;
+        }
+
+        private static string GetZoneRootName(string sceneName)
+        {
+            if (!string.IsNullOrWhiteSpace(sceneName) && sceneName.IndexOf("Zone1", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Zone1";
+            return string.IsNullOrWhiteSpace(sceneName) ? "Scene" : sceneName;
+        }
+
+        private static Transform EnsureChild(Transform parent, string childName, ExecutionMode mode, List<string> created)
+        {
+            if (parent == null || string.IsNullOrWhiteSpace(childName))
+                return null;
+
+            var existing = FindChild(parent, childName);
+            if (existing != null)
+                return existing;
+
+            if (mode != ExecutionMode.Apply)
+                return null;
+
+            var go = new GameObject(childName);
+            UnityEditor.Undo.RegisterCreatedObjectUndo(go, "AI ensureSceneRoots");
+            go.transform.SetParent(parent, false);
+            created?.Add(GetTransformPath(go.transform));
+            return go.transform;
+        }
+
+        private static Transform FindChild(Transform parent, string childName)
+        {
+            if (parent == null) return null;
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var c = parent.GetChild(i);
+                if (c != null && string.Equals(c.name, childName, StringComparison.Ordinal))
+                    return c;
+            }
+            return null;
+        }
+
+        private static void ValidateChild(Transform parent, string childName, List<string> missing)
+        {
+            var t = FindChild(parent, childName);
+            if (t == null)
+                missing?.Add($"{GetTransformPath(parent)}/{childName}");
+        }
+
+        private static string GetTransformPath(Transform t)
+        {
+            if (t == null) return "<null>";
+            var parts = new List<string>();
+            while (t != null)
+            {
+                parts.Add(t.name);
+                t = t.parent;
+            }
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
+
+        private static bool ApproximatelyOne(Vector3 v)
+        {
+            return Mathf.Abs(v.x - 1f) <= 0.0001f && Mathf.Abs(v.y - 1f) <= 0.0001f && Mathf.Abs(v.z - 1f) <= 0.0001f;
+        }
+
+        private static T FindFirstObjectByType<T>() where T : UnityEngine.Object
+        {
+            // Unity API surface differs across versions; keep a local helper.
+            // This finds scene objects (including inactive). In Editor, this can include DontDestroyOnLoad objects too.
+            var all = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (all == null || all.Length == 0)
+                return null;
+            return all[0];
+        }
+
+        private static bool HasAnyComponentByName(GameObject go, params string[] typeNames)
+        {
+            if (go == null || typeNames == null || typeNames.Length == 0) return false;
+
+            // include children; some scripts are attached below the root
+            var monos = go.GetComponentsInChildren<MonoBehaviour>(true);
+            for (int i = 0; i < monos.Length; i++)
+            {
+                var m = monos[i];
+                if (m == null) continue;
+                var n = m.GetType().Name;
+                for (int j = 0; j < typeNames.Length; j++)
+                {
+                    if (string.Equals(n, typeNames[j], StringComparison.Ordinal))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool NameContainsAny(string name, params string[] tokens)
+        {
+            if (string.IsNullOrWhiteSpace(name) || tokens == null) return false;
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                var t = tokens[i];
+                if (string.IsNullOrWhiteSpace(t)) continue;
+                if (name.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            }
+            return false;
+        }
+
+        private static GameObject FindPlayer()
+        {
+            try
+            {
+                return GameObject.FindWithTag("Player");
+            }
+            catch
+            {
+                // Tag may not exist.
+                return null;
+            }
+        }
+
+        private static GameObject FindFirstObjectByTypeInOpenScenes(string componentTypeName)
+        {
+            if (string.IsNullOrWhiteSpace(componentTypeName))
+                return null;
+
+            var monos = GameObject.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < monos.Length; i++)
+            {
+                var m = monos[i];
+                if (m == null) continue;
+                if (!m.gameObject.scene.IsValid()) continue;
+                if (string.Equals(m.gameObject.scene.name, "DontDestroyOnLoad", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(m.GetType().Name, componentTypeName, StringComparison.Ordinal))
+                    return m.gameObject;
+            }
+            return null;
+        }
+
+        private static void MinimalEnsureFoundationInEditor(List<string> notes)
+        {
+            // This is a fallback path; prefer GameBootstrapper.
+            var player = FindPlayer();
+            if (player == null)
+            {
+                var go = new GameObject("Player");
+                UnityEditor.Undo.RegisterCreatedObjectUndo(go, "AI ensureFoundation");
+                try { go.tag = "Player"; } catch { }
+                player = go;
+                notes?.Add("Created Player (tagged 'Player')");
+            }
+            else
+            {
+                notes?.Add("Found Player (tagged 'Player')");
+            }
+
+            if (player.GetComponent<PlayerHealth>() == null)
+            {
+                UnityEditor.Undo.AddComponent<PlayerHealth>(player);
+                notes?.Add("Added PlayerHealth to Player");
+            }
+            if (player.GetComponent<SimplePlayerCombat>() == null)
+            {
+                UnityEditor.Undo.AddComponent<SimplePlayerCombat>(player);
+                notes?.Add("Added SimplePlayerCombat to Player");
+            }
+
+            var cam = Camera.main;
+            if (cam == null)
+            {
+                var camGo = new GameObject("Main Camera");
+                UnityEditor.Undo.RegisterCreatedObjectUndo(camGo, "AI ensureFoundation");
+                cam = camGo.AddComponent<Camera>();
+                camGo.tag = "MainCamera";
+                notes?.Add("Created Main Camera");
+            }
+            if (cam.GetComponent<TopDownFollowCamera>() == null)
+            {
+                UnityEditor.Undo.AddComponent<TopDownFollowCamera>(cam.gameObject);
+                notes?.Add("Added TopDownFollowCamera to Main Camera");
+            }
+
+            // Ensure a canvas.
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+            {
+                var canvasGo = new GameObject("HUDCanvas");
+                UnityEditor.Undo.RegisterCreatedObjectUndo(canvasGo, "AI ensureFoundation");
+                canvas = canvasGo.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
+                canvasGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+                notes?.Add("Created HUDCanvas");
+            }
+
+            var es = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
+            if (es == null)
+            {
+                var esGo = new GameObject("EventSystem");
+                UnityEditor.Undo.RegisterCreatedObjectUndo(esGo, "AI ensureFoundation");
+                esGo.AddComponent<UnityEngine.EventSystems.EventSystem>();
+#if ENABLE_INPUT_SYSTEM
+                esGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+#else
+                esGo.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+#endif
+                notes?.Add("Created EventSystem");
+            }
+
+            // Wire camera target.
+            var follow = cam.GetComponent<TopDownFollowCamera>();
+            if (follow != null)
+                follow.SetTarget(player.transform);
+        }
+#endif
 
 #if UNITY_EDITOR
         private static List<T> DiscoverAssetsByType<T>(string unityTypeFilter) where T : UnityEngine.Object
@@ -480,17 +1198,6 @@ namespace AIAssistant
         }
 #endif
 
-        private static bool NameContainsAny(string name, params string[] tokens)
-        {
-            if (string.IsNullOrEmpty(name)) return false;
-            foreach (var t in tokens)
-            {
-                if (string.IsNullOrEmpty(t)) continue;
-                if (name.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-            }
-            return false;
-        }
-
         private static List<DropTableRef> ExtractDropTableRefsFromEnemy(UnityEngine.ScriptableObject enemy)
         {
             var refs = new List<DropTableRef>();
@@ -597,6 +1304,17 @@ namespace AIAssistant
                     case "validateCommandSchema":
                     case "validateAllDropTables":
                     case "validateOrphanItemDefinitions":
+                    case "ensureSceneRoots":
+                    case "validateSceneRoots":
+                    case "validateNoScaledParents":
+                    case "ensureFoundation":
+                    case "validateFoundation":
+                        break;
+
+                    case "runRecipe":
+                        allowedFields.Add("recipeName");
+                        allowedFields.Add("recipeOps");
+                        if (string.IsNullOrWhiteSpace(cmd.recipeName)) requiredMissing.Add("recipeName");
                         break;
 
                     case "validateDropTable":
@@ -646,6 +1364,8 @@ namespace AIAssistant
                 if (!allowedFields.Contains("gateId") && !string.IsNullOrWhiteSpace(cmd.gateId)) setButUnused.Add("gateId");
                 if (!allowedFields.Contains("expectedKeyItem") && !string.IsNullOrWhiteSpace(cmd.expectedKeyItem)) setButUnused.Add("expectedKeyItem");
                 if (!allowedFields.Contains("requiredAmount") && cmd.requiredAmount != 0) setButUnused.Add("requiredAmount");
+                if (!allowedFields.Contains("recipeName") && !string.IsNullOrWhiteSpace(cmd.recipeName)) setButUnused.Add("recipeName");
+                if (!allowedFields.Contains("recipeOps") && cmd.recipeOps != null && cmd.recipeOps.Length > 0) setButUnused.Add("recipeOps");
 
                 if (requiredMissing.Count > 0)
                     AddError(result, opName, $"Command[{i}] ({cmd.op}) missing required: {string.Join(", ", requiredMissing)}");
@@ -770,6 +1490,90 @@ namespace AIAssistant
                         AddLog(result, "ping", "ok");
                         result.opsExecuted++;
                         break;
+
+                    case "ensureSceneRoots":
+                    {
+                        const string opName = "ensureSceneRoots";
+#if UNITY_EDITOR
+                        var report = EnsureSceneRootsInternal(result, mode);
+                        AddLog(result, opName, JsonUtility.ToJson(report));
+#else
+                        AddError(result, opName, "Only supported in Unity Editor.");
+#endif
+                        result.opsExecuted++;
+                        break;
+                    }
+
+                    case "validateSceneRoots":
+                    {
+                        const string opName = "validateSceneRoots";
+#if UNITY_EDITOR
+                        var report = ValidateSceneRootsInternal(result);
+                        if (!report.pass)
+                            AddError(result, opName, $"Missing: [{string.Join(", ", report.missing ?? Array.Empty<string>())}]");
+                        AddLog(result, opName, JsonUtility.ToJson(report));
+#else
+                        AddError(result, opName, "Only supported in Unity Editor.");
+#endif
+                        result.opsExecuted++;
+                        break;
+                    }
+
+                    case "validateNoScaledParents":
+                    {
+                        const string opName = "validateNoScaledParents";
+#if UNITY_EDITOR
+                        var report = ValidateNoScaledParentsInternal(result);
+                        if (!report.pass)
+                            AddError(result, opName, "Found disallowed non-(1,1,1) scales in gameplay/zone transforms.");
+                        AddLog(result, opName, JsonUtility.ToJson(report));
+#else
+                        AddError(result, opName, "Only supported in Unity Editor.");
+#endif
+                        result.opsExecuted++;
+                        break;
+                    }
+
+                    case "ensureFoundation":
+                    {
+                        const string opName = "ensureFoundation";
+#if UNITY_EDITOR
+                        var report = EnsureFoundationInternal(result, mode);
+                        if (!report.pass)
+                            AddWarning(result, opName, "Foundation ensured best-effort; validateFoundation for details.");
+                        AddLog(result, opName, JsonUtility.ToJson(report));
+#else
+                        AddError(result, opName, "Only supported in Unity Editor.");
+#endif
+                        result.opsExecuted++;
+                        break;
+                    }
+
+                    case "validateFoundation":
+                    {
+                        const string opName = "validateFoundation";
+#if UNITY_EDITOR
+                        var report = ValidateFoundationInternal(result);
+                        if (!report.pass)
+                            AddError(result, opName, "Foundation validation failed; see report JSON.");
+                        AddLog(result, opName, JsonUtility.ToJson(report));
+#else
+                        AddError(result, opName, "Only supported in Unity Editor.");
+#endif
+                        result.opsExecuted++;
+                        break;
+                    }
+
+                    case "runRecipe":
+                    {
+#if UNITY_EDITOR
+                        RunRecipeInternal(result, mode, cmd);
+#else
+                        AddError(result, "runRecipe", "Only supported in Unity Editor.");
+#endif
+                        result.opsExecuted++;
+                        break;
+                    }
 
                     case "listScriptableObjectTypes":
                     {

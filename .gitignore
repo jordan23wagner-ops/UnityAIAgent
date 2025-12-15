@@ -45,3 +45,8 @@ Thumbs.db
 
 # Crash reports
 sysinfo.txt
+
+# Local repo snapshot artifacts (generated for sharing/debugging)
+UnityAIAgent_snapshot_*.tar.gz
+UnityAIAgent_snapshot_*.zip
+Snapshots/*_repo_snapshot/

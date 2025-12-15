@@ -55,6 +55,12 @@ namespace AIAssistant
         public string gateId;
         public string expectedKeyItem;
         public int requiredAmount;
+
+        // runRecipe op payload
+        // - recipeName selects a built-in recipe (e.g., "zone1_foundation_validate")
+        // - recipeOps optionally overrides the step list (each entry is an op name)
+        public string recipeName;
+        public string[] recipeOps;
     }
 
         [Serializable]

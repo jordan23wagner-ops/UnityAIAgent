@@ -27,6 +27,8 @@ namespace AIAssistant
     {
         private const string ApiUrl = "https://api.openai.com/v1/chat/completions";
 
+#pragma warning disable CS0649 // Fields are assigned by JSON deserialization.
+
         [Serializable]
         private class ChatMessage
         {
@@ -59,6 +61,8 @@ namespace AIAssistant
         {
             public string content;
         }
+
+#pragma warning restore CS0649
 
         /// <summary>
         /// Main entry point: send user prompt to OpenAI and parse back AiCommandList.

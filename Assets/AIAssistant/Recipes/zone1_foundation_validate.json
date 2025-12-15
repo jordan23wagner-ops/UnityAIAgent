@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "requestId": "zone1_foundation_validate",
+  "mode": "DryRun",
+  "commands": {
+    "commands": [
+      {
+        "op": "runRecipe",
+        "recipeName": "zone1_foundation_validate"
+      }
+    ]
+  }
+}

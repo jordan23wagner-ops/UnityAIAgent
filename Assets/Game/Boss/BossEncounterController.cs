@@ -14,6 +14,10 @@ public class BossEncounterController : MonoBehaviour
     public bool activateExistingBossInsteadOfInstantiate = false;
     public GameObject existingBossRoot;
 
+    [Header("UI")]
+    [Tooltip("Boss health UI prefab (Assets/Resources/UI/BossHealthUI.prefab). If left null, it will be loaded via Resources at runtime.")]
+    public GameObject bossHealthUiPrefab;
+
     private GameObject _spawnedBossInstance;
 
     public void TriggerBoss()
@@ -60,6 +64,8 @@ public class BossEncounterController : MonoBehaviour
         }
 
         hasSpawnedThisSigil = true;
+
+        EnsureBossHealthUI(bossRoot);
 
         ValidateBossLoot(bossRoot);
     }
@@ -174,5 +180,84 @@ public class BossEncounterController : MonoBehaviour
             if (item.rarity >= minRarity) return true;
         }
         return false;
+    }
+
+    private static T FindFirstInScene<T>() where T : UnityEngine.Object
+    {
+        var all = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (all == null || all.Length == 0)
+            return null;
+        return all[0];
+    }
+
+    private void EnsureBossHealthUI(GameObject bossRoot)
+    {
+        if (bossRoot == null)
+            return;
+
+        // Always create/ensure the world-space boss UI.
+        var ui = FindFirstInScene<BossHealthUI>();
+        if (ui == null)
+        {
+            var prefab = bossHealthUiPrefab;
+            if (prefab == null)
+                prefab = Resources.Load<GameObject>("UI/BossHealthUI");
+
+            if (prefab == null)
+            {
+                Debug.LogError("[BossEncounter] Missing boss UI prefab at Resources/UI/BossHealthUI. Run Tools/Abyssbound/Create Boss Health UI Prefab.", this);
+                return;
+            }
+
+            var go = Instantiate(prefab);
+            ui = go.GetComponent<BossHealthUI>();
+            if (ui == null)
+                ui = go.GetComponentInChildren<BossHealthUI>(true);
+        }
+
+        if (ui == null)
+        {
+            Debug.LogError("[BossEncounter] BossHealthUI prefab instantiated but BossHealthUI component is missing.", this);
+            return;
+        }
+
+        var enemyHealth = bossRoot.GetComponentInChildren<EnemyHealth>(true);
+        var displayName = bossRoot.name;
+
+        ui.SetTarget(bossRoot.transform);
+
+        if (enemyHealth != null)
+        {
+            Debug.Log("[BossEncounter] Boss UI: WorldSpace", this);
+            ui.Bind(enemyHealth, bossRoot.transform, displayName);
+            return;
+        }
+
+        // Best-effort fallback: any component whose type name contains "Health".
+        var anyHealth = FindAnyHealthComponent(bossRoot);
+        if (anyHealth != null)
+        {
+            Debug.Log("[BossEncounter] Boss UI: WorldSpace", this);
+            ui.Bind(anyHealth, bossRoot.transform, displayName);
+            return;
+        }
+
+        Debug.LogWarning($"[BossEncounter] Boss '{bossRoot.name}' has no health component; boss UI will hide.", bossRoot);
+        ui.Bind((EnemyHealth)null, bossRoot.transform, displayName);
+    }
+
+    private static Component FindAnyHealthComponent(GameObject bossRoot)
+    {
+        if (bossRoot == null) return null;
+        var comps = bossRoot.GetComponentsInChildren<Component>(true);
+        foreach (var c in comps)
+        {
+            if (c == null) continue;
+            if (c is BossHealthUI) continue;
+            var n = c.GetType().Name;
+            if (n.IndexOf("Health", System.StringComparison.OrdinalIgnoreCase) < 0) continue;
+            return c;
+        }
+        return null;
     }
 }
