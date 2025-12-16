@@ -1,0 +1,9 @@
+{
+    "schemaVersion": "1.0",
+    "name": "CommandRun",
+    "correlationId": "smoke_validateFoundation",
+    "startedUtc": "2025-12-15T03:32:47.8876185Z",
+    "endedUtc": "2025-12-15T03:32:47.8891252Z",
+    "logs": [],
+    "compilerMessages": []
+}

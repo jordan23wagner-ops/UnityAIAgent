@@ -1,0 +1,21 @@
+{
+    "schemaVersion": "1.0",
+    "timestampUtc": "2025-12-15T03:30:30.1053623Z",
+    "sourceFile": "Assets/AICommands/Incoming/smoke_validateFoundation.json",
+    "mode": "DryRun",
+    "requestId": "smoke_validateFoundation",
+    "parseError": "",
+    "executionException": "",
+    "result": {
+        "success": true,
+        "mode": 0,
+        "opsPlanned": 1,
+        "opsExecuted": 1,
+        "errors": [],
+        "warnings": [],
+        "logs": [
+            "[UnityTools] Mode: DryRun | Commands: 1 | allowedRoots: [] deniedRoots: [] maxOps: 0",
+            "validateFoundation: {\"pass\":true,\"playerPath\":\"__SCENE/Zone1/_ACTORS/Player_Hero\",\"cameraPath\":\"Main Camera\",\"hasCanvas\":true,\"hasEventSystem\":true,\"cameraHasTopDownFollow\":true,\"cameraHasTarget\":true,\"hasPlayerHealth\":true,\"hasSimplePlayerCombat\":true,\"hasBootstrapper\":true,\"notes\":[]}"
+        ]
+    }
+}

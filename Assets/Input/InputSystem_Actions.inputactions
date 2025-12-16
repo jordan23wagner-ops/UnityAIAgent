@@ -6,7 +6,25 @@
             "id": "df70fa95-8a34-4494-b137-73ab6b9c7d37",
             "actions": [
                 {
-                    "name": "Move",
+                    "name": "Click",
+                    "type": "Button",
+                    "id": "c3d7d6c4-03c0-4e5e-a7ae-2f69b0aa8c01",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "PointerPosition",
+                    "type": "Value",
+                    "id": "d3f2f4c1-2b3b-4d5a-9a3f-63e63e9a0c0b",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "CameraPan",
                     "type": "Value",
                     "id": "351f2ccd-1f9f-44bf-9bec-d62ac5c5f408",
                     "expectedControlType": "Vector2",
@@ -95,7 +113,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -106,7 +124,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": true,
                     "isPartOfComposite": false
                 },
@@ -117,7 +135,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -128,7 +146,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -139,7 +157,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -150,7 +168,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -161,7 +179,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -172,7 +190,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -183,7 +201,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -194,7 +212,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -205,7 +223,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "XR",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -216,7 +234,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Joystick",
-                    "action": "Move",
+                    "action": "CameraPan",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -271,7 +289,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Attack",
+                    "action": "Click",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -470,6 +488,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "Crouch",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "f3e3b3d1-2f5b-4e7a-9dd8-2f4a5d0a2f11",
+                    "path": "<Pointer>/position",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse;Touch",
+                    "action": "PointerPosition",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

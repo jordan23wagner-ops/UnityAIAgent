@@ -103,6 +103,15 @@ namespace AIAssistant
                 if (GUILayout.Button("Load Command File", GUILayout.Width(150)))
                     LoadCommandFile();
 
+                if (GUILayout.Button("Run Latest Incoming (DryRun)", GUILayout.Width(200)))
+                    AiCommandFileRunner.RunLatestIncomingDryRun();
+
+                if (GUILayout.Button("Run Latest Incoming (Apply)", GUILayout.Width(190)))
+                    AiCommandFileRunner.RunLatestIncomingApply();
+
+                if (GUILayout.Button("Open Reports Folder", GUILayout.Width(160)))
+                    AiCommandFileRunner.OpenReportsFolder();
+
                 if (GUILayout.Button("Clear Log", GUILayout.Width(110)))
                     _log.Clear();
 
@@ -170,30 +179,9 @@ namespace AIAssistant
                 return;
             }
 
-            // Parse
-            AiCommandEnvelope envelope = null;
-            AiCommandList list = null;
-
-            // Try envelope first (preferred)
-            try { envelope = JsonUtility.FromJson<AiCommandEnvelope>(json); }
-            catch { envelope = null; }
-
-            if (envelope != null && envelope.commands != null && envelope.commands.commands != null && envelope.commands.commands.Length > 0)
+            if (!AiCommandParser.TryParse(json, out var envelope, out var list, out var parseError))
             {
-                list = envelope.commands;
-            }
-            else
-            {
-                // Fallback: legacy list-only JSON
-                try { list = JsonUtility.FromJson<AiCommandList>(json); }
-                catch { list = null; }
-            }
-
-            if (list == null || list.commands == null || list.commands.Length == 0)
-            {
-                AppendLog("[ERROR] Parsed no commands. Check JSON shape. Expected either:");
-                AppendLog(" - { \"schemaVersion\":..., \"commands\": { \"commands\": [ ... ] } }");
-                AppendLog(" - { \"commands\": [ ... ] }");
+                AppendLog("[ERROR] " + (parseError ?? "Failed to parse commands."));
                 return;
             }
 

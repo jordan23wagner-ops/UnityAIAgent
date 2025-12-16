@@ -74,6 +74,10 @@ public class HealthBarUI : MonoBehaviour
             return;
         }
 
-        slider.value = target.Normalized;
+        // Drive slider by absolute health so slider.maxValue can be MaxHealth.
+        slider.minValue = 0f;
+        slider.maxValue = target.MaxHealth;
+        slider.wholeNumbers = false;
+        slider.value = target.CurrentHealth;
     }
 }

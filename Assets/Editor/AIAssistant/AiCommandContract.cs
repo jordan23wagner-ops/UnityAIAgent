@@ -37,10 +37,17 @@ namespace AIAssistant
         // Required
         public string op;
 
+        // Optional per-command scope override (if null, envelope scope can be applied)
+        public SafetyScope scope;
+
         // Common targeting / scene ops
         public string name;
         public string path;        // for find/delete/select/etc
         public string parentPath;  // for createObject parenting
+
+        // ensurePlayerInputStack op payload
+        public string playerTag;
+        public bool ensureCameraPan = true;
 
         // validateDropTable op payload
         // validateEnemyDrops op payload

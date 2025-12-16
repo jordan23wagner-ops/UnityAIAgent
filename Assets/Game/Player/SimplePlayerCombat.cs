@@ -1,37 +1,50 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class SimplePlayerCombat : MonoBehaviour
 {
     [Header("Attack")]
     [SerializeField] private int damage = 1;
+    [SerializeField] private float attackCooldownSeconds = 0.6f;
     [SerializeField] private float range = 1.75f;
     [SerializeField] private LayerMask hitMask = ~0;
+
+    [Header("Debug")]
+    [SerializeField] private bool debugLogs;
 
     [Header("Target (optional)")]
     [SerializeField] private EnemyHealth selectedTarget;
 
-    private void Update()
+    private float _nextAttackTime;
+
+    public float Range => range;
+
+    public EnemyHealth SelectedTarget
     {
-        var kb = Keyboard.current;
-        var mouse = Mouse.current;
-
-        bool attackPressed = false;
-
-        if (kb != null && kb.spaceKey.wasPressedThisFrame)
-            attackPressed = true;
-
-        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-            attackPressed = true;
-
-        if (attackPressed)
-            TryAttack();
+        get => selectedTarget;
+        set => selectedTarget = value;
     }
 
-    private void TryAttack()
+    public void SetSelectedTarget(EnemyHealth target)
     {
-        if (TryAttackSelectedTarget())
+        SelectedTarget = target;
+    }
+
+    public void TryAttack()
+    {
+        if (Time.time < _nextAttackTime)
             return;
+
+        if (SelectedTarget != null)
+        {
+            var attackedTarget = SelectedTarget;
+            if (!TryAttackSelectedTarget())
+                return;
+
+            _nextAttackTime = Time.time + Mathf.Max(0.05f, attackCooldownSeconds);
+            if (attackedTarget != null)
+                Debug.Log($"[Combat] You attacked {attackedTarget.name}", this);
+            return;
+        }
 
         var hits = Physics.OverlapSphere(transform.position, Mathf.Max(0.1f, range), hitMask, QueryTriggerInteraction.Collide);
         if (hits == null || hits.Length == 0)
@@ -59,7 +72,9 @@ public class SimplePlayerCombat : MonoBehaviour
         if (best == null)
             return;
 
-        best.TakeDamage(Mathf.Max(1, damage));
+        _nextAttackTime = Time.time + Mathf.Max(0.05f, attackCooldownSeconds);
+        var hitPos = best.transform.position + Vector3.up * 1.2f;
+        best.TakeDamage(Mathf.Max(1, damage), hitPos);
     }
 
     private bool TryAttackSelectedTarget()
@@ -67,11 +82,25 @@ public class SimplePlayerCombat : MonoBehaviour
         if (selectedTarget == null)
             return false;
 
-        float distSq = (selectedTarget.transform.position - transform.position).sqrMagnitude;
-        if (distSq > range * range)
+        if (selectedTarget.IsDead)
             return false;
 
-        selectedTarget.TakeDamage(Mathf.Max(1, damage));
+        // Match CombatLoopController: XZ plane only (ignore Y).
+        Vector3 myPos = transform.position;
+        Vector3 targetPos = selectedTarget.transform.position;
+        float dx = targetPos.x - myPos.x;
+        float dz = targetPos.z - myPos.z;
+        float distSq = (dx * dx) + (dz * dz);
+        float rangeSq = range * range;
+        if (distSq > rangeSq)
+        {
+            if (debugLogs)
+                Debug.Log($"[Combat] Attack rejected: out of range. xzDist={Mathf.Sqrt(distSq):0.00} range={range:0.00}", this);
+            return false;
+        }
+
+        var hitPos = selectedTarget.transform.position + Vector3.up * 1.2f;
+        selectedTarget.TakeDamage(Mathf.Max(1, damage), hitPos);
         return true;
     }
 

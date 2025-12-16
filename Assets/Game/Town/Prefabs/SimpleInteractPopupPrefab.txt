@@ -1,0 +1,8 @@
+Prefab instructions:
+- Create a Canvas in your scene (Screen Space Overlay).
+- Add a Panel (name: PopupRoot), set anchor to center, size to 400x100, background color semi-transparent black.
+- Add a Text child (name: PopupText), anchor stretch, font size 28, color white.
+- Add the SimpleInteractPopup script to the Canvas or Panel.
+- Assign PopupRoot and PopupText fields in the inspector.
+- Set PopupRoot inactive by default.
+- Save as prefab: Assets/Game/Town/Prefabs/SimpleInteractPopup.prefab

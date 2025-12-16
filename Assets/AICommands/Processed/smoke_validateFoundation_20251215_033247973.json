@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "requestId": "smoke_validateFoundation",
+  "scope": {
+    "sceneName": "ActiveScene"
+  },
+  "commands": {
+    "commands": [
+      { "op": "validateFoundation" }
+    ]
+  }
+}

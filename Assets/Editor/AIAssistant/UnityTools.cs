@@ -6,6 +6,14 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.SceneManagement;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+#endif
+
 namespace AIAssistant
 {
     public static class UnityTools
@@ -56,6 +64,16 @@ namespace AIAssistant
             public string sceneName;
             public string zoneRootName;
             public ScaleIssue[] issues;
+        }
+
+        [Serializable]
+        private class PlayerInputStackReport
+        {
+            public bool pass;
+            public string playerPath;
+            public string inputActionsPath;
+            public string[] planned;
+            public string[] applied;
         }
 #endif
 
@@ -369,6 +387,437 @@ namespace AIAssistant
             AddLog(result, opName, string.Join(" | ", notes));
             return validation;
         }
+
+        private static PlayerInputStackReport EnsurePlayerInputStackInternal(AiExecutionResult result, ExecutionMode mode, AiCommand cmd)
+        {
+            const string opName = "ensurePlayerInputStack";
+            var planned = new List<string>();
+            var applied = new List<string>();
+
+            bool apply = mode == ExecutionMode.Apply;
+            bool anyChanged = false;
+
+            string playerTag = cmd != null && !string.IsNullOrWhiteSpace(cmd.playerTag) ? cmd.playerTag : "Player";
+            bool ensureCameraPan = cmd == null || cmd.ensureCameraPan;
+
+#if !ENABLE_INPUT_SYSTEM
+            AddError(result, opName, "ENABLE_INPUT_SYSTEM is not defined; cannot ensure PlayerInput stack.");
+            return new PlayerInputStackReport
+            {
+                pass = false,
+                playerPath = null,
+                inputActionsPath = "Assets/Input/InputSystem_Actions.inputactions",
+                planned = planned.ToArray(),
+                applied = applied.ToArray()
+            };
+#else
+            const string inputActionsPath = "Assets/Input/InputSystem_Actions.inputactions";
+
+            EnsureAssetFoldersForPath(inputActionsPath, apply, planned, applied, ref anyChanged);
+            var actionsAsset = EnsureInputActionsAsset(inputActionsPath, apply, planned, applied, ref anyChanged);
+
+            var player = FindPlayerForInputStack(playerTag);
+            if (player == null)
+            {
+                AddError(result, opName, $"Player not found (tag='{playerTag}' or PlayerInventory)." );
+                return new PlayerInputStackReport
+                {
+                    pass = false,
+                    playerPath = null,
+                    inputActionsPath = inputActionsPath,
+                    planned = planned.ToArray(),
+                    applied = applied.ToArray()
+                };
+            }
+
+            // Remove legacy stack pieces that conflict with click-to-move + intent system.
+            RemoveIfPresent(player, "PlayerMovement", apply, planned, applied, ref anyChanged);
+            RemoveIfPresent(player, "PlayerClickToMoveController", apply, planned, applied, ref anyChanged);
+            RemoveIfPresent(player, "PlayerInputGameplayBinder", apply, planned, applied, ref anyChanged);
+            RemoveIfPresent(player, "DebugPlayerMover_NewInput", apply, planned, applied, ref anyChanged);
+
+            // Ensure required components.
+            var existingPi = player.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+            var pi = EnsureComponent<UnityEngine.InputSystem.PlayerInput>(player, apply, planned, applied, ref anyChanged);
+            EnsureComponentByName(result, player, "PlayerInputAuthority", apply, planned, applied, ref anyChanged);
+            EnsureComponentByName(result, player, "PlayerMovementMotor", apply, planned, applied, ref anyChanged);
+            EnsureComponentByName(result, player, "ClickToMoveController", apply, planned, applied, ref anyChanged);
+            EnsureComponentByName(result, player, "CombatLoopController", apply, planned, applied, ref anyChanged);
+            var combat = EnsureComponent<SimplePlayerCombat>(player, apply, planned, applied, ref anyChanged);
+
+            // Plan/configure PlayerInput even in DryRun (pi may be null because we didn't add it).
+            var piForPlanning = pi != null ? pi : existingPi;
+            if (piForPlanning != null || existingPi == null)
+            {
+                if (existingPi == null)
+                {
+                    planned.Add($"Set PlayerInput.actions = {inputActionsPath}");
+                    planned.Add("Set PlayerInput.defaultActionMap = 'Player'");
+                    planned.Add("Set PlayerInput.notificationBehavior = InvokeCSharpEvents");
+                }
+
+                if (piForPlanning != null && piForPlanning.actions != actionsAsset)
+                {
+                    planned.Add($"Set PlayerInput.actions = {inputActionsPath}");
+                    if (apply)
+                    {
+                        Undo.RecordObject(piForPlanning, "AI ensurePlayerInputStack");
+                        piForPlanning.actions = actionsAsset;
+                        EditorUtility.SetDirty(piForPlanning);
+                        applied.Add($"Set PlayerInput.actions = {inputActionsPath}");
+                        anyChanged = true;
+                    }
+                }
+
+                if (piForPlanning != null && !string.Equals(piForPlanning.defaultActionMap, "Player", StringComparison.Ordinal))
+                {
+                    planned.Add("Set PlayerInput.defaultActionMap = 'Player'");
+                    if (apply)
+                    {
+                        Undo.RecordObject(piForPlanning, "AI ensurePlayerInputStack");
+                        piForPlanning.defaultActionMap = "Player";
+                        EditorUtility.SetDirty(piForPlanning);
+                        applied.Add("Set PlayerInput.defaultActionMap = 'Player'");
+                        anyChanged = true;
+                    }
+                }
+
+                if (piForPlanning != null && piForPlanning.notificationBehavior != UnityEngine.InputSystem.PlayerNotifications.InvokeCSharpEvents)
+                {
+                    planned.Add("Set PlayerInput.notificationBehavior = InvokeCSharpEvents");
+                    if (apply)
+                    {
+                        Undo.RecordObject(piForPlanning, "AI ensurePlayerInputStack");
+                        piForPlanning.notificationBehavior = UnityEngine.InputSystem.PlayerNotifications.InvokeCSharpEvents;
+                        EditorUtility.SetDirty(piForPlanning);
+                        applied.Add("Set PlayerInput.notificationBehavior = InvokeCSharpEvents");
+                        anyChanged = true;
+                    }
+                }
+            }
+
+            // Ensure camera pan controller exists.
+            if (ensureCameraPan)
+            {
+                var cam = Camera.main;
+                if (cam == null)
+                    cam = FindFirstObjectByType<Camera>();
+
+                if (cam == null)
+                {
+                    AddWarning(result, opName, "No camera found to attach CameraPanController.");
+                }
+                else
+                {
+                    if (cam.GetComponent<CameraPanController>() == null)
+                    {
+                        planned.Add("Add CameraPanController to Main Camera");
+                        if (apply)
+                        {
+                            Undo.AddComponent<CameraPanController>(cam.gameObject);
+                            applied.Add("Added CameraPanController to Main Camera");
+                            anyChanged = true;
+                        }
+                    }
+                }
+            }
+
+            if (apply && anyChanged)
+            {
+                var scene = EditorSceneManager.GetActiveScene();
+                if (scene.IsValid())
+                    EditorSceneManager.MarkSceneDirty(scene);
+            }
+
+            AddLog(result, opName, anyChanged ? "Changes ensured." : "No changes needed.");
+
+            return new PlayerInputStackReport
+            {
+                pass = result == null || (result.errors == null || result.errors.Count == 0),
+                playerPath = GetTransformPath(player.transform),
+                inputActionsPath = inputActionsPath,
+                planned = planned.ToArray(),
+                applied = applied.ToArray()
+            };
+#endif
+        }
+
+#if ENABLE_INPUT_SYSTEM
+        private static void EnsureAssetFoldersForPath(string assetPath, bool apply, List<string> planned, List<string> applied, ref bool anyChanged)
+        {
+            if (string.IsNullOrWhiteSpace(assetPath))
+                return;
+
+            var dir = System.IO.Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
+            if (string.IsNullOrWhiteSpace(dir))
+                return;
+
+            if (AssetDatabase.IsValidFolder(dir))
+                return;
+
+            // Create recursively.
+            var parts = dir.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            string cur = parts.Length > 0 ? parts[0] : "Assets";
+            for (int i = 1; i < parts.Length; i++)
+            {
+                var next = cur + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(next))
+                {
+                    planned.Add($"Create folder {next}");
+                    if (apply)
+                    {
+                        AssetDatabase.CreateFolder(cur, parts[i]);
+                        applied.Add($"Created folder {next}");
+                        anyChanged = true;
+                    }
+                }
+                cur = next;
+            }
+        }
+
+        private static InputActionAsset EnsureInputActionsAsset(string assetPath, bool apply, List<string> planned, List<string> applied, ref bool anyChanged)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>(assetPath);
+            if (asset == null)
+            {
+                planned.Add($"Create InputActionAsset at {assetPath}");
+                if (!apply)
+                    return null;
+
+                asset = ScriptableObject.CreateInstance<InputActionAsset>();
+                AssetDatabase.CreateAsset(asset, assetPath);
+                AssetDatabase.ImportAsset(assetPath);
+                applied.Add($"Created InputActionAsset at {assetPath}");
+                anyChanged = true;
+            }
+
+            var map = asset.FindActionMap("Player", false);
+            if (map == null)
+            {
+                planned.Add("Add ActionMap 'Player'");
+                if (apply)
+                {
+                    map = new InputActionMap("Player");
+                    asset.AddActionMap(map);
+                    anyChanged = true;
+                    applied.Add("Added ActionMap 'Player'");
+                }
+                else
+                    return asset;
+            }
+
+            EnsureAction(map, "CameraPan", InputActionType.Value, "Vector2", apply, planned, applied, ref anyChanged);
+            EnsureAction(map, "Click", InputActionType.Button, "Button", apply, planned, applied, ref anyChanged);
+            EnsureAction(map, "PointerPosition", InputActionType.Value, "Vector2", apply, planned, applied, ref anyChanged);
+            EnsureAction(map, "AttackDebug", InputActionType.Button, "Button", apply, planned, applied, ref anyChanged);
+
+            // Bindings
+            var cameraPan = map.FindAction("CameraPan", false);
+            if (cameraPan != null)
+            {
+                EnsureKeyboard2DVector(cameraPan, "WASD", "<Keyboard>/w", "<Keyboard>/s", "<Keyboard>/a", "<Keyboard>/d", apply, planned, applied, ref anyChanged);
+                EnsureKeyboard2DVector(cameraPan, "Arrows", "<Keyboard>/upArrow", "<Keyboard>/downArrow", "<Keyboard>/leftArrow", "<Keyboard>/rightArrow", apply, planned, applied, ref anyChanged);
+            }
+
+            var click = map.FindAction("Click", false);
+            if (click != null)
+                EnsureBinding(click, "<Mouse>/leftButton", apply, planned, applied, ref anyChanged);
+
+            var pointer = map.FindAction("PointerPosition", false);
+            if (pointer != null)
+                EnsureBinding(pointer, "<Pointer>/position", apply, planned, applied, ref anyChanged);
+
+            var attackDebug = map.FindAction("AttackDebug", false);
+            if (attackDebug != null)
+                EnsureBinding(attackDebug, "<Keyboard>/space", apply, planned, applied, ref anyChanged);
+
+            if (apply)
+            {
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssets();
+            }
+
+            return asset;
+        }
+
+        private static void EnsureAction(InputActionMap map, string actionName, InputActionType type, string expectedControlType, bool apply, List<string> planned, List<string> applied, ref bool anyChanged)
+        {
+            if (map == null) return;
+            if (map.FindAction(actionName, false) != null) return;
+
+            planned.Add($"Add action Player/{actionName} ({type})");
+            if (apply)
+            {
+                map.AddAction(actionName, type, null, null, null, expectedControlType);
+                applied.Add($"Added action Player/{actionName}");
+                anyChanged = true;
+            }
+        }
+
+        private static void EnsureBinding(InputAction action, string path, bool apply, List<string> planned, List<string> applied, ref bool anyChanged)
+        {
+            if (action == null || string.IsNullOrWhiteSpace(path)) return;
+            for (int i = 0; i < action.bindings.Count; i++)
+            {
+                if (string.Equals(action.bindings[i].path, path, StringComparison.Ordinal))
+                    return;
+            }
+
+            planned.Add($"Add binding {action.actionMap.name}/{action.name} -> {path}");
+            if (apply)
+            {
+                action.AddBinding(path);
+                applied.Add($"Added binding {action.actionMap.name}/{action.name} -> {path}");
+                anyChanged = true;
+            }
+        }
+
+        private static void EnsureKeyboard2DVector(InputAction action, string label, string up, string down, string left, string right, bool apply, List<string> planned, List<string> applied, ref bool anyChanged)
+        {
+            if (action == null) return;
+            bool hasUp = HasBindingPath(action, up);
+            bool hasDown = HasBindingPath(action, down);
+            bool hasLeft = HasBindingPath(action, left);
+            bool hasRight = HasBindingPath(action, right);
+
+            if (hasUp && hasDown && hasLeft && hasRight)
+                return;
+
+            planned.Add($"Ensure CameraPan has {label} bindings");
+            if (!apply)
+                return;
+
+            anyChanged = true;
+            var composite = action.AddCompositeBinding("2DVector");
+            composite.With("Up", up);
+            composite.With("Down", down);
+            composite.With("Left", left);
+            composite.With("Right", right);
+            applied.Add($"Added CameraPan {label} 2DVector composite");
+        }
+
+        private static bool HasBindingPath(InputAction action, string path)
+        {
+            if (action == null) return false;
+            for (int i = 0; i < action.bindings.Count; i++)
+            {
+                if (string.Equals(action.bindings[i].path, path, StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
+        }
+
+        private static GameObject FindPlayerForInputStack(string playerTag)
+        {
+            // Prefer tag when possible.
+            if (!string.IsNullOrWhiteSpace(playerTag))
+            {
+                try
+                {
+                    var byTag = GameObject.FindWithTag(playerTag);
+                    if (byTag != null)
+                        return byTag;
+                }
+                catch { }
+            }
+
+            // Fallback: PlayerInventory.
+            try
+            {
+                var inv = FindFirstObjectByType<PlayerInventory>();
+                if (inv != null)
+                    return inv.gameObject;
+            }
+            catch { }
+
+            return null;
+        }
+
+        private static void RemoveIfPresent(GameObject go, string componentTypeName, bool apply, List<string> planned, List<string> applied, ref bool anyChanged)
+        {
+            if (go == null || string.IsNullOrWhiteSpace(componentTypeName))
+                return;
+
+            var comp = go.GetComponent(componentTypeName) as Component;
+            if (comp == null)
+                return;
+
+            planned.Add($"Remove {componentTypeName} from {go.name}");
+            if (apply)
+            {
+                Undo.DestroyObjectImmediate(comp);
+                applied.Add($"Removed {componentTypeName} from {go.name}");
+                anyChanged = true;
+            }
+        }
+
+        private static T EnsureComponent<T>(GameObject go, bool apply, List<string> planned, List<string> applied, ref bool anyChanged) where T : Component
+        {
+            if (go == null) return null;
+
+            var existing = go.GetComponent<T>();
+            if (existing != null)
+                return existing;
+
+            planned.Add($"Add {typeof(T).Name} to {go.name}");
+            if (apply)
+            {
+                var added = Undo.AddComponent<T>(go);
+                applied.Add($"Added {typeof(T).Name} to {go.name}");
+                anyChanged = true;
+                return added;
+            }
+
+            return null;
+        }
+
+        private static Component EnsureComponentByName(AiExecutionResult result, GameObject go, string typeName, bool apply, List<string> planned, List<string> applied, ref bool anyChanged)
+        {
+            if (go == null || string.IsNullOrWhiteSpace(typeName))
+                return null;
+
+            var existing = go.GetComponent(typeName) as Component;
+            if (existing != null)
+                return existing;
+
+            planned.Add($"Add {typeName} to {go.name}");
+            if (!apply)
+                return null;
+
+            var t = FindTypeByName(typeName);
+            if (t == null)
+            {
+                AddError(result, "ensurePlayerInputStack", $"Could not resolve type '{typeName}' to add to '{go.name}'.");
+                return null;
+            }
+
+            var added = Undo.AddComponent(go, t);
+            applied.Add($"Added {typeName} to {go.name}");
+            anyChanged = true;
+            return added;
+        }
+
+        private static Type FindTypeByName(string typeName)
+        {
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                var asm = assemblies[i];
+                Type[] types;
+                try { types = asm.GetTypes(); }
+                catch { continue; }
+
+                for (int j = 0; j < types.Length; j++)
+                {
+                    var t = types[j];
+                    if (t == null) continue;
+                    if (string.Equals(t.Name, typeName, StringComparison.Ordinal))
+                        return t;
+                }
+            }
+            return null;
+        }
+#endif
 
         private static FoundationReport ValidateFoundationInternal(AiExecutionResult result)
         {
@@ -1311,6 +1760,11 @@ namespace AIAssistant
                     case "validateFoundation":
                         break;
 
+                    case "ensurePlayerInputStack":
+                        allowedFields.Add("playerTag");
+                        allowedFields.Add("ensureCameraPan");
+                        break;
+
                     case "runRecipe":
                         allowedFields.Add("recipeName");
                         allowedFields.Add("recipeOps");
@@ -1366,6 +1820,9 @@ namespace AIAssistant
                 if (!allowedFields.Contains("requiredAmount") && cmd.requiredAmount != 0) setButUnused.Add("requiredAmount");
                 if (!allowedFields.Contains("recipeName") && !string.IsNullOrWhiteSpace(cmd.recipeName)) setButUnused.Add("recipeName");
                 if (!allowedFields.Contains("recipeOps") && cmd.recipeOps != null && cmd.recipeOps.Length > 0) setButUnused.Add("recipeOps");
+
+                if (!allowedFields.Contains("playerTag") && !string.IsNullOrWhiteSpace(cmd.playerTag)) setButUnused.Add("playerTag");
+                if (!allowedFields.Contains("ensureCameraPan") && cmd.ensureCameraPan != true) setButUnused.Add("ensureCameraPan");
 
                 if (requiredMissing.Count > 0)
                     AddError(result, opName, $"Command[{i}] ({cmd.op}) missing required: {string.Join(", ", requiredMissing)}");
@@ -1427,14 +1884,9 @@ namespace AIAssistant
             if (list?.commands != null && list.commands.Length > 0)
             {
                 var first = list.commands[0];
-                if (first != null && first.GetType().GetProperty("scope") != null)
-                {
-                    var scopeObj = first.GetType().GetProperty("scope").GetValue(first);
-                    if (scopeObj != null && scopeObj is SafetyScope scope)
-                    {
-                        scopeMsg = $" | allowedRoots: [{string.Join(",", scope.allowedRoots)}] deniedRoots: [{string.Join(",", scope.deniedRoots)}] maxOps: {scope.maxOperations}";
-                    }
-                }
+                var scope = first != null ? first.scope : null;
+                if (scope != null)
+                    scopeMsg = $" | allowedRoots: [{string.Join(",", scope.allowedRoots)}] deniedRoots: [{string.Join(",", scope.deniedRoots)}] maxOps: {scope.maxOperations}";
             }
             result.logs.Add($"[UnityTools] Mode: {mode} | Commands: {(list?.commands?.Length ?? 0)}{scopeMsg}");
 
@@ -1456,18 +1908,16 @@ namespace AIAssistant
                 // --- Pre-execution scope safety check (preserve existing behavior) ---
                 var pathsToCheck = new[] { cmd.parentPath, cmd.name, cmd.prefabId, cmd.enemyId, cmd.dropTableId, cmd.gateId, cmd.expectedKeyItem, cmd.path };
                 bool denied = false;
-                if (list.commands != null && list.commands.Length > 0)
-                {
-                    var deniedRoots = new List<string>();
-                    if (cmd is AiCommand c && c != null && c.GetType().GetProperty("scope") != null)
-                    {
-                        var scopeObj = c.GetType().GetProperty("scope").GetValue(c);
-                        if (scopeObj != null && scopeObj is SafetyScope scope && scope.deniedRoots != null)
-                            deniedRoots.AddRange(scope.deniedRoots);
-                    }
 
-                    foreach (var deniedRoot in deniedRoots)
+                var deniedRoots = cmd.scope != null && cmd.scope.deniedRoots != null
+                    ? cmd.scope.deniedRoots
+                    : null;
+
+                if (deniedRoots != null)
+                {
+                    for (int d = 0; d < deniedRoots.Count; d++)
                     {
+                        var deniedRoot = deniedRoots[d];
                         foreach (var p in pathsToCheck)
                         {
                             if (!string.IsNullOrEmpty(deniedRoot) && !string.IsNullOrEmpty(p) && p.StartsWith(deniedRoot, StringComparison.OrdinalIgnoreCase))
@@ -1483,7 +1933,6 @@ namespace AIAssistant
 
                 if (denied)
                     continue;
-
                 switch (cmd.op)
                 {
                     case "ping":
@@ -1556,6 +2005,21 @@ namespace AIAssistant
                         var report = ValidateFoundationInternal(result);
                         if (!report.pass)
                             AddError(result, opName, "Foundation validation failed; see report JSON.");
+                        AddLog(result, opName, JsonUtility.ToJson(report));
+#else
+                        AddError(result, opName, "Only supported in Unity Editor.");
+#endif
+                        result.opsExecuted++;
+                        break;
+                    }
+
+                    case "ensurePlayerInputStack":
+                    {
+                        const string opName = "ensurePlayerInputStack";
+#if UNITY_EDITOR
+                        var report = EnsurePlayerInputStackInternal(result, mode, cmd);
+                        if (!report.pass)
+                            AddError(result, opName, "ensurePlayerInputStack failed; see report JSON.");
                         AddLog(result, opName, JsonUtility.ToJson(report));
 #else
                         AddError(result, opName, "Only supported in Unity Editor.");
@@ -2220,6 +2684,51 @@ namespace AIAssistant
                 result.success = false;
 
             return result;
+        }
+
+        public static AiExecutionResult ExecuteCommands(AiCommandEnvelope env, ExecutionMode mode = ExecutionMode.DryRun)
+        {
+            var list = env != null ? env.commands : null;
+            if (list == null)
+            {
+                var r = new AiExecutionResult { mode = mode, opsPlanned = 0, opsExecuted = 0, success = false };
+                AddError(r, "ExecuteCommands", "Envelope had no commands list.");
+                return r;
+            }
+
+            // Apply envelope scope as effective scope when command doesn't specify one.
+            if (env.scope != null && list.commands != null)
+            {
+                for (int i = 0; i < list.commands.Length; i++)
+                {
+                    var cmd = list.commands[i];
+                    if (cmd == null) continue;
+
+                    if (cmd.scope == null)
+                        cmd.scope = CloneScope(env.scope);
+                }
+
+                // Enforce maxOperations at the envelope level (safe default: block extras).
+                if (env.scope.maxOperations > 0 && list.commands.Length > env.scope.maxOperations)
+                {
+                    var r = new AiExecutionResult { mode = mode, opsPlanned = list.commands.Length, opsExecuted = 0, success = false };
+                    AddError(r, "ExecuteCommands", $"Envelope maxOperations={env.scope.maxOperations} but received {list.commands.Length} commands. Blocked.");
+                    return r;
+                }
+            }
+
+            return ExecuteCommands(list, mode);
+        }
+
+        private static SafetyScope CloneScope(SafetyScope scope)
+        {
+            if (scope == null) return null;
+            return new SafetyScope
+            {
+                allowedRoots = scope.allowedRoots != null ? new List<string>(scope.allowedRoots) : new List<string>(),
+                deniedRoots = scope.deniedRoots != null ? new List<string>(scope.deniedRoots) : new List<string>(),
+                maxOperations = scope.maxOperations
+            };
         }
     }
 }

@@ -9,6 +9,8 @@ public class TopDownFollowCamera : MonoBehaviour
     [SerializeField] private Vector3 offset = new Vector3(0f, 14f, -12f);
     [SerializeField] private float positionLerpSpeed = 12f;
 
+    private Vector3 _panOffset;
+
     [Header("Look At")]
     [SerializeField] private bool lookAtTarget = true;
     [SerializeField] private Vector3 lookAtOffset = new Vector3(0f, 1f, 0f);
@@ -24,6 +26,12 @@ public class TopDownFollowCamera : MonoBehaviour
         return target;
     }
 
+    // Camera pan adds to the follow offset.
+    public void SetPanOffset(Vector3 panOffset)
+    {
+        _panOffset = panOffset;
+    }
+
     private void LateUpdate()
     {
         EnsureTarget();
@@ -31,7 +39,7 @@ public class TopDownFollowCamera : MonoBehaviour
             return;
 
         // Position
-        Vector3 desiredPosition = target.position + offset;
+        Vector3 desiredPosition = target.position + offset + _panOffset;
 
         // Safety clamp: never let camera go below a minimum height above the target
         float minHeight = target.position.y + 8f;

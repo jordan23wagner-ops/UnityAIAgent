@@ -1,0 +1,15 @@
+Prefab setup:
+- For each merchant and interactable, create an empty GameObject, add the relevant script, and a BoxCollider (isTrigger=true).
+- Name each object as follows:
+  - WeaponsMerchantNPC (WeaponsGearMerchant)
+  - ConsumablesMerchantNPC (ConsumablesMerchant)
+  - SkillingSuppliesMerchantNPC (SkillingSuppliesMerchant)
+  - WorkshopMerchantNPC (WorkshopMerchant)
+  - Forge (ForgeInteractable)
+  - SmithingStand (SmithingStandInteractable)
+  - Workshop (WorkshopInteractable)
+  - Bonfire (BonfireInteractable)
+- Place them at the four buildings in your town scene.
+- Add the PlayerInteraction script to your player character.
+- Add the SimpleInteractPopup prefab to your Canvas.
+- To test: walk up to a merchant or interactable and press E.
