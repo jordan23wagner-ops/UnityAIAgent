@@ -13,6 +13,14 @@ public class SimplePlayerCombat : MonoBehaviour
 
     private void Update()
     {
+        // Block input if merchant UI is open or pointer is over UI
+        if (Abyss.Shop.MerchantShopUI.IsOpen ||
+            (UnityEngine.EventSystems.EventSystem.current != null &&
+             UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))
+        {
+            return;
+        }
+
         var kb = Keyboard.current;
         var mouse = Mouse.current;
 

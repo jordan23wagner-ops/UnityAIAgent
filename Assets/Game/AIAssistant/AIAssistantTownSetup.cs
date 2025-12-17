@@ -4,104 +4,319 @@ using UnityEditor;
 #endif
 using UnityEngine.UI;
 
+using Abyss.Shop;
+using Abyss.Town;
+
+using Game.Town;
+
 public class AIAssistantTownSetup : MonoBehaviour
 {
+
+    private static System.Collections.Generic.HashSet<string> _loggedParentWarnings = new System.Collections.Generic.HashSet<string>();
+
+    public bool enableAutoSpawn = false;
+
 #if UNITY_EDITOR
-    [ContextMenu("AI Assistant: Setup Town Merchants & Workshop")]
-            public void SetupTown()
-            {
-            float y = 5f;
-            Vector3 basePos = new Vector3(0, y, 0);
-            float spacing = 5f;
-            var created = new System.Collections.Generic.List<GameObject>();
-
-            created.Add(CreateMerchant("WeaponsMerchantNPC", typeof(WeaponsGearMerchant), basePos + new Vector3(0,0,0), Color.red));
-            created.Add(CreateMerchant("ConsumablesMerchantNPC", typeof(ConsumablesMerchant), basePos + new Vector3(spacing,0,0), Color.green));
-            created.Add(CreateMerchant("SkillingSuppliesMerchantNPC", typeof(SkillingSuppliesMerchant), basePos + new Vector3(2*spacing,0,0), Color.blue));
-            created.Add(CreateMerchant("WorkshopMerchantNPC", typeof(WorkshopMerchant), basePos + new Vector3(3*spacing,0,0), Color.yellow));
-
-            created.Add(CreateInteractable("Forge", typeof(ForgeInteractable), basePos + new Vector3(3*spacing,0,2.5f), Color.gray));
-            created.Add(CreateInteractable("SmithingStand", typeof(SmithingStandInteractable), basePos + new Vector3(3*spacing+1.5f,0,0), Color.magenta));
-            created.Add(CreateInteractable("Workshop", typeof(WorkshopInteractable), basePos + new Vector3(3*spacing,0,-2.5f), Color.cyan));
-            created.Add(CreateInteractable("Bonfire", typeof(BonfireInteractable), basePos + new Vector3(3*spacing-1.5f,0,0), new Color(1f,0.5f,0f)));
-
-            SetupSimpleInteractPopup();
-            SetupPlayerInteraction();
-            Debug.Log("[AI Assistant] Town merchants, workshop, and UI set up at (0,5,0) with huge visible markers.");
-
-        #if UNITY_EDITOR
-            UnityEditor.Selection.objects = created.ToArray();
-        #endif
-            }
-
-    private GameObject CreateMerchant(string name, System.Type script, Vector3 pos, Color color)
+    private void Start()
     {
-        if (GameObject.Find(name) != null) return null;
-        var go = new GameObject(name);
-        go.transform.position = pos;
-        go.layer = 0; // Default
-        go.SetActive(true);
-        go.AddComponent<BoxCollider>().isTrigger = true;
-        go.AddComponent(script);
-        var vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        vis.transform.SetParent(go.transform, false);
-        vis.transform.localPosition = Vector3.zero;
-        vis.transform.localScale = new Vector3(2.5f,5f,2.5f);
-        var mat = vis.GetComponent<Renderer>().material;
-        mat.color = color;
-        mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", color * 2f);
-        Object.DestroyImmediate(vis.GetComponent<Collider>());
-        // Add floating label
-        var label = new GameObject("Label");
-        label.transform.SetParent(go.transform, false);
-        label.transform.localPosition = new Vector3(0,3.5f,0);
-        var tm = label.AddComponent<TextMesh>();
-        tm.text = $"!!! {name} !!!";
-        tm.fontSize = 96;
-        tm.characterSize = 0.25f;
-        tm.color = Color.white;
-        tm.anchor = TextAnchor.MiddleCenter;
-        tm.alignment = TextAlignment.Center;
-        Debug.Log($"[AI Assistant] Created {name} at {pos}");
-        if (!go.activeInHierarchy)
-            Debug.LogWarning($"[AI Assistant] {name} is not active in hierarchy!");
-        return go;
+        if (enableAutoSpawn)
+        {
+            SetupTown();
+        }
+        else
+        {
+            Debug.LogWarning("[AIAssistantTownSetup] Auto-spawn is disabled. Set enableAutoSpawn = true to allow spawning on play.", this);
+        }
     }
 
-    private GameObject CreateInteractable(string name, System.Type script, Vector3 pos, Color color)
+    public void SetupTown()
     {
-        if (GameObject.Find(name) != null) return null;
-        var go = new GameObject(name);
-        go.transform.position = pos;
-        go.layer = 0; // Default
-        go.SetActive(true);
-        go.AddComponent<BoxCollider>().isTrigger = true;
-        go.AddComponent(script);
-        var vis = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        vis.transform.SetParent(go.transform, false);
-        vis.transform.localPosition = Vector3.zero;
-        vis.transform.localScale = new Vector3(3f,3f,3f);
-        var mat = vis.GetComponent<Renderer>().material;
-        mat.color = color;
+        var registry = TownRegistry.Instance;
+        registry.EnsureSpawnRoot();
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+            registry.RebuildIndexFromScene();
+#endif
+        float y = 5f;
+        Vector3 basePos = new Vector3(0, y, 0);
+        float spacing = 5f;
+        var created = new System.Collections.Generic.List<GameObject>();
+
+        created.Add(CreateMerchant("merchant_weaponsgear", typeof(WeaponsGearMerchant), basePos + new Vector3(0,0,0), Color.red));
+        created.Add(CreateMerchant("merchant_consumables", typeof(ConsumablesMerchant), basePos + new Vector3(spacing,0,0), Color.green));
+        created.Add(CreateMerchant("merchant_skilling", typeof(SkillingSuppliesMerchant), basePos + new Vector3(2*spacing,0,0), Color.blue));
+        created.Add(CreateMerchant("merchant_workshop", typeof(WorkshopMerchant), basePos + new Vector3(3*spacing,0,0), Color.yellow));
+
+        created.Add(CreateInteractable("interactable_forge", typeof(ForgeInteractable), basePos + new Vector3(3*spacing,0,2.5f), Color.gray));
+        created.Add(CreateInteractable("interactable_smithingstand", typeof(SmithingStandInteractable), basePos + new Vector3(3*spacing+1.5f,0,0), Color.magenta));
+        created.Add(CreateInteractable("interactable_workshop", typeof(WorkshopInteractable), basePos + new Vector3(3*spacing,0,-2.5f), Color.cyan));
+        created.Add(CreateInteractable("interactable_bonfire", typeof(BonfireInteractable), basePos + new Vector3(3*spacing-1.5f,0,0), new Color(1f,0.5f,0f)));
+
+        // --- Begin new logic for reliability and idempotency ---
+        int shopsAdded = 0, collidersAdded = 0, repositioned = 0;
+        var spawnRoot = registry.SpawnRoot;
+        if (spawnRoot != null)
+        {
+            // Collect merchant candidates robustly (TownKeyTag with merchant_ OR any MerchantShop)
+            var candidates = new System.Collections.Generic.HashSet<GameObject>();
+
+            var tags = spawnRoot.GetComponentsInChildren<Game.Town.TownKeyTag>(true);
+            foreach (var t in tags)
+            {
+                if (t == null) continue;
+                if (string.IsNullOrEmpty(t.Key)) continue;
+                if (t.Key.StartsWith("merchant_"))
+                    candidates.Add(t.gameObject);
+            }
+
+            var shops = spawnRoot.GetComponentsInChildren<Abyss.Shop.MerchantShop>(true);
+            foreach (var s in shops)
+            {
+                if (s == null) continue;
+                candidates.Add(s.gameObject);
+            }
+
+            foreach (var go in candidates)
+            {
+                if (go == null) continue;
+                var tag = go.GetComponent<Game.Town.TownKeyTag>();
+                string key = tag != null ? tag.Key : string.Empty;
+
+                // Ensure MerchantShop component
+                if (go.GetComponent<Abyss.Shop.MerchantShop>() == null)
+                {
+                    go.AddComponent<Abyss.Shop.MerchantShop>();
+                    shopsAdded++;
+                }
+
+                // Ensure collider
+                var col = go.GetComponent<Collider>();
+                if (col == null)
+                {
+                    var box = go.AddComponent<BoxCollider>();
+                    box.isTrigger = false;
+                    box.center = new Vector3(0f, 1f, 0f);
+                    box.size = new Vector3(1.2f, 2.0f, 1.2f);
+                    collidersAdded++;
+                }
+                else
+                {
+                    col.isTrigger = false;
+                    if (col is BoxCollider b)
+                    {
+                        if (b.size == Vector3.zero)
+                            b.size = new Vector3(1.2f, 2.0f, 1.2f);
+                        if (b.center == Vector3.zero)
+                            b.center = new Vector3(0f, 1f, 0f);
+                    }
+                }
+
+                // Anchor lookup
+                var anchor = FindAnchorFor(key, go.name);
+                if (anchor != null && anchor != go.transform)
+                {
+                    go.transform.position = anchor.position;
+                    repositioned++;
+                }
+
+                // Grounding: raycast down to find floor, fallback to 1.0
+                var pos = go.transform.position;
+                RaycastHit hit;
+                float desiredY = pos.y;
+                if (Physics.Raycast(new Vector3(pos.x, pos.y + 10f, pos.z), Vector3.down, out hit, 50f))
+                {
+                    desiredY = hit.point.y;
+                }
+                else
+                {
+                    desiredY = 1.0f;
+                }
+
+                // Apply world-space clamp
+                var beforeY = go.transform.position.y;
+                if (desiredY > 1.05f || desiredY < 0.95f)
+                {
+                    var p = go.transform.position;
+                    p.y = desiredY;
+                    go.transform.position = p;
+                    repositioned++;
+                }
+
+                // Ensure a lightweight runtime clamp component is present for late fixes
+                if (go.GetComponent<Abyss.Town.TownWorldYClamp>() == null)
+                    go.AddComponent<Abyss.Town.TownWorldYClamp>();
+            }
+        }
+        #if UNITY_EDITOR
+            // Robust anchor lookup for TownKey objects
+            Transform FindAnchorFor(string townKey, string spawnedName)
+            {
+                // A) Try exact GameObject name match in scene
+                string[] tryNames = new string[] {
+                    spawnedName + "NPC",
+                    spawnedName.Replace(" [TownKey:" + townKey + "]", "") + "NPC"
+                };
+                foreach (var n in tryNames)
+                {
+                    var go = GameObject.Find(n);
+                    if (go != null) return go.transform;
+                }
+
+                // B) If merchant_*, try common NPC names
+                if (townKey.StartsWith("merchant_"))
+                {
+                    string tail = townKey.Substring("merchant_".Length);
+                    string[] merchantNames = new string[] {
+                        "WeaponsGearMerchantNPC",
+                        "ConsumablesMerchantNPC",
+                        "SkillingSuppliesMerchantNPC",
+                        "WorkshopMerchantNPC"
+                    };
+                    foreach (var m in merchantNames)
+                    {
+                        if (m.ToLower().Contains(tail.ToLower()))
+                        {
+                            var go = GameObject.Find(m);
+                            if (go != null) return go.transform;
+                        }
+                    }
+                }
+
+                // C) Fallback: search all Transforms for name containing key tail and "NPC"
+                string keyTail = townKey.Contains("_") ? townKey.Substring(townKey.IndexOf('_') + 1) : townKey;
+                foreach (var t in GameObject.FindObjectsOfType<Transform>())
+                {
+                    if (t == null) continue;
+                    string n = t.name.ToLower();
+                    if (n.Contains(keyTail.ToLower()) && n.Contains("npc"))
+                        return t;
+                }
+                return null;
+            }
+        #endif
+        // --- End new logic ---
+
+        SetupSimpleInteractPopup();
+        SetupPlayerInteraction();
+        Debug.Log($"[AI Assistant] Town setup complete: shopsAdded={shopsAdded}, collidersAdded={collidersAdded}, repositioned={repositioned}.");
+
+        // Schedule a second pass next frame to re-clamp any merchants affected by other startup scripts
+        if (Application.isPlaying)
+            StartCoroutine(ReclampSpawnRootNextFrame(spawnRoot));
+
+#if UNITY_EDITOR
+        UnityEditor.Selection.objects = created.ToArray();
+#endif
+    }
+
+    private System.Collections.IEnumerator ReclampSpawnRootNextFrame(Transform spawnRoot)
+    {
+        if (spawnRoot == null) yield break;
+
+        int totalReclamped = 0;
+        // Do three passes to handle late-moving scripts
+        for (int pass = 0; pass < 3; pass++)
+        {
+            yield return null; // wait a frame between passes
+
+            // Rebuild candidate list each pass
+            var candidates = new System.Collections.Generic.HashSet<GameObject>();
+            var tags = spawnRoot.GetComponentsInChildren<Game.Town.TownKeyTag>(true);
+            foreach (var t in tags)
+            {
+                if (t == null) continue;
+                if (string.IsNullOrEmpty(t.Key)) continue;
+                if (t.Key.StartsWith("merchant_")) candidates.Add(t.gameObject);
+            }
+            var shops = spawnRoot.GetComponentsInChildren<Abyss.Shop.MerchantShop>(true);
+            foreach (var s in shops) if (s != null) candidates.Add(s.gameObject);
+
+            int reclamped = 0;
+            foreach (var go in candidates)
+            {
+                if (go == null) continue;
+                var p = go.transform.position;
+                if (p.y > 1.05f || p.y < 0.95f)
+                {
+                    p.y = 1.0f;
+                    go.transform.position = p;
+                    reclamped++;
+                }
+            }
+
+            totalReclamped += reclamped;
+            if (reclamped > 0)
+                Debug.Log($"[AIAssistantTownSetup] Reclamped {reclamped} merchants on pass {pass+1}.");
+        }
+
+        if (totalReclamped > 0)
+            Debug.Log($"[AIAssistantTownSetup] Total reclamped merchants after 3 passes: {totalReclamped}.");
+    }
+
+    [ContextMenu("Nuke Town Spawns")]
+    public void NukeTownSpawns()
+    {
+        TownRegistry.Instance.DestroyAllRegistered();
+        Debug.Log("[AIAssistantTownSetup] All registered town spawns destroyed via TownRegistry.", this);
+    }
+
+
+
+    // Overloads matching call sites
+    private GameObject CreateMerchant(string key, System.Type componentType, Vector3 position, Color debugColor)
+    {
+        if (TownRegistry.Instance.TryGet(key, out var existing) && existing != null)
+            return existing;
+
+        var go = new GameObject(componentType.Name);
+        go.transform.position = position;
+        go.AddComponent(componentType);
+
+        // Add debug marker (sphere, no collider)
+        var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        marker.transform.SetParent(go.transform, false);
+        marker.transform.localPosition = Vector3.zero;
+        marker.transform.localScale = Vector3.one * 1.5f;
+        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        mat.color = debugColor;
         mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", color * 2f);
-        Object.DestroyImmediate(vis.GetComponent<Collider>());
-        // Add floating label
-        var label = new GameObject("Label");
-        label.transform.SetParent(go.transform, false);
-        label.transform.localPosition = new Vector3(0,2.5f,0);
-        var tm = label.AddComponent<TextMesh>();
-        tm.text = $"!!! {name} !!!";
-        tm.fontSize = 96;
-        tm.characterSize = 0.25f;
-        tm.color = Color.white;
-        tm.anchor = TextAnchor.MiddleCenter;
-        tm.alignment = TextAlignment.Center;
-        Debug.Log($"[AI Assistant] Created {name} at {pos}");
-        if (!go.activeInHierarchy)
-            Debug.LogWarning($"[AI Assistant] {name} is not active in hierarchy!");
-        return go;
+        mat.SetColor("_EmissionColor", debugColor * 2f);
+    #if UNITY_EDITOR
+        mat.hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+    #endif
+        marker.GetComponent<Renderer>().sharedMaterial = mat;
+        Object.DestroyImmediate(marker.GetComponent<Collider>());
+
+        // Always use the registered object
+        return TownRegistry.Instance.RegisterOrKeep(key, go);
+    }
+
+    private GameObject CreateInteractable(string key, System.Type componentType, Vector3 position, Color debugColor)
+    {
+        if (TownRegistry.Instance.TryGet(key, out var existing) && existing != null)
+            return existing;
+
+        var go = new GameObject(componentType.Name);
+        go.transform.position = position;
+        go.AddComponent(componentType);
+
+        // Add debug marker (sphere, no collider)
+        var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        marker.transform.SetParent(go.transform, false);
+        marker.transform.localPosition = Vector3.zero;
+        marker.transform.localScale = Vector3.one * 1.5f;
+        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        mat.color = debugColor;
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", debugColor * 2f);
+    #if UNITY_EDITOR
+        mat.hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+    #endif
+        marker.GetComponent<Renderer>().sharedMaterial = mat;
+        Object.DestroyImmediate(marker.GetComponent<Collider>());
+
+        // Always use the registered object
+        return TownRegistry.Instance.RegisterOrKeep(key, go);
     }
 
     private void SetupSimpleInteractPopup()

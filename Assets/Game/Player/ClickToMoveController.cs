@@ -1,3 +1,4 @@
+using Game.Input;
 using UnityEngine;
 
 [DisallowMultipleComponent]
