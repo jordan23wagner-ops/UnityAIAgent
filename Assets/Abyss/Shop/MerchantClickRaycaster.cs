@@ -15,7 +15,7 @@ namespace Abyss.Shop
             _cam = Camera.main;
             if (_cam == null) _cam = FindAnyObjectByType<Camera>();
 
-            MerchantShopUI.EnsureUiExists();
+            // Inspector-driven UI; no runtime ensure required.
         }
 
         private void Update()
@@ -35,8 +35,8 @@ namespace Abyss.Shop
             var shop = hit.transform.GetComponentInParent<MerchantShop>();
             if (shop == null) return;
 
-            // TODO: pull player gold from economy system instead of 0.
-            MerchantShopUI.Open(shop.MerchantName, 0, string.Empty);
+            // Open the inspector-driven UI with the resolved shop reference.
+            MerchantShopUI.Open(shop);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

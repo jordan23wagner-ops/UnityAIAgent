@@ -64,11 +64,14 @@ public static class HudFactory
         existing.renderMode = RenderMode.ScreenSpaceOverlay;
         existing.sortingOrder = 1000;
 
-        if (existing.GetComponent<CanvasScaler>() == null)
-        {
-            var scaler = existing.gameObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-        }
+        var existingScaler = existing.GetComponent<CanvasScaler>();
+        if (existingScaler == null)
+            existingScaler = existing.gameObject.AddComponent<CanvasScaler>();
+
+        existingScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        existingScaler.referenceResolution = new Vector2(1920f, 1080f);
+        existingScaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        existingScaler.matchWidthOrHeight = 0.5f;
 
         if (existing.GetComponent<GraphicRaycaster>() == null)
             existing.gameObject.AddComponent<GraphicRaycaster>();

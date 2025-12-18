@@ -31,6 +31,11 @@ namespace Game.Input
         private bool _bound;
         private bool _cachedPointerOverUI;
         private int _cachedPointerFrame = -1;
+        private bool _blockedClickLogged = false;
+
+        // UI lock state driven by UI open/close events
+        private bool _uiInputLocked = false;
+        private bool _ignoreNextWorldClick = false;
 
         public void SetGameplayInputBlocked(bool blocked) => gameplayInputBlocked = blocked;
 
@@ -38,6 +43,17 @@ namespace Game.Input
         public void SetUIBlocked(bool blocked)
         {
             enabled = !blocked;
+        }
+
+        // Explicit API for UI to lock/unlock gameplay input. When unlocking, the next world click will be ignored.
+        public void SetUiInputLocked(bool locked)
+        {
+            _uiInputLocked = locked;
+            if (!locked)
+            {
+                _ignoreNextWorldClick = true;
+                _blockedClickLogged = false;
+            }
         }
 
         private void Awake()
@@ -56,6 +72,22 @@ namespace Game.Input
             {
                 _cachedPointerFrame = Time.frameCount;
                 _cachedPointerOverUI = (EventSystem.current != null) && EventSystem.current.IsPointerOverGameObject();
+            }
+        }
+
+        private void OnEnable()
+        {
+            Abyss.Shop.MerchantShopUI.OnOpenChanged += HandleMerchantUiOpenChanged;
+        }
+
+        private void HandleMerchantUiOpenChanged(bool open)
+        {
+            _uiInputLocked = open;
+            if (!open)
+            {
+                // next world click (often the click that closed UI) should be ignored
+                _ignoreNextWorldClick = true;
+                _blockedClickLogged = false;
             }
         }
 
@@ -97,6 +129,7 @@ namespace Game.Input
 
         private void OnDisable()
         {
+            Abyss.Shop.MerchantShopUI.OnOpenChanged -= HandleMerchantUiOpenChanged;
             if (!_bound) return;
 
             if (_pan != null) { _pan.performed -= OnPan; _pan.canceled -= OnPan; }
@@ -113,16 +146,33 @@ namespace Game.Input
 
         private void OnClick(InputAction.CallbackContext ctx)
         {
-            Debug.Log("[InputAuthority] Click performed", this);
-
             if (gameplayInputBlocked)
                 return;
 
-            // If a UI (like merchant/shop) is open, block gameplay clicks.
-            if (Abyss.Shop.MerchantShopUI.IsOpen)
+            // If UI input lock is active, block world clicks unless the click is over UI.
+            if (_uiInputLocked)
+            {
+                if (!_cachedPointerOverUI)
+                {
+                    if (!_blockedClickLogged)
+                    {
+                        Debug.Log("[InputAuthority] Click blocked because UI is open", this);
+                        _blockedClickLogged = true;
+                    }
+                    return;
+                }
+                // if pointer is over UI, allow UI to handle the click and do not process world click
                 return;
+            }
 
-            // Use cached per-frame value instead of calling IsPointerOverGameObject from callbacks.
+            // Ignore one world click immediately after UI closes (prevents the "click-out" problem)
+            if (_ignoreNextWorldClick)
+            {
+                _ignoreNextWorldClick = false;
+                return;
+            }
+
+            // If pointer is over UI, don't process as world click
             if (_cachedPointerOverUI)
                 return;
 

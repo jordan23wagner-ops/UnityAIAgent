@@ -30,11 +30,8 @@ namespace Abyss.Shop
 
         private void OnEnable()
         {
-            _timeLeft = ScanForSeconds;
-            _timer = 0f;
-
-            // Ensure UI exists once so clicks have somewhere to go
-            MerchantShopUI.EnsureUiExists();
+            // Deprecated auto-binder: manual wiring only. No-op to avoid runtime UI construction.
+            return;
         }
 
         private void Update()

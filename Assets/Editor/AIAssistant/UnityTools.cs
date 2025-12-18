@@ -1170,7 +1170,11 @@ namespace AIAssistant
                 UnityEditor.Undo.RegisterCreatedObjectUndo(canvasGo, "AI ensureFoundation");
                 canvas = canvasGo.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
+                var _scaler = canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
+                _scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                _scaler.referenceResolution = new UnityEngine.Vector2(1920f, 1080f);
+                _scaler.screenMatchMode = UnityEngine.UI.CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                _scaler.matchWidthOrHeight = 0.5f;
                 canvasGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
                 notes?.Add("Created HUDCanvas");
             }

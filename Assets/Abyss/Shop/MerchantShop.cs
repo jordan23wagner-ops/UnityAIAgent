@@ -23,6 +23,34 @@ namespace Abyss.Shop
         public IReadOnlyList<StockEntry> Stock => _stock;
         public string MerchantName => string.IsNullOrWhiteSpace(_merchantName) ? "Merchant" : _merchantName;
 
+        // Public accessors for UI consumption
+        public IReadOnlyList<StockEntry> GetStock()
+        {
+            return _stock ?? new List<StockEntry>();
+        }
+
+        public int GetStockCount()
+        {
+            var s = GetStock();
+            return s != null ? s.Count : 0;
+        }
+
+        public string DebugStockSummary()
+        {
+            try
+            {
+                var s = GetStock();
+                if (s == null || s.Count == 0)
+                    return "count=0";
+
+                int take = Math.Min(5, s.Count);
+                var names = new List<string>();
+                for (int i = 0; i < take; i++) names.Add(s[i].itemName ?? string.Empty);
+                return $"count={s.Count}; names={string.Join(",", names)}";
+            }
+            catch { return "count=?"; }
+        }
+
         private void Awake()
         {
             // Ensure merchant is clickable
@@ -34,8 +62,7 @@ namespace Abyss.Shop
 
             EnsureDefaultStock();
 
-            // Create UI safely
-            MerchantShopUI.EnsureUiExists();
+            // Inspector-driven UI; ensure an instance exists in the scene via the editor.
         }
 
         private void EnsureDefaultStock()

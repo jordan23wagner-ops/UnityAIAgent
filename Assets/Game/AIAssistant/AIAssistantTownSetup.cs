@@ -184,7 +184,11 @@ public class AIAssistantTownSetup : MonoBehaviour
 
                 // C) Fallback: search all Transforms for name containing key tail and "NPC"
                 string keyTail = townKey.Contains("_") ? townKey.Substring(townKey.IndexOf('_') + 1) : townKey;
+                #if UNITY_2023_2_OR_NEWER
+                foreach (var t in GameObject.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+                #else
                 foreach (var t in GameObject.FindObjectsOfType<Transform>())
+                #endif
                 {
                     if (t == null) continue;
                     string n = t.name.ToLower();
@@ -330,7 +334,11 @@ public class AIAssistantTownSetup : MonoBehaviour
             var canvasGo = new GameObject("SimpleInteractCanvas");
             canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasGo.AddComponent<CanvasScaler>();
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<GraphicRaycaster>();
         }
 

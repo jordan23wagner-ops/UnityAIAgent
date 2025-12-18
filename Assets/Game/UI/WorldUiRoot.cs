@@ -191,11 +191,14 @@ public static class WorldUiRoot
         if (root.GetComponent<GraphicRaycaster>() == null)
             root.AddComponent<GraphicRaycaster>();
 
-        if (root.GetComponent<CanvasScaler>() == null)
-        {
-            var scaler = root.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-        }
+        var cs = root.GetComponent<CanvasScaler>();
+        if (cs == null)
+            cs = root.AddComponent<CanvasScaler>();
+
+        cs.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        cs.referenceResolution = new Vector2(1920f, 1080f);
+        cs.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        cs.matchWidthOrHeight = 0.5f;
     }
 
     private static void EnsureCanvasExists()
