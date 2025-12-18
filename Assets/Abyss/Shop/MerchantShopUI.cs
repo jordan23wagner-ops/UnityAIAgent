@@ -146,12 +146,13 @@ namespace Abyss.Shop
         // Backwards-compatible static helpers
         public static void Open(MerchantShop shop)
         {
-#if UNITY_2022_2_OR_NEWER
+            #if UNITY_2022_2_OR_NEWER
             var inst = FindFirstObjectByType<MerchantShopUI>();
-#else
+            #else
             var inst = FindObjectOfType<MerchantShopUI>();
-#endif
-            if (inst != null) inst.Open(shop, shop?.MerchantName ?? "Merchant", 0);
+            #endif
+            int gold = PlayerGoldWallet.Instance != null ? PlayerGoldWallet.Instance.Gold : 0;
+            if (inst != null) inst.Open(shop, shop?.MerchantName ?? "Merchant", gold);
             else Debug.LogWarning("[MerchantShopUI] No MerchantShopUI instance found in scene.");
         }
 

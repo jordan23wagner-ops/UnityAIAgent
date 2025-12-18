@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Abyss.Shop
 {
@@ -14,14 +15,19 @@ namespace Abyss.Shop
         {
             _cam = Camera.main;
             if (_cam == null) _cam = FindAnyObjectByType<Camera>();
-
-            // Inspector-driven UI; no runtime ensure required.
         }
 
         private void Update()
         {
             // Left click only
             if (!Input.GetMouseButtonDown(0)) return;
+
+            // If the shop UI is open, DO NOT raycast into the world (prevents immediate reopen on Exit click).
+            if (MerchantShopUI.IsOpen) return;
+
+            // If pointer is over any UI, do not raycast into the world.
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                return;
 
             if (_cam == null) _cam = Camera.main;
             if (_cam == null) return;
