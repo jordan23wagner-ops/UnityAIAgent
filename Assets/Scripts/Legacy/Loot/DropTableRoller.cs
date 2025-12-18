@@ -1,17 +1,18 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine;
+using Abyss.Legacy;
 
 public static class DropTableRoller
 {
-    public static List<ItemDefinition> Roll(DropTable table, EnemyTier tier)
+    public static List<LegacyItemDefinition> Roll(DropTable table, EnemyTier tier)
     {
         return Roll(table, tier, null, null);
     }
 
-    public static List<ItemDefinition> Roll(DropTable table, EnemyTier tier, System.Random rng, Action<string> logError)
+    public static List<LegacyItemDefinition> Roll(DropTable table, EnemyTier tier, System.Random rng, Action<string> logError)
     {
-        var results = new List<ItemDefinition>();
+        var results = new List<LegacyItemDefinition>();
         if (table == null) return results;
 
         var list = table.GetDropsForTier(tier);
@@ -43,7 +44,7 @@ public static class DropTableRoller
     private static void ApplyGuaranteedRule(
         DropTable table,
         List<DropEntry> tierList,
-        List<ItemDefinition> results,
+        List<LegacyItemDefinition> results,
         Func<int, int> nextIndex,
         Action<string> logError)
     {
@@ -71,7 +72,7 @@ public static class DropTableRoller
         if (HasEligibleAlready())
             return;
 
-        var eligiblePool = new List<ItemDefinition>();
+        var eligiblePool = new List<LegacyItemDefinition>();
         foreach (var entry in tierList)
         {
             if (entry == null || entry.item == null) continue;
@@ -95,7 +96,7 @@ public static class DropTableRoller
         }
     }
 
-    private static bool IsEligible(ItemDefinition item, ItemType category, ItemRarity minRarity)
+    private static bool IsEligible(LegacyItemDefinition item, ItemType category, ItemRarity minRarity)
     {
         if (item == null) return false;
         if (item.itemType != category) return false;

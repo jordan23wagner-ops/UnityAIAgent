@@ -1,0 +1,23 @@
+using UnityEngine;
+using UnityEngine.Serialization;
+
+namespace Abyss.Items
+{
+    [CreateAssetMenu(menuName = "Abyss/Items/Item Definition")]
+    public class ItemDefinition : ScriptableObject
+    {
+        public string itemId;
+        public string displayName;
+
+        [TextArea]
+        [FormerlySerializedAs("_description")]
+        [FormerlySerializedAs("Description")]
+        [FormerlySerializedAs("desc")]
+        [FormerlySerializedAs("itemDescription")]
+        public string description;
+
+        public Sprite icon;
+        public ItemType itemType;
+        public int baseValue;
+    }
+}

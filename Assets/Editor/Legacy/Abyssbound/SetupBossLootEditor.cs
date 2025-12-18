@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using Abyss.Legacy;
 
 namespace Abyssbound.EditorTools
 {
@@ -29,7 +30,7 @@ namespace Abyssbound.EditorTools
             EnsureFolderExists(ItemsFolder);
             EnsureFolderExists(LootFolder);
 
-            ItemDefinition rareSword = null;
+            LegacyItemDefinition rareSword = null;
             DropTable globalEquipmentTable = null;
 
             LogStep(summary, "Find/create Test_Rare_Sword", () =>
@@ -54,14 +55,14 @@ namespace Abyssbound.EditorTools
             Debug.Log("[SetupBossLootEditor] Summary:\n - " + string.Join("\n - ", summary));
         }
 
-        private static ItemDefinition EnsureRareSword(List<string> summary)
+        private static LegacyItemDefinition EnsureRareSword(List<string> summary)
         {
             Debug.Log("[SetupBossLootEditor] Step: Find/create Test_Rare_Sword (begin)");
-            var item = FindAssetByName<ItemDefinition>(RareSwordName);
+            var item = FindAssetByName<LegacyItemDefinition>(RareSwordName);
             if (item == null)
             {
                 string path = $"{ItemsFolder}/{RareSwordName}.asset";
-                item = ScriptableObject.CreateInstance<ItemDefinition>();
+                item = ScriptableObject.CreateInstance<LegacyItemDefinition>();
                 item.name = RareSwordName;
                 AssetDatabase.CreateAsset(item, path);
                 summary.Add($"Created {RareSwordName}");
@@ -73,7 +74,7 @@ namespace Abyssbound.EditorTools
 
             if (item == null)
             {
-                Debug.LogWarning("[SetupBossLootEditor] Could not create or load ItemDefinition 'Test_Rare_Sword'.");
+                Debug.LogWarning("[SetupBossLootEditor] Could not create or load LegacyItemDefinition 'Test_Rare_Sword'.");
                 summary.Add("WARN: Could not create or load Test_Rare_Sword");
                 Debug.Log("[SetupBossLootEditor] Step: Find/create Test_Rare_Sword (end)");
                 return null;
@@ -95,7 +96,7 @@ namespace Abyssbound.EditorTools
             setTierFlag |= SetIntIfPresent(so, "minEnemyTier", (int)EnemyTier.Normal);
 
             if (!setTierFlag)
-                summary.Add("No ItemDefinition tier-eligibility fields found (OK: eligibility comes from DropTable tier lists)");
+                summary.Add("No LegacyItemDefinition tier-eligibility fields found (OK: eligibility comes from DropTable tier lists)");
 
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(item);
@@ -105,7 +106,7 @@ namespace Abyssbound.EditorTools
             return item;
         }
 
-        private static DropTable EnsureGlobalEquipmentDropTable(List<string> summary, ItemDefinition rareSword)
+        private static DropTable EnsureGlobalEquipmentDropTable(List<string> summary, LegacyItemDefinition rareSword)
         {
             Debug.Log("[SetupBossLootEditor] Step: Find/create Global_Equipment_DropTable (begin)");
             var table = FindAssetByName<DropTable>(GlobalEquipmentTableName);
@@ -156,7 +157,7 @@ namespace Abyssbound.EditorTools
             return table;
         }
 
-        private static void EnsureBossDropTable(List<string> summary, ItemDefinition rareSword, DropTable globalEquipmentTable)
+        private static void EnsureBossDropTable(List<string> summary, LegacyItemDefinition rareSword, DropTable globalEquipmentTable)
         {
             Debug.Log("[SetupBossLootEditor] Step: Find Zone1_Boss_DropTable (begin)");
             var bossTable = FindAssetByName<DropTable>(BossTableName);
@@ -252,7 +253,7 @@ namespace Abyssbound.EditorTools
             Debug.Log("[SetupBossLootEditor] Step: Find Zone1_Boss_DropTable (end)");
         }
 
-        private static bool EnsureDropEntryWithCandidates(DropTable table, string[] listFieldCandidates, ItemDefinition item, float chance, out string usedListField)
+        private static bool EnsureDropEntryWithCandidates(DropTable table, string[] listFieldCandidates, LegacyItemDefinition item, float chance, out string usedListField)
         {
             usedListField = null;
             if (table == null || item == null) return false;

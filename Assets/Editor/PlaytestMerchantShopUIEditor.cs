@@ -45,7 +45,12 @@ public static class PlaytestMerchantShopUIEditor
     {
         try
         {
-            var ui = Object.FindObjectOfType<Abyss.Shop.MerchantShopUI>();
+            Abyss.Shop.MerchantShopUI ui;
+#if UNITY_2022_2_OR_NEWER
+            ui = Object.FindFirstObjectByType<Abyss.Shop.MerchantShopUI>();
+#else
+            ui = Object.FindObjectOfType<Abyss.Shop.MerchantShopUI>();
+#endif
             if (ui == null)
             {
                 Debug.LogWarning("No MerchantShopUI instance found in scene. Run Tools->Build Merchant Shop UI (Editor) first.");

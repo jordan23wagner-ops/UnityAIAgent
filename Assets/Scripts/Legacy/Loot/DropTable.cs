@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Abyss.Legacy;
 
 public enum EnemyTier
 {
@@ -13,7 +14,7 @@ public enum EnemyTier
 [Serializable]
 public class DropEntry
 {
-    public ItemDefinition item;
+    public LegacyItemDefinition item;
 
     [Range(0f, 1f)]
     public float dropChance;

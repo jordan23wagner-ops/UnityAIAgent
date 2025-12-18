@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Abyss.Items;
+using UnityEngine.Serialization;
 
 namespace Abyss.Shop
 {
@@ -8,25 +10,95 @@ namespace Abyss.Shop
     public sealed class MerchantShop : MonoBehaviour
     {
         [Serializable]
+        public struct ResolvedStock
+        {
+            public string itemId;
+            public string displayName;
+            public string description;
+            public int price;
+            public Sprite icon;
+        }
+
+        [Serializable]
         public struct StockEntry
         {
             public string itemName;
             public int price;
         }
 
+        [Header("ScriptableObject Inventory (Optional)")]
+        public ShopInventory shopInventory;
+
         [Header("Minimal Stock")]
-        [SerializeField] private List<StockEntry> _stock = new();
+        [FormerlySerializedAs("_stock")]
+        [SerializeField] public List<StockEntry> stock = new();
 
         [Header("Optional Display Name")]
         [SerializeField] private string _merchantName = "Merchant";
 
-        public IReadOnlyList<StockEntry> Stock => _stock;
+        public IReadOnlyList<StockEntry> Stock => stock;
         public string MerchantName => string.IsNullOrWhiteSpace(_merchantName) ? "Merchant" : _merchantName;
 
         // Public accessors for UI consumption
         public IReadOnlyList<StockEntry> GetStock()
         {
-            return _stock ?? new List<StockEntry>();
+            return stock ?? new List<StockEntry>();
+        }
+
+        public IReadOnlyList<ResolvedStock> GetResolvedStock()
+        {
+            var resolved = new List<ResolvedStock>();
+
+            if (shopInventory != null && shopInventory.entries != null && shopInventory.entries.Count > 0)
+            {
+                foreach (var entry in shopInventory.entries)
+                {
+                    if (entry == null || entry.item == null) continue;
+                    if (entry.price <= 0) continue;
+
+                    var def = entry.item;
+                    string itemId = string.IsNullOrWhiteSpace(def.itemId) ? def.displayName : def.itemId;
+                    if (string.IsNullOrWhiteSpace(itemId)) itemId = def.name;
+
+                    string displayName = string.IsNullOrWhiteSpace(def.displayName) ? itemId : def.displayName;
+                    string desc = (!string.IsNullOrWhiteSpace(def.description)) ? def.description : "No description.";
+
+                    resolved.Add(new ResolvedStock
+                    {
+                        itemId = itemId,
+                        displayName = displayName,
+                        description = desc,
+                        icon = def.icon,
+                        price = entry.price
+                    });
+                }
+
+                if (resolved.Count > 0)
+                    return resolved;
+            }
+
+            // Fallback: legacy stock list.
+            var stock = GetStock();
+            if (stock != null)
+            {
+                foreach (var s in stock)
+                {
+                    if (s.price <= 0) continue;
+                    string itemId = s.itemName;
+                    if (string.IsNullOrWhiteSpace(itemId)) continue;
+
+                    resolved.Add(new ResolvedStock
+                    {
+                        itemId = itemId,
+                        displayName = itemId,
+                        description = "No description.",
+                        icon = null,
+                        price = s.price
+                    });
+                }
+            }
+
+            return resolved;
         }
 
         public int GetStockCount()
@@ -67,10 +139,14 @@ namespace Abyss.Shop
 
         private void EnsureDefaultStock()
         {
-            if (_stock != null && _stock.Count > 0)
+            // If an SO inventory is assigned, keep the fallback list empty to avoid inspector clutter.
+            if (shopInventory != null && shopInventory.entries != null && shopInventory.entries.Count > 0)
                 return;
 
-            _stock = new List<StockEntry>
+            if (stock != null && stock.Count > 0)
+                return;
+
+            stock = new List<StockEntry>
             {
                 new StockEntry { itemName = "Health Potion", price = 10 },
                 new StockEntry { itemName = "Mana Potion",   price = 12 },

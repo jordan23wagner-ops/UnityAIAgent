@@ -7,12 +7,13 @@ public class PlayerInventory : MonoBehaviour
 
     public void Add(string itemId, int amount = 1)
     {
-        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
+        if (string.IsNullOrWhiteSpace(itemId)) return;
+        if (amount <= 0) return;
 
-        if (_items.ContainsKey(itemId)) _items[itemId] += amount;
-        else _items[itemId] = amount;
+        int next = _items.TryGetValue(itemId, out var cur) ? (cur + amount) : amount;
+        _items[itemId] = next;
 
-        Debug.Log($"[Inventory] Added {amount}x {itemId}. Now: {_items[itemId]}");
+        Debug.Log($"[Inventory] Added {amount}x {itemId}. Now: {next}", this);
     }
 
     public bool Has(string itemId, int amount = 1)

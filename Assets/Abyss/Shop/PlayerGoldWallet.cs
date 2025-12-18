@@ -15,6 +15,30 @@ namespace Abyss.Shop
 
         public event Action<int> GoldChanged;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void Boot()
+        {
+            if (Instance != null)
+                return;
+
+#if UNITY_2022_2_OR_NEWER
+            var existing = FindAnyObjectByType<PlayerGoldWallet>();
+#else
+            var existing = FindObjectOfType<PlayerGoldWallet>();
+#endif
+            if (existing != null)
+            {
+                Instance = existing;
+                DontDestroyOnLoad(existing.gameObject);
+                return;
+            }
+
+            var go = new GameObject("PlayerGoldWallet");
+            var wallet = go.AddComponent<PlayerGoldWallet>();
+            Instance = wallet;
+            DontDestroyOnLoad(go);
+        }
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -37,11 +61,14 @@ namespace Abyss.Shop
 
         public bool TrySpend(int amount)
         {
-            if (amount <= 0) return true;
+            if (amount <= 0) return false;
             if (_gold < amount) return false;
 
             _gold -= amount;
             GoldChanged?.Invoke(_gold);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[Wallet] Spend {amount}. NewGold={_gold}", this);
+#endif
             return true;
         }
 
@@ -50,6 +77,16 @@ namespace Abyss.Shop
             if (amount <= 0) return;
             _gold += amount;
             GoldChanged?.Invoke(_gold);
+        }
+
+        public void AddGold(int amount)
+        {
+            if (amount <= 0) return;
+            _gold += amount;
+            GoldChanged?.Invoke(_gold);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[Wallet] Add {amount}. NewGold={_gold}", this);
+#endif
         }
     }
 }

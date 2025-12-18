@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using Game.Town;
+using Abyss.Items;
 
 namespace Abyss.Shop
 {
@@ -25,6 +26,13 @@ namespace Abyss.Shop
         [SerializeField] private TMP_Text detailPriceText;
         [SerializeField] private TMP_Text detailDescText;
 
+        [Header("Buy")]
+        [SerializeField] private Button buyButton;
+        [SerializeField] private Button qtyMinusButton;
+        [SerializeField] private Button qtyPlusButton;
+        [SerializeField] private TMP_Text qtyText;
+        [SerializeField] private TMP_Text messageText;
+
         [Header("Top")]
         [SerializeField] private TMP_Text goldText;
         [SerializeField] private TMP_Text titleText;
@@ -32,6 +40,15 @@ namespace Abyss.Shop
         private MerchantShop _currentShop;
         private bool _isOpen;
         private Game.Input.PlayerInputAuthority _inputAuthority;
+
+        private PlayerInventory _inventory;
+        private PlayerGoldWallet _wallet;
+        private MerchantShopRowUI _selectedRow;
+        private string _selectedItemId;
+        private string _selectedDisplayName;
+        private string _selectedDescription;
+        private int _selectedPrice;
+        private int _qty = 1;
 
         public static bool IsOpen { get; private set; }
         public static event Action<bool> OnOpenChanged;
@@ -54,6 +71,37 @@ namespace Abyss.Shop
                 exitButton.onClick.RemoveAllListeners();
                 exitButton.onClick.AddListener(Close);
             }
+
+            if (buyButton != null)
+            {
+                buyButton.onClick.RemoveAllListeners();
+                buyButton.onClick.AddListener(TryBuy);
+            }
+
+            if (qtyMinusButton != null)
+            {
+                qtyMinusButton.onClick.RemoveAllListeners();
+                qtyMinusButton.onClick.AddListener(() => SetQty(_qty - 1));
+            }
+
+            if (qtyPlusButton != null)
+            {
+                qtyPlusButton.onClick.RemoveAllListeners();
+                qtyPlusButton.onClick.AddListener(() => SetQty(_qty + 1));
+            }
+
+            _wallet = PlayerGoldWallet.Instance;
+
+#if UNITY_2022_2_OR_NEWER
+            _inventory = FindFirstObjectByType<PlayerInventory>();
+#else
+            _inventory = FindObjectOfType<PlayerInventory>();
+#endif
+
+            SetQty(1);
+            SetMessage(string.Empty);
+
+            RefreshAffordabilityUI();
         }
 
         public void Open(MerchantShop shop, string displayName, int playerGold)
@@ -70,10 +118,20 @@ namespace Abyss.Shop
             OnOpenChanged?.Invoke(true);
             root.SetActive(true);
 
+            _wallet = PlayerGoldWallet.Instance;
+            if (_wallet != null)
+            {
+                _wallet.GoldChanged -= OnGoldChanged;
+                _wallet.GoldChanged += OnGoldChanged;
+            }
+
             try { _inputAuthority?.SetUiInputLocked(true); } catch { }
 
             if (titleText != null) titleText.text = string.IsNullOrWhiteSpace(displayName) ? shop.MerchantName : displayName;
-            if (goldText != null) goldText.text = $"Gold: {playerGold}";
+            RefreshGold();
+            SetMessage(string.Empty);
+            SetQty(1);
+            RefreshAffordabilityUI();
 
             for (int i = contentRoot.childCount - 1; i >= 0; i--)
             {
@@ -81,18 +139,31 @@ namespace Abyss.Shop
                 Destroy(c.gameObject);
             }
 
-            var stock = shop.GetStock();
-            if (stock != null)
+            MerchantShopRowUI firstRow = null;
+            MerchantShop.ResolvedStock firstResolved = default;
+            bool hasFirstResolved = false;
+
+            var items = shop.GetResolvedStock();
+            if (items != null)
             {
-                foreach (var s in stock)
+                foreach (var it in items)
                 {
+                    if (string.IsNullOrWhiteSpace(it.itemId) || it.price <= 0)
+                        continue;
+
+                    var captured = it;
                     var go = Instantiate(rowPrefab.gameObject, contentRoot, false);
                     var row = go.GetComponent<MerchantShopRowUI>();
                     if (row != null)
                     {
-                        string itemName = s.itemName;
-                        int price = s.price;
-                        row.Bind(itemName, price, () => { OnRowClicked(itemName, price); });
+                        row.Bind(captured.displayName, captured.price, captured.itemId, () => SelectResolvedRow(row, captured));
+
+                        if (firstRow == null)
+                        {
+                            firstRow = row;
+                            firstResolved = captured;
+                            hasFirstResolved = true;
+                        }
                     }
                 }
             }
@@ -104,11 +175,18 @@ namespace Abyss.Shop
                 txt.SetText("No items for sale");
             }
 
-            if (contentRoot.childCount > 0)
+            if (firstRow != null)
             {
-                var first = contentRoot.GetChild(0).GetComponent<MerchantShopRowUI>();
-                if (first != null) first.ButtonSelect();
+                if (hasFirstResolved)
+                    SelectResolvedRow(firstRow, firstResolved);
+                firstRow.ButtonSelect();
             }
+            else
+            {
+                ClearSelection();
+            }
+
+            RefreshAffordabilityUI();
 
             try
             {
@@ -117,7 +195,7 @@ namespace Abyss.Shop
             }
             catch { }
 
-            Debug.Log($"[MerchantShopUI] Opened shop={shop.gameObject.name} items={(stock!=null?stock.Count:0)}");
+            Debug.Log($"[MerchantShopUI] Opened shop={shop.gameObject.name} items={(items!=null?items.Count:0)}");
         }
 
         private void OnRowClicked(string name, int price)
@@ -127,6 +205,196 @@ namespace Abyss.Shop
             if (detailDescText != null) detailDescText.text = "No description.";
         }
 
+        private void SelectRow(MerchantShopRowUI row, string itemName, int price)
+        {
+            if (_selectedRow != null) _selectedRow.SetSelected(false);
+
+            _selectedRow = row;
+            _selectedRow?.SetSelected(true);
+
+            _selectedItemId = itemName;
+            _selectedDisplayName = itemName;
+            _selectedDescription = "No description.";
+            _selectedPrice = price;
+
+            if (detailNameText != null) detailNameText.text = itemName;
+            if (detailPriceText != null) detailPriceText.text = price.ToString();
+            if (detailDescText != null) detailDescText.text = "No description.";
+
+            SetMessage(string.Empty);
+
+            RefreshAffordabilityUI();
+        }
+
+        private void SelectResolvedRow(MerchantShopRowUI row, MerchantShop.ResolvedStock resolved)
+        {
+            if (_selectedRow != null) _selectedRow.SetSelected(false);
+
+            _selectedRow = row;
+            _selectedRow?.SetSelected(true);
+
+            _selectedItemId = resolved.itemId;
+            _selectedDisplayName = string.IsNullOrWhiteSpace(resolved.displayName) ? resolved.itemId : resolved.displayName;
+            _selectedDescription = string.IsNullOrWhiteSpace(resolved.description) ? "No description." : resolved.description;
+            _selectedPrice = resolved.price;
+
+            if (detailNameText != null) detailNameText.text = _selectedDisplayName;
+            if (detailPriceText != null) detailPriceText.text = resolved.price.ToString();
+            if (detailDescText != null) detailDescText.text = _selectedDescription;
+
+            SetMessage(string.Empty);
+            RefreshAffordabilityUI();
+        }
+
+        private void ClearSelection()
+        {
+            if (_selectedRow != null) _selectedRow.SetSelected(false);
+            _selectedRow = null;
+            _selectedItemId = null;
+            _selectedDisplayName = null;
+            _selectedDescription = null;
+            _selectedPrice = 0;
+
+            if (detailNameText != null) detailNameText.text = string.Empty;
+            if (detailPriceText != null) detailPriceText.text = string.Empty;
+            if (detailDescText != null) detailDescText.text = string.Empty;
+
+            RefreshAffordabilityUI();
+        }
+
+        private void SetQty(int newQty)
+        {
+            _qty = Mathf.Clamp(newQty, 1, 99);
+            if (qtyText != null) qtyText.text = _qty.ToString();
+
+            RefreshAffordabilityUI();
+        }
+
+        private void TryBuy()
+        {
+            if (string.IsNullOrWhiteSpace(_selectedItemId) || _selectedPrice <= 0)
+            {
+                SetMessage("Select an item first.");
+                return;
+            }
+
+            // If UI says we can't afford, don't proceed.
+            if (buyButton != null && !buyButton.interactable)
+            {
+                SetMessage("Not enough gold");
+                return;
+            }
+
+            _wallet ??= PlayerGoldWallet.Instance;
+            if (_wallet == null)
+            {
+                // Shouldn't happen after PlayerGoldWallet Boot(), but keep a guard.
+                SetMessage("No wallet found.");
+                return;
+            }
+
+            if (_inventory == null)
+            {
+#if UNITY_2022_2_OR_NEWER
+                _inventory = FindFirstObjectByType<PlayerInventory>();
+#else
+                _inventory = FindObjectOfType<PlayerInventory>();
+#endif
+            }
+            if (_inventory == null)
+            {
+                SetMessage("No inventory found.");
+                return;
+            }
+
+            int before = GetWalletGold();
+            int totalCost = _selectedPrice * _qty;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[ShopBuy] WalletID={(PlayerGoldWallet.Instance != null ? PlayerGoldWallet.Instance.GetInstanceID() : -1)} GoldBefore={before} Item={_selectedItemId} Qty={_qty} UnitPrice={_selectedPrice} Total={totalCost}");
+#endif
+            if (!_wallet.TrySpend(totalCost))
+            {
+                SetMessage("Not enough gold");
+                RefreshGold();
+                RefreshAffordabilityUI();
+                return;
+            }
+
+            _inventory.Add(_selectedItemId, _qty);
+            string purchasedName = string.IsNullOrWhiteSpace(_selectedDisplayName) ? _selectedItemId : _selectedDisplayName;
+            SetMessage($"Purchased x{_qty} {purchasedName}");
+            RefreshGold();
+            int after = GetWalletGold();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            Debug.Log($"[ShopBuy] GoldAfter={after}", this);
+#endif
+            RefreshAffordabilityUI();
+        }
+
+        private void OnGoldChanged(int newGold)
+        {
+            RefreshGold();
+            RefreshAffordabilityUI();
+        }
+
+        private void RefreshGold()
+        {
+            if (goldText != null)
+                goldText.text = $"Gold: {GetWalletGold()}";
+        }
+
+        private int GetWalletGold()
+        {
+            _wallet = PlayerGoldWallet.Instance;
+            return _wallet != null ? _wallet.Gold : 0;
+        }
+
+        private int GetTotalCost() => (_selectedPrice > 0 ? _selectedPrice : 0) * _qty;
+
+        private int GetMaxAffordableQty()
+        {
+            if (_selectedPrice <= 0)
+                return 1;
+
+            int gold = GetWalletGold();
+            int max = gold / _selectedPrice;
+            return Mathf.Clamp(max, 1, 99);
+        }
+
+        private void RefreshAffordabilityUI()
+        {
+            // No wallet yet? Keep UI safe.
+            _wallet ??= PlayerGoldWallet.Instance;
+
+            int gold = GetWalletGold();
+            int maxAffordable = GetMaxAffordableQty();
+
+            // Clamp qty to what is affordable (but always keep >= 1).
+            if (_qty > maxAffordable)
+            {
+                _qty = maxAffordable;
+                if (qtyText != null) qtyText.text = _qty.ToString();
+            }
+
+            bool hasSelection = !string.IsNullOrWhiteSpace(_selectedItemId) && _selectedPrice > 0;
+            bool canAfford = hasSelection && gold >= GetTotalCost();
+
+            if (qtyMinusButton != null)
+                qtyMinusButton.interactable = _qty > 1;
+
+            if (qtyPlusButton != null)
+                qtyPlusButton.interactable = hasSelection && (_qty < maxAffordable);
+
+            if (buyButton != null)
+                buyButton.interactable = canAfford;
+        }
+
+        private void SetMessage(string msg)
+        {
+            if (messageText != null)
+                messageText.text = msg ?? string.Empty;
+        }
+
         public void Close()
         {
             if (!_isOpen) return;
@@ -134,9 +402,16 @@ namespace Abyss.Shop
             IsOpen = false;
             OnOpenChanged?.Invoke(false);
 
+            if (_wallet != null)
+                _wallet.GoldChanged -= OnGoldChanged;
+
             try { if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null); } catch { }
 
             if (root != null) root.SetActive(false);
+
+            ClearSelection();
+            SetMessage(string.Empty);
+            SetQty(1);
 
             try { _inputAuthority?.SetUiInputLocked(false); } catch { }
 

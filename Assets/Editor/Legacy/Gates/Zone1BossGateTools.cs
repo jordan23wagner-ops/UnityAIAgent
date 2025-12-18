@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
+using Abyss.Legacy;
 
 public static class Zone1BossGateTools
 {
@@ -89,15 +90,15 @@ public static class Zone1BossGateTools
         AssetDatabase.CreateFolder(parent, name);
     }
 
-    private static ItemDefinition FindItemDefinition(string token)
+    private static LegacyItemDefinition FindItemDefinition(string token)
     {
         if (string.IsNullOrWhiteSpace(token)) return null;
 
-        var guids = AssetDatabase.FindAssets("t:ItemDefinition");
+        var guids = AssetDatabase.FindAssets("t:LegacyItemDefinition");
         foreach (var guid in guids)
         {
             var path = AssetDatabase.GUIDToAssetPath(guid);
-            var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
+            var item = AssetDatabase.LoadAssetAtPath<LegacyItemDefinition>(path);
             if (item == null) continue;
 
             if (!string.IsNullOrWhiteSpace(item.itemId) && string.Equals(item.itemId, token, System.StringComparison.OrdinalIgnoreCase))

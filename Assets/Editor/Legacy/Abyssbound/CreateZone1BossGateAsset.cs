@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
+using Abyss.Legacy;
 
 namespace Abyssbound.EditorTools
 {
@@ -22,7 +23,7 @@ namespace Abyssbound.EditorTools
                 AssetDatabase.CreateAsset(gate, GateAssetPath);
             }
 
-            // GateDefinition currently defines its requirement as an ItemDefinition reference.
+            // GateDefinition currently defines its requirement as a LegacyItemDefinition reference.
             // We resolve "AbyssalSigil" by itemId or by asset name.
             var sigil = FindItemDefinitionByIdOrName("AbyssalSigil");
             if (sigil == null)
@@ -63,16 +64,16 @@ namespace Abyssbound.EditorTools
                 AssetDatabase.CreateFolder(parent, name);
         }
 
-        private static ItemDefinition FindItemDefinitionByIdOrName(string token)
+        private static LegacyItemDefinition FindItemDefinitionByIdOrName(string token)
         {
             if (string.IsNullOrWhiteSpace(token))
                 return null;
 
-            var guids = AssetDatabase.FindAssets("t:ItemDefinition");
+            var guids = AssetDatabase.FindAssets("t:LegacyItemDefinition");
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
+                var item = AssetDatabase.LoadAssetAtPath<LegacyItemDefinition>(path);
                 if (item == null)
                     continue;
 

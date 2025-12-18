@@ -1321,14 +1321,8 @@ namespace AIAssistant
 
         private static List<UnityEngine.ScriptableObject> DiscoverItemDefinitionsWithFallback(AiExecutionResult result, string op)
         {
-            var exact = DiscoverAssetsByType<ItemDefinition>("t:ItemDefinition");
-            if (exact.Count > 0)
-            {
-                var list = new List<UnityEngine.ScriptableObject>();
-                foreach (var x in exact)
-                    if (x != null) list.Add(x);
-                return list;
-            }
+            var exact = DiscoverAssetsByFilterAsScriptableObject("t:LegacyItemDefinition");
+            if (exact.Count > 0) return exact;
 
             var candidates = DiscoverScriptableObjectCandidatesByTypeName(typeName =>
             {
@@ -1337,7 +1331,7 @@ namespace AIAssistant
                 return typeName.IndexOf("Definition", StringComparison.OrdinalIgnoreCase) >= 0 ||
                        typeName.IndexOf("Def", StringComparison.OrdinalIgnoreCase) >= 0;
             });
-            LogCandidateNamesAndTypes(result, op, "ItemDefinition fallback candidates", candidates);
+            LogCandidateNamesAndTypes(result, op, "LegacyItemDefinition fallback candidates", candidates);
             return candidates;
         }
 
@@ -1366,21 +1360,22 @@ namespace AIAssistant
             return DiscoverAssetsByType<GateDefinition>("t:GateDefinition");
         }
 
-        private static bool ItemDefinitionMatches(ItemDefinition item, string token)
+        private static bool ItemDefinitionMatches(UnityEngine.ScriptableObject item, string token)
         {
             if (item == null) return false;
             if (string.IsNullOrWhiteSpace(token)) return false;
 
-            if (!string.IsNullOrWhiteSpace(item.itemId) && string.Equals(item.itemId, token, StringComparison.OrdinalIgnoreCase))
+            var itemId = TryGetStringMember(item, "itemId");
+            if (!string.IsNullOrWhiteSpace(itemId) && string.Equals(itemId, token, StringComparison.OrdinalIgnoreCase))
                 return true;
 
             return string.Equals(item.name, token, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static ItemDefinition FindItemDefinitionByIdOrName(string token)
+        private static UnityEngine.ScriptableObject FindItemDefinitionByIdOrName(string token)
         {
             if (string.IsNullOrWhiteSpace(token)) return null;
-            var items = DiscoverAssetsByType<ItemDefinition>("t:ItemDefinition");
+            var items = DiscoverAssetsByFilterAsScriptableObject("t:LegacyItemDefinition");
             foreach (var item in items)
             {
                 if (ItemDefinitionMatches(item, token))
@@ -1414,9 +1409,9 @@ namespace AIAssistant
             };
         }
 
-        private static HashSet<ItemDefinition> CollectReferencedItemDefinitions(DropTable table)
+        private static HashSet<UnityEngine.ScriptableObject> CollectReferencedItemDefinitions(DropTable table)
         {
-            var referenced = new HashSet<ItemDefinition>();
+            var referenced = new HashSet<UnityEngine.ScriptableObject>();
             if (table == null) return referenced;
             var tiers = GetTierLists(table);
             foreach (var kvp in tiers)
@@ -1493,13 +1488,13 @@ namespace AIAssistant
 
                 if (!itemByName.TryGetValue(itemName, out var itemDefAsset) || itemDefAsset == null)
                 {
-                    AddError(result, opName, $"{table.name} | Expected item '{itemName}' is missing ItemDefinition asset (matched by asset.name)");
+                    AddError(result, opName, $"{table.name} | Expected item '{itemName}' is missing LegacyItemDefinition asset (matched by asset.name)");
                     continue;
                 }
 
                 var itemId = TryGetStringMember(itemDefAsset, "itemId");
                 if (!string.IsNullOrEmpty(itemId) && !string.Equals(itemId, itemDefAsset.name, StringComparison.OrdinalIgnoreCase))
-                    AddWarning(result, opName, $"{table.name} | ItemDefinition '{itemDefAsset.name}' itemId '{itemId}' does not match asset name");
+                    AddWarning(result, opName, $"{table.name} | LegacyItemDefinition '{itemDefAsset.name}' itemId '{itemId}' does not match asset name");
 
                 float maxChance = 0f;
                 var perTier = new List<string>();
@@ -2099,7 +2094,7 @@ namespace AIAssistant
                         var foundItems = DiscoverItemDefinitionsWithFallback(result, "listItemDefinitions");
                         var names = GetAssetNames(foundItems);
                         if (names.Length == 0)
-                            AddWarning(result, "listItemDefinitions", "No ItemDefinition assets found (exact or fallback).");
+                            AddWarning(result, "listItemDefinitions", "No LegacyItemDefinition assets found (exact or fallback).");
                         else
                             AddLog(result, "listItemDefinitions", $"Found {names.Length}: [{string.Join(", ", names)}]");
 #else
@@ -2124,10 +2119,11 @@ namespace AIAssistant
                             foreach (var g in gates)
                             {
                                 if (g == null) continue;
-                                var required = g.requiredItem;
+                                UnityEngine.ScriptableObject required = g.requiredItem;
+                                var requiredId = required != null ? TryGetStringMember(required, "itemId") : null;
                                 var requiredLabel = required == null
                                     ? "<null>"
-                                    : (!string.IsNullOrWhiteSpace(required.itemId) ? required.itemId : required.name);
+                                    : (!string.IsNullOrWhiteSpace(requiredId) ? requiredId : required.name);
                                 AddLog(result, opName, $"{g.name} | requiredItem={requiredLabel} | path={GetAssetPath(g)}");
                             }
                         }
@@ -2177,12 +2173,13 @@ namespace AIAssistant
                         var expectedItem = FindItemDefinitionByIdOrName(expectedKeyItem);
                         if (expectedItem == null)
                         {
-                            AddError(result, opName, $"Expected key item not found in ItemDefinition assets: '{expectedKeyItem}' (matched by itemId or asset name, case-insensitive).");
+                            AddError(result, opName, $"Expected key item not found in LegacyItemDefinition assets: '{expectedKeyItem}' (matched by itemId or asset name, case-insensitive).");
                             result.opsExecuted++;
                             break;
                         }
 
-                        AddLog(result, opName, $"Expected key item resolved: {expectedItem.name} (itemId='{expectedItem.itemId}') | path={GetAssetPath(expectedItem)}");
+                        var expectedItemId = TryGetStringMember(expectedItem, "itemId");
+                        AddLog(result, opName, $"Expected key item resolved: {expectedItem.name} (itemId='{expectedItemId}') | path={GetAssetPath(expectedItem)}");
 
                         if (gate.requiredItem == null)
                         {
@@ -2193,7 +2190,8 @@ namespace AIAssistant
 
                         if (!ItemDefinitionMatches(gate.requiredItem, expectedKeyItem))
                         {
-                            var actualLabel = !string.IsNullOrWhiteSpace(gate.requiredItem.itemId) ? gate.requiredItem.itemId : gate.requiredItem.name;
+                            var actualId = TryGetStringMember(gate.requiredItem, "itemId");
+                            var actualLabel = !string.IsNullOrWhiteSpace(actualId) ? actualId : gate.requiredItem.name;
                             AddError(result, opName, $"GateDefinition '{gate.name}' requires '{actualLabel}', which does not match expected '{expectedKeyItem}'.");
                             result.opsExecuted++;
                             break;
@@ -2349,25 +2347,20 @@ namespace AIAssistant
                         const string opName = "validateOrphanItemDefinitions";
 #if UNITY_EDITOR
                         var itemCandidates = DiscoverItemDefinitionsWithFallback(result, opName);
-                        var items = new List<ItemDefinition>();
-                        foreach (var c in itemCandidates)
-                        {
-                            if (c is ItemDefinition id)
-                                items.Add(id);
-                        }
+                        var items = itemCandidates;
 
                         if (items.Count == 0)
                         {
                             if (itemCandidates.Count > 0)
-                                AddWarning(result, opName, "Found ItemDefinition-like candidates but none were ItemDefinition instances (see logs).");
+                                AddWarning(result, opName, "Found LegacyItemDefinition-like candidates but none were LegacyItemDefinition instances (see logs).");
                             else
-                                AddWarning(result, opName, "No ItemDefinition assets found.");
+                                AddWarning(result, opName, "No LegacyItemDefinition assets found.");
                             result.opsExecuted++;
                             break;
                         }
 
                         var tables = DiscoverDropTablesWithFallback(result, opName, out _);
-                        var referenced = new HashSet<ItemDefinition>();
+                        var referenced = new HashSet<UnityEngine.ScriptableObject>();
                         foreach (var t in tables)
                         {
                             if (t == null) continue;
@@ -2375,7 +2368,7 @@ namespace AIAssistant
                                 referenced.Add(it);
                         }
 
-                        var orphans = new List<ItemDefinition>();
+                        var orphans = new List<UnityEngine.ScriptableObject>();
                         foreach (var it in items)
                         {
                             if (it == null) continue;
@@ -2385,11 +2378,11 @@ namespace AIAssistant
 
                         if (orphans.Count == 0)
                         {
-                            AddLog(result, opName, $"No orphan ItemDefinitions found. Total={items.Count}");
+                            AddLog(result, opName, $"No orphan LegacyItemDefinitions found. Total={items.Count}");
                         }
                         else
                         {
-                            AddWarning(result, opName, $"Found {orphans.Count} orphan ItemDefinition(s) not referenced by any DropTable:");
+                            AddWarning(result, opName, $"Found {orphans.Count} orphan LegacyItemDefinition(s) not referenced by any DropTable:");
                             foreach (var o in orphans)
                                 AddLog(result, opName, $" - {o.name} | {GetAssetPath(o)}");
                         }

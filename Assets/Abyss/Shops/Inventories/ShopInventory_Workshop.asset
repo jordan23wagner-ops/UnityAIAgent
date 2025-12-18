@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27dae50ab50144d4d824768ef5bf3a4d, type: 3}
+  m_Name: ShopInventory_Workshop
+  m_EditorClassIdentifier: Assembly-CSharp::Abyss.Shop.ShopInventory
+  entries:
+  - item: {fileID: 11400000, guid: 6cbe27c741abcf54a8a0f438c5fe2b53, type: 2}
+    price: 15
+  - item: {fileID: 11400000, guid: 285513224c2859643ad8ad17d3398e30, type: 2}
+    price: 18
+  - item: {fileID: 11400000, guid: 0a28efb9cf63cd148b67954b7e4eb3f6, type: 2}
+    price: 12

@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using Abyss.Legacy;
 
 public static class CreateAbyssalSigilAssets
 {
@@ -14,10 +15,10 @@ public static class CreateAbyssalSigilAssets
         const string itemPath = "Assets/Game/Loot/Items/AbyssalSigil.asset";
         const string tablePath = "Assets/Game/Loot/DropTables/abyssal_sigil_basic.asset";
 
-        var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(itemPath);
+        var item = AssetDatabase.LoadAssetAtPath<LegacyItemDefinition>(itemPath);
         if (item == null)
         {
-            item = ScriptableObject.CreateInstance<ItemDefinition>();
+            item = ScriptableObject.CreateInstance<LegacyItemDefinition>();
             item.itemId = "AbyssalSigil";
             item.displayName = "Abyssal Sigil";
             AssetDatabase.CreateAsset(item, itemPath);
