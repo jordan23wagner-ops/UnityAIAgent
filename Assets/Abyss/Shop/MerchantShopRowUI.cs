@@ -3,12 +3,18 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.EventSystems;
+using Abyss.Items;
+
+using AbyssItemRarity = Abyss.Items.ItemRarity;
 
 namespace Abyss.Shop
 {
     public class MerchantShopRowUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private Image background;
+        [Header("Optional Visuals")]
+        [SerializeField] private Image iconImage;
+        [SerializeField] private Image rarityStrip;
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text priceText;
         [SerializeField] private Button button;
@@ -24,10 +30,15 @@ namespace Abyss.Shop
         private bool _isHovered;
         private bool _isSelected;
 
+        private Color _baseNameColor;
+
         private void Awake()
         {
             EnsureDefaultColors();
             RefreshBackgroundColor();
+
+            if (nameText != null)
+                _baseNameColor = nameText.color;
         }
 
         public void Bind(string itemName, int price, Action onClick)
@@ -46,6 +57,8 @@ namespace Abyss.Shop
             if (nameText != null) nameText.text = displayName;
             if (priceText != null) priceText.text = price.ToString();
 
+            ApplyItemVisuals(null, AbyssItemRarity.Common);
+
             _itemId = itemId;
             _price = price;
 
@@ -59,6 +72,44 @@ namespace Abyss.Shop
             // Default state.
             _isHovered = false;
             SetSelected(false);
+        }
+
+        public void Bind(string displayName, int price, string itemId, Sprite icon, AbyssItemRarity rarity, Action onClick)
+        {
+            Bind(displayName, price, itemId, onClick);
+            ApplyItemVisuals(icon, rarity);
+        }
+
+        private void ApplyItemVisuals(Sprite icon, AbyssItemRarity rarity)
+        {
+            // Icon (optional)
+            if (iconImage != null)
+            {
+                bool hasIcon = icon != null;
+                iconImage.sprite = icon;
+                iconImage.enabled = hasIcon;
+                if (iconImage.gameObject.activeSelf != hasIcon)
+                    iconImage.gameObject.SetActive(hasIcon);
+            }
+
+            // Rarity: prefer strip if available, else tint name text.
+            rarity = ItemRarityVisuals.Normalize(rarity);
+            var c = ItemRarityVisuals.GetColor(rarity);
+
+            if (rarityStrip != null)
+            {
+                rarityStrip.color = c;
+                if (!rarityStrip.gameObject.activeSelf)
+                    rarityStrip.gameObject.SetActive(true);
+            }
+            else if (nameText != null)
+            {
+                if (_baseNameColor.a <= 0f)
+                    _baseNameColor = nameText.color;
+
+                // Keep original alpha.
+                nameText.color = new Color(c.r, c.g, c.b, _baseNameColor.a);
+            }
         }
 
         public void ConfigureColors(Color baseColor, Color hoverColor, Color selectedColor)
@@ -143,5 +194,7 @@ namespace Abyss.Shop
         public string ItemId => _itemId;
         public int Price => _price;
         public Button Button => button;
+
+        public bool CanShowIcon => iconImage != null;
     }
 }

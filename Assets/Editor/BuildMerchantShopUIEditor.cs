@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using TMPro;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 
 public static class BuildMerchantShopUIEditor
 {
@@ -13,6 +14,14 @@ public static class BuildMerchantShopUIEditor
     public static void BuildMerchantShopUI()
     {
         EnsureEventSystemExists();
+
+        // Best-effort upgrade: if a MerchantShopUI already exists in the active scene, wire/upgrade it in-place
+        // (including its referenced row prefab) so projects don't require manual hookups.
+        if (TryUpgradeExistingMerchantShopUIsInScene(out var upgradeSummary))
+        {
+            Debug.Log(upgradeSummary);
+            return;
+        }
 
         // Force rebuild: delete prior instances so styling/layout updates always apply.
         DestroySceneObjectsByName("MerchantShopUICanvas");
@@ -221,6 +230,29 @@ public static class BuildMerchantShopUIEditor
         SetAnchors(descRt, new Vector2(0.05f, 0.24f), new Vector2(0.95f, 0.66f));
         SetOffsets(descRt, 0f, 0f, 0f, 0f);
 
+        // Optional details visuals: icon + rarity label
+        var detailIconGO = new GameObject("DetailIcon", typeof(RectTransform), typeof(Image));
+        detailIconGO.transform.SetParent(details.transform, false);
+        var detailIconRt = detailIconGO.GetComponent<RectTransform>();
+        SetAnchors(detailIconRt, new Vector2(0.05f, 0.66f), new Vector2(0.18f, 0.78f));
+        SetOffsets(detailIconRt, 0f, 0f, 0f, 0f);
+        var detailIconImg = detailIconGO.GetComponent<Image>();
+        detailIconImg.color = Color.white;
+        detailIconImg.preserveAspect = true;
+        detailIconImg.raycastTarget = false;
+        detailIconGO.SetActive(false);
+
+        var rarityText = new GameObject("DetailRarityText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        rarityText.transform.SetParent(details.transform, false);
+        var rarityTmp = rarityText.GetComponent<TextMeshProUGUI>();
+        rarityTmp.fontSize = 20;
+        rarityTmp.color = Color.white;
+        rarityTmp.alignment = TextAlignmentOptions.Left;
+        rarityTmp.textWrappingMode = TextWrappingModes.NoWrap;
+        var rarityRt = rarityText.GetComponent<RectTransform>();
+        SetAnchors(rarityRt, new Vector2(0.20f, 0.66f), new Vector2(0.95f, 0.74f));
+        SetOffsets(rarityRt, 0f, 0f, 0f, 0f);
+
         // Bottom controls: quantity +/- and buy button
         var qtyMinusGO = new GameObject("QtyMinusButton", typeof(RectTransform), typeof(Image), typeof(Button));
         qtyMinusGO.transform.SetParent(details.transform, false);
@@ -349,10 +381,37 @@ public static class BuildMerchantShopUIEditor
         var rowImg = rowGO.GetComponent<Image>();
         // Default unselected color (selection logic will adjust at runtime).
         rowImg.color = new Color(0.10f, 0.10f, 0.10f, 0.85f);
+
+        // Optional visuals: rarity strip + icon
+        var rarityStripGO = new GameObject("RarityStrip", typeof(RectTransform), typeof(Image));
+        rarityStripGO.transform.SetParent(rowGO.transform, false);
+        var rarityStripRt = rarityStripGO.GetComponent<RectTransform>();
+        SetAnchors(rarityStripRt, new Vector2(0f, 0f), new Vector2(0f, 1f));
+        rarityStripRt.pivot = new Vector2(0f, 0.5f);
+        rarityStripRt.anchoredPosition = Vector2.zero;
+        rarityStripRt.sizeDelta = new Vector2(6f, 0f);
+        var rarityStripImg = rarityStripGO.GetComponent<Image>();
+        rarityStripImg.color = new Color(0.92f, 0.92f, 0.92f, 1f);
+        rarityStripImg.raycastTarget = false;
+
+        var iconGO = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+        iconGO.transform.SetParent(rowGO.transform, false);
+        var iconRt = iconGO.GetComponent<RectTransform>();
+        SetAnchors(iconRt, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+        iconRt.pivot = new Vector2(0f, 0.5f);
+        iconRt.anchoredPosition = new Vector2(12f, 0f);
+        iconRt.sizeDelta = new Vector2(34f, 34f);
+        var iconImg = iconGO.GetComponent<Image>();
+        iconImg.color = Color.white;
+        iconImg.preserveAspect = true;
+        iconImg.raycastTarget = false;
+        iconGO.SetActive(false);
+
         var nameChild = new GameObject("NameText", typeof(RectTransform), typeof(TextMeshProUGUI));
         nameChild.transform.SetParent(rowGO.transform, false);
         var nameChildRt = nameChild.GetComponent<RectTransform>();
-        SetAnchors(nameChildRt, new Vector2(0.03f, 0f), new Vector2(0.70f, 1f));
+        // Leave room on the left for rarity strip + icon.
+        SetAnchors(nameChildRt, new Vector2(0.09f, 0f), new Vector2(0.70f, 1f));
         SetOffsets(nameChildRt, 0f, 0f, 0f, 0f);
         var nameRowTmp = nameChild.GetComponent<TextMeshProUGUI>();
         nameRowTmp.fontSize = 26;
@@ -385,6 +444,8 @@ public static class BuildMerchantShopUIEditor
         // Assign Row component references via SerializedObject
         var soRow = new SerializedObject(rowComp);
         soRow.FindProperty("background").objectReferenceValue = rowImg;
+        soRow.FindProperty("iconImage").objectReferenceValue = iconImg;
+        soRow.FindProperty("rarityStrip").objectReferenceValue = rarityStripImg;
         soRow.FindProperty("nameText").objectReferenceValue = nameChild.GetComponent<TextMeshProUGUI>();
         soRow.FindProperty("priceText").objectReferenceValue = priceChild.GetComponent<TextMeshProUGUI>();
         soRow.FindProperty("button").objectReferenceValue = rowGO.GetComponent<Button>();
@@ -409,6 +470,8 @@ public static class BuildMerchantShopUIEditor
         so.FindProperty("detailNameText").objectReferenceValue = nameText.GetComponent<TextMeshProUGUI>();
         so.FindProperty("detailPriceText").objectReferenceValue = priceText.GetComponent<TextMeshProUGUI>();
         so.FindProperty("detailDescText").objectReferenceValue = descText.GetComponent<TextMeshProUGUI>();
+        so.FindProperty("detailIconImage").objectReferenceValue = detailIconImg;
+        so.FindProperty("detailRarityText").objectReferenceValue = rarityTmp;
         so.FindProperty("buyButton").objectReferenceValue = buyBtn;
         so.FindProperty("qtyMinusButton").objectReferenceValue = qtyMinusBtn;
         so.FindProperty("qtyPlusButton").objectReferenceValue = qtyPlusBtn;
@@ -425,6 +488,220 @@ public static class BuildMerchantShopUIEditor
         AssetDatabase.Refresh();
 
         Debug.Log("Built MerchantShop UI hierarchy and prefab.");
+    }
+
+    private static bool TryUpgradeExistingMerchantShopUIsInScene(out string summary)
+    {
+        summary = string.Empty;
+
+        // Includes inactive objects.
+        var all = Resources.FindObjectsOfTypeAll<Abyss.Shop.MerchantShopUI>();
+        if (all == null || all.Length == 0)
+            return false;
+
+        // Only scene instances (not prefab assets).
+        var sceneUis = all
+            .Where(ui => ui != null && ui.gameObject != null)
+            .Where(ui => ui.gameObject.scene.IsValid() && !EditorUtility.IsPersistent(ui.gameObject))
+            .ToArray();
+
+        if (sceneUis.Length == 0)
+            return false;
+
+        int upgradedUiCount = 0;
+        int upgradedPrefabCount = 0;
+        int createdSceneObjects = 0;
+
+        foreach (var ui in sceneUis)
+        {
+            if (ui == null) continue;
+
+            // Wire/ensure details visuals.
+            if (TryWireDetailsVisuals(ui, ref createdSceneObjects))
+                upgradedUiCount++;
+
+            // Upgrade referenced row prefab (if any).
+            var rowPrefab = GetSerializedObjectField<Abyss.Shop.MerchantShopRowUI>(ui, "rowPrefab");
+            if (rowPrefab != null)
+            {
+                var prefabPath = AssetDatabase.GetAssetPath(rowPrefab);
+                if (string.IsNullOrWhiteSpace(prefabPath))
+                    prefabPath = AssetDatabase.GetAssetPath(rowPrefab.gameObject);
+                if (string.IsNullOrWhiteSpace(prefabPath))
+                    prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(rowPrefab.gameObject);
+
+                if (!string.IsNullOrWhiteSpace(prefabPath) && UpgradeRowPrefabAsset(prefabPath))
+                    upgradedPrefabCount++;
+            }
+        }
+
+        summary = $"[BuildMerchantShopUIEditor] Upgraded existing MerchantShopUI(s) in scene: uiWired={upgradedUiCount}/{sceneUis.Length}, rowPrefabUpgraded={upgradedPrefabCount}, sceneObjectsCreated={createdSceneObjects}.";
+        return true;
+    }
+
+    private static bool TryWireDetailsVisuals(Abyss.Shop.MerchantShopUI ui, ref int createdSceneObjects)
+    {
+        // We locate the details panel via existing assigned NameText (if present).
+        var detailName = GetSerializedObjectField<TMP_Text>(ui, "detailNameText");
+        if (detailName == null)
+            return false;
+
+        var detailsPanel = detailName.transform != null ? detailName.transform.parent : null;
+        if (detailsPanel == null)
+            return false;
+
+        var detailIcon = FindOrCreateChild(detailsPanel, "DetailIcon", ref createdSceneObjects);
+        var detailIconImage = EnsureComponent<Image>(detailIcon, ref createdSceneObjects);
+        ConfigureDetailsIconRect(detailIconImage);
+
+        var rarityTextGo = FindOrCreateChild(detailsPanel, "DetailRarityText", ref createdSceneObjects);
+        var rarityTmp = EnsureComponent<TextMeshProUGUI>(rarityTextGo, ref createdSceneObjects);
+        ConfigureDetailsRarityRect(rarityTmp);
+
+        var so = new SerializedObject(ui);
+        so.FindProperty("detailIconImage").objectReferenceValue = detailIconImage;
+        so.FindProperty("detailRarityText").objectReferenceValue = rarityTmp;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        EditorUtility.SetDirty(ui);
+        return true;
+    }
+
+    private static T GetSerializedObjectField<T>(UnityEngine.Object obj, string fieldName) where T : UnityEngine.Object
+    {
+        if (obj == null) return null;
+        var so = new SerializedObject(obj);
+        var prop = so.FindProperty(fieldName);
+        return prop != null ? prop.objectReferenceValue as T : null;
+    }
+
+    private static bool UpgradeRowPrefabAsset(string prefabPath)
+    {
+        if (string.IsNullOrWhiteSpace(prefabPath))
+            return false;
+
+        GameObject root = null;
+        try
+        {
+            root = PrefabUtility.LoadPrefabContents(prefabPath);
+            if (root == null) return false;
+
+            var row = root.GetComponent<Abyss.Shop.MerchantShopRowUI>();
+            if (row == null) return false;
+
+            int created = 0;
+            var rarityStripGo = FindOrCreateChild(root.transform, "RarityStrip", ref created);
+            var rarityStripImg = EnsureComponent<Image>(rarityStripGo, ref created);
+            ConfigureRowRarityStripRect(rarityStripImg);
+
+            var iconGo = FindOrCreateChild(root.transform, "Icon", ref created);
+            var iconImg = EnsureComponent<Image>(iconGo, ref created);
+            ConfigureRowIconRect(iconImg);
+            if (iconGo.activeSelf) iconGo.SetActive(false);
+
+            // Adjust the NameText anchors slightly to make room (only if it still looks like the old layout).
+            var nameText = GetSerializedObjectField<TextMeshProUGUI>(row, "nameText");
+            if (nameText != null)
+            {
+                var rt = nameText.rectTransform;
+                if (rt != null && Mathf.Abs(rt.anchorMin.x - 0.03f) < 0.001f)
+                {
+                    rt.anchorMin = new Vector2(0.09f, rt.anchorMin.y);
+                }
+            }
+
+            var soRow = new SerializedObject(row);
+            soRow.FindProperty("iconImage").objectReferenceValue = iconImg;
+            soRow.FindProperty("rarityStrip").objectReferenceValue = rarityStripImg;
+            soRow.ApplyModifiedPropertiesWithoutUndo();
+
+            PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            return true;
+        }
+        finally
+        {
+            if (root != null)
+                PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static GameObject FindOrCreateChild(Transform parent, string name, ref int createdCount)
+    {
+        if (parent == null) return null;
+
+        var t = parent.Find(name);
+        if (t != null) return t.gameObject;
+
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        createdCount++;
+        return go;
+    }
+
+    private static T EnsureComponent<T>(GameObject go, ref int createdCount) where T : Component
+    {
+        if (go == null) return null;
+        var c = go.GetComponent<T>();
+        if (c != null) return c;
+        createdCount++;
+        return go.AddComponent<T>();
+    }
+
+    private static void ConfigureRowRarityStripRect(Image strip)
+    {
+        if (strip == null) return;
+        strip.raycastTarget = false;
+        strip.color = new Color(0.92f, 0.92f, 0.92f, 1f);
+
+        var rt = strip.rectTransform;
+        if (rt == null) return;
+        SetAnchors(rt, new Vector2(0f, 0f), new Vector2(0f, 1f));
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(6f, 0f);
+    }
+
+    private static void ConfigureRowIconRect(Image icon)
+    {
+        if (icon == null) return;
+        icon.raycastTarget = false;
+        icon.color = Color.white;
+        icon.preserveAspect = true;
+
+        var rt = icon.rectTransform;
+        if (rt == null) return;
+        SetAnchors(rt, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.anchoredPosition = new Vector2(12f, 0f);
+        rt.sizeDelta = new Vector2(34f, 34f);
+    }
+
+    private static void ConfigureDetailsIconRect(Image icon)
+    {
+        if (icon == null) return;
+        icon.raycastTarget = false;
+        icon.color = Color.white;
+        icon.preserveAspect = true;
+
+        var rt = icon.rectTransform;
+        if (rt == null) return;
+        // Reasonable default; caller parent is the details panel.
+        SetAnchors(rt, new Vector2(0.05f, 0.66f), new Vector2(0.18f, 0.78f));
+        SetOffsets(rt, 0f, 0f, 0f, 0f);
+    }
+
+    private static void ConfigureDetailsRarityRect(TextMeshProUGUI tmp)
+    {
+        if (tmp == null) return;
+        tmp.fontSize = 20;
+        tmp.color = Color.white;
+        tmp.alignment = TextAlignmentOptions.Left;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+
+        var rt = tmp.rectTransform;
+        if (rt == null) return;
+        SetAnchors(rt, new Vector2(0.20f, 0.66f), new Vector2(0.95f, 0.74f));
+        SetOffsets(rt, 0f, 0f, 0f, 0f);
     }
 
     private static void EnsureEventSystemExists()

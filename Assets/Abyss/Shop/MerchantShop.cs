@@ -4,6 +4,8 @@ using UnityEngine;
 using Abyss.Items;
 using UnityEngine.Serialization;
 
+using AbyssItemRarity = Abyss.Items.ItemRarity;
+
 namespace Abyss.Shop
 {
     [DisallowMultipleComponent]
@@ -17,6 +19,7 @@ namespace Abyss.Shop
             public string description;
             public int price;
             public Sprite icon;
+            public AbyssItemRarity rarity;
         }
 
         [Serializable]
@@ -69,6 +72,7 @@ namespace Abyss.Shop
                         displayName = displayName,
                         description = desc,
                         icon = def.icon,
+                        rarity = def != null ? def.rarity : AbyssItemRarity.Common,
                         price = entry.price
                     });
                 }
@@ -93,6 +97,7 @@ namespace Abyss.Shop
                         displayName = itemId,
                         description = "No description.",
                         icon = null,
+                        rarity = AbyssItemRarity.Common,
                         price = s.price
                     });
                 }

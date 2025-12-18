@@ -6,6 +6,8 @@ using TMPro;
 using Game.Town;
 using Abyss.Items;
 
+using AbyssItemRarity = Abyss.Items.ItemRarity;
+
 namespace Abyss.Shop
 {
     [DisallowMultipleComponent]
@@ -25,6 +27,8 @@ namespace Abyss.Shop
         [SerializeField] private TMP_Text detailNameText;
         [SerializeField] private TMP_Text detailPriceText;
         [SerializeField] private TMP_Text detailDescText;
+        [SerializeField] private Image detailIconImage;
+        [SerializeField] private TMP_Text detailRarityText;
 
         [Header("Buy")]
         [SerializeField] private Button buyButton;
@@ -49,6 +53,11 @@ namespace Abyss.Shop
         private string _selectedDescription;
         private int _selectedPrice;
         private int _qty = 1;
+
+        private Sprite _selectedIcon;
+        private AbyssItemRarity _selectedRarity = AbyssItemRarity.Common;
+        private bool _warnedMissingRowIconOnce;
+        private bool _warnedMissingDetailVisualsOnce;
 
         public static bool IsOpen { get; private set; }
         public static event Action<bool> OnOpenChanged;
@@ -112,6 +121,9 @@ namespace Abyss.Shop
                 return;
             }
 
+            _warnedMissingRowIconOnce = false;
+            _warnedMissingDetailVisualsOnce = false;
+
             _currentShop = shop;
             _isOpen = true;
             IsOpen = true;
@@ -156,7 +168,13 @@ namespace Abyss.Shop
                     var row = go.GetComponent<MerchantShopRowUI>();
                     if (row != null)
                     {
-                        row.Bind(captured.displayName, captured.price, captured.itemId, () => SelectResolvedRow(row, captured));
+                        row.Bind(captured.displayName, captured.price, captured.itemId, captured.icon, captured.rarity, () => SelectResolvedRow(row, captured));
+
+                        if (!_warnedMissingRowIconOnce && captured.icon != null && !row.CanShowIcon)
+                        {
+                            _warnedMissingRowIconOnce = true;
+                            Debug.LogWarning("[MerchantShopUI] Row prefab has no Icon Image reference; item icons will be hidden. Rebuild UI via Tools->Build Merchant Shop UI (Editor) or wire iconImage on MerchantShopRowUI.");
+                        }
 
                         if (firstRow == null)
                         {
@@ -237,10 +255,14 @@ namespace Abyss.Shop
             _selectedDisplayName = string.IsNullOrWhiteSpace(resolved.displayName) ? resolved.itemId : resolved.displayName;
             _selectedDescription = string.IsNullOrWhiteSpace(resolved.description) ? "No description." : resolved.description;
             _selectedPrice = resolved.price;
+            _selectedIcon = resolved.icon;
+            _selectedRarity = ItemRarityVisuals.Normalize(resolved.rarity);
 
             if (detailNameText != null) detailNameText.text = _selectedDisplayName;
             if (detailPriceText != null) detailPriceText.text = resolved.price.ToString();
             if (detailDescText != null) detailDescText.text = _selectedDescription;
+
+            ApplyDetailsVisuals(_selectedIcon, _selectedRarity);
 
             SetMessage(string.Empty);
             RefreshAffordabilityUI();
@@ -254,12 +276,45 @@ namespace Abyss.Shop
             _selectedDisplayName = null;
             _selectedDescription = null;
             _selectedPrice = 0;
+            _selectedIcon = null;
+            _selectedRarity = AbyssItemRarity.Common;
 
             if (detailNameText != null) detailNameText.text = string.Empty;
             if (detailPriceText != null) detailPriceText.text = string.Empty;
             if (detailDescText != null) detailDescText.text = string.Empty;
 
+            ApplyDetailsVisuals(null, AbyssItemRarity.Common, clearText: true);
+
             RefreshAffordabilityUI();
+        }
+
+        private void ApplyDetailsVisuals(Sprite icon, AbyssItemRarity rarity, bool clearText = false)
+        {
+            rarity = ItemRarityVisuals.Normalize(rarity);
+
+            if (detailIconImage != null)
+            {
+                bool hasIcon = icon != null;
+                detailIconImage.sprite = icon;
+                detailIconImage.enabled = hasIcon;
+                if (detailIconImage.gameObject.activeSelf != hasIcon)
+                    detailIconImage.gameObject.SetActive(hasIcon);
+            }
+            else if (!_warnedMissingDetailVisualsOnce && icon != null)
+            {
+                _warnedMissingDetailVisualsOnce = true;
+                Debug.LogWarning("[MerchantShopUI] Details panel has no Icon Image reference; item icon will be hidden. Rebuild UI via Tools->Build Merchant Shop UI (Editor) or wire detailIconImage.");
+            }
+
+            if (detailRarityText != null)
+            {
+                detailRarityText.text = clearText ? string.Empty : $"Rarity: {ItemRarityVisuals.ToDisplayString(rarity)}";
+            }
+            else if (!_warnedMissingDetailVisualsOnce)
+            {
+                _warnedMissingDetailVisualsOnce = true;
+                Debug.LogWarning("[MerchantShopUI] Details panel has no Rarity Text reference; rarity label will be hidden. Rebuild UI via Tools->Build Merchant Shop UI (Editor) or wire detailRarityText.");
+            }
         }
 
         private void SetQty(int newQty)

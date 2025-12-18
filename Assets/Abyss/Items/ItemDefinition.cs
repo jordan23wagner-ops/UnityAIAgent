@@ -17,6 +17,7 @@ namespace Abyss.Items
         public string description;
 
         public Sprite icon;
+        public ItemRarity rarity = ItemRarity.Common;
         public ItemType itemType;
         public int baseValue;
     }
