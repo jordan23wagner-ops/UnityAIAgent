@@ -151,7 +151,8 @@ public static class BuildMerchantShopUIEditor
         content.transform.SetParent(viewport.transform, false);
 
         var svRt = svGO.GetComponent<RectTransform>();
-        SetAnchors(svRt, new Vector2(0.02f, 0.05f), new Vector2(0.62f, 0.90f));
+        // Leave space at top for Buy/Sell mode tabs.
+        SetAnchors(svRt, new Vector2(0.02f, 0.05f), new Vector2(0.62f, 0.86f));
         SetOffsets(svRt, 0f, 0f, 0f, 0f);
 
         var viewportRt = viewport.GetComponent<RectTransform>();
@@ -189,10 +190,68 @@ public static class BuildMerchantShopUIEditor
         var details = new GameObject("DetailsPanel", typeof(RectTransform), typeof(Image));
         details.transform.SetParent(panel.transform, false);
         var detailsRt = details.GetComponent<RectTransform>();
-        SetAnchors(detailsRt, new Vector2(0.64f, 0.05f), new Vector2(0.98f, 0.90f));
+        // Leave space at top for Buy/Sell mode tabs.
+        SetAnchors(detailsRt, new Vector2(0.64f, 0.05f), new Vector2(0.98f, 0.86f));
         SetOffsets(detailsRt, 0f, 0f, 0f, 0f);
         var detailsImg = details.GetComponent<Image>();
         detailsImg.color = new Color(0.14f, 0.14f, 0.14f, 0.35f);
+
+        // Mode Tabs (BUY / SELL)
+        var buyTabGO = new GameObject("BuyTabButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        buyTabGO.transform.SetParent(panel.transform, false);
+        var buyTabRt = buyTabGO.GetComponent<RectTransform>();
+        SetAnchors(buyTabRt, new Vector2(0.02f, 0.86f), new Vector2(0.32f, 0.90f));
+        SetOffsets(buyTabRt, 0f, 0f, 0f, 0f);
+        var buyTabImg = buyTabGO.GetComponent<Image>();
+        buyTabImg.color = Color.white;
+        var buyTabBtn = buyTabGO.GetComponent<Button>();
+        var buyTabColors = buyTabBtn.colors;
+        buyTabColors.normalColor = Color.white;
+        buyTabColors.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        buyTabColors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+        buyTabColors.selectedColor = Color.white;
+        buyTabColors.disabledColor = new Color(1f, 1f, 1f, 0.5f);
+        buyTabBtn.colors = buyTabColors;
+        var buyTabLabelGO = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        buyTabLabelGO.transform.SetParent(buyTabGO.transform, false);
+        StretchFullScreen(buyTabLabelGO.GetComponent<RectTransform>());
+        var buyTabLabel = buyTabLabelGO.GetComponent<TextMeshProUGUI>();
+        buyTabLabel.text = "BUY";
+        buyTabLabel.fontSize = 20;
+        buyTabLabel.color = Color.black;
+        buyTabLabel.fontStyle = FontStyles.Bold;
+        buyTabLabel.alignment = TextAlignmentOptions.Center;
+        buyTabLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        buyTabLabel.raycastTarget = false;
+        buyTabLabel.extraPadding = true;
+
+        var sellTabGO = new GameObject("SellTabButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        sellTabGO.transform.SetParent(panel.transform, false);
+        var sellTabRt = sellTabGO.GetComponent<RectTransform>();
+        SetAnchors(sellTabRt, new Vector2(0.32f, 0.86f), new Vector2(0.62f, 0.90f));
+        SetOffsets(sellTabRt, 0f, 0f, 0f, 0f);
+        var sellTabImg = sellTabGO.GetComponent<Image>();
+        sellTabImg.color = Color.white;
+        var sellTabBtn = sellTabGO.GetComponent<Button>();
+        var sellTabColors = sellTabBtn.colors;
+        sellTabColors.normalColor = Color.white;
+        sellTabColors.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        sellTabColors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+        sellTabColors.selectedColor = Color.white;
+        sellTabColors.disabledColor = new Color(1f, 1f, 1f, 0.5f);
+        sellTabBtn.colors = sellTabColors;
+        var sellTabLabelGO = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        sellTabLabelGO.transform.SetParent(sellTabGO.transform, false);
+        StretchFullScreen(sellTabLabelGO.GetComponent<RectTransform>());
+        var sellTabLabel = sellTabLabelGO.GetComponent<TextMeshProUGUI>();
+        sellTabLabel.text = "SELL";
+        sellTabLabel.fontSize = 20;
+        sellTabLabel.color = Color.black;
+        sellTabLabel.fontStyle = FontStyles.Bold;
+        sellTabLabel.alignment = TextAlignmentOptions.Center;
+        sellTabLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        sellTabLabel.raycastTarget = false;
+        sellTabLabel.extraPadding = true;
 
         var nameText = new GameObject("NameText", typeof(RectTransform), typeof(TextMeshProUGUI));
         nameText.transform.SetParent(details.transform, false);
@@ -351,6 +410,36 @@ public static class BuildMerchantShopUIEditor
         buyLabel.raycastTarget = false;
         buyLabel.extraPadding = true;
 
+        // Sell button (hidden by default; toggled by MerchantShopUI)
+        var sellGO = new GameObject("SellButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        sellGO.transform.SetParent(details.transform, false);
+        var sellRt = sellGO.GetComponent<RectTransform>();
+        SetAnchors(sellRt, new Vector2(0.62f, 0.14f), new Vector2(0.95f, 0.23f));
+        SetOffsets(sellRt, 0f, 0f, 0f, 0f);
+        var sellImg = sellGO.GetComponent<Image>();
+        sellImg.color = Color.white;
+        var sellBtn = sellGO.GetComponent<Button>();
+        var sellColors = sellBtn.colors;
+        sellColors.normalColor = Color.white;
+        sellColors.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+        sellColors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+        sellColors.selectedColor = Color.white;
+        sellColors.disabledColor = new Color(1f, 1f, 1f, 0.5f);
+        sellBtn.colors = sellColors;
+        var sellLabelGO = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        sellLabelGO.transform.SetParent(sellGO.transform, false);
+        StretchFullScreen(sellLabelGO.GetComponent<RectTransform>());
+        var sellLabel = sellLabelGO.GetComponent<TextMeshProUGUI>();
+        sellLabel.text = "Sell";
+        sellLabel.fontSize = 24;
+        sellLabel.color = Color.black;
+        sellLabel.fontStyle = FontStyles.Bold;
+        sellLabel.alignment = TextAlignmentOptions.Center;
+        sellLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        sellLabel.raycastTarget = false;
+        sellLabel.extraPadding = true;
+        sellGO.SetActive(false);
+
         // Status message line
         var messageGO = new GameObject("MessageText", typeof(RectTransform), typeof(TextMeshProUGUI));
         messageGO.transform.SetParent(details.transform, false);
@@ -472,7 +561,10 @@ public static class BuildMerchantShopUIEditor
         so.FindProperty("detailDescText").objectReferenceValue = descText.GetComponent<TextMeshProUGUI>();
         so.FindProperty("detailIconImage").objectReferenceValue = detailIconImg;
         so.FindProperty("detailRarityText").objectReferenceValue = rarityTmp;
+        so.FindProperty("buyTabButton").objectReferenceValue = buyTabBtn;
+        so.FindProperty("sellTabButton").objectReferenceValue = sellTabBtn;
         so.FindProperty("buyButton").objectReferenceValue = buyBtn;
+        so.FindProperty("sellButton").objectReferenceValue = sellBtn;
         so.FindProperty("qtyMinusButton").objectReferenceValue = qtyMinusBtn;
         so.FindProperty("qtyPlusButton").objectReferenceValue = qtyPlusBtn;
         so.FindProperty("qtyText").objectReferenceValue = qtyTextTmp;
@@ -516,8 +608,17 @@ public static class BuildMerchantShopUIEditor
         {
             if (ui == null) continue;
 
+            bool wiredThisUi = false;
+
             // Wire/ensure details visuals.
             if (TryWireDetailsVisuals(ui, ref createdSceneObjects))
+                wiredThisUi = true;
+
+            // Wire/ensure mode tabs and sell button.
+            if (TryWireModeTabsAndSellButton(ui, ref createdSceneObjects))
+                wiredThisUi = true;
+
+            if (wiredThisUi)
                 upgradedUiCount++;
 
             // Upgrade referenced row prefab (if any).
@@ -537,6 +638,143 @@ public static class BuildMerchantShopUIEditor
 
         summary = $"[BuildMerchantShopUIEditor] Upgraded existing MerchantShopUI(s) in scene: uiWired={upgradedUiCount}/{sceneUis.Length}, rowPrefabUpgraded={upgradedPrefabCount}, sceneObjectsCreated={createdSceneObjects}.";
         return true;
+    }
+
+    private static bool TryWireModeTabsAndSellButton(Abyss.Shop.MerchantShopUI ui, ref int createdSceneObjects)
+    {
+        // Determine the panel via scroll rect, which is already wired in existing scenes.
+        var scrollRect = GetSerializedObjectField<ScrollRect>(ui, "scrollRect");
+        if (scrollRect == null) return false;
+
+        var panel = scrollRect.transform != null ? scrollRect.transform.parent : null;
+        // scrollRect is on ItemsScrollView; parent should be the panel.
+        if (panel == null) return false;
+
+        // Ensure layout space for tabs.
+        var svRt = scrollRect.GetComponent<RectTransform>();
+        if (svRt != null && Mathf.Abs(svRt.anchorMax.y - 0.90f) < 0.001f)
+            svRt.anchorMax = new Vector2(svRt.anchorMax.x, 0.86f);
+
+        var detailName = GetSerializedObjectField<TMP_Text>(ui, "detailNameText");
+        var detailsPanel = detailName != null && detailName.transform != null ? detailName.transform.parent : null;
+        if (detailsPanel != null)
+        {
+            var detailsRt = detailsPanel.GetComponent<RectTransform>();
+            if (detailsRt != null && Mathf.Abs(detailsRt.anchorMax.y - 0.90f) < 0.001f)
+                detailsRt.anchorMax = new Vector2(detailsRt.anchorMax.x, 0.86f);
+        }
+
+        // Create tab buttons on the panel.
+        var buyTab = FindOrCreateChild(panel, "BuyTabButton", ref createdSceneObjects);
+        var buyTabImg = EnsureComponent<Image>(buyTab, ref createdSceneObjects);
+        var buyTabBtn = EnsureComponent<Button>(buyTab, ref createdSceneObjects);
+        ConfigureSimpleTabButton(buyTabBtn, buyTabImg, "BUY");
+        var buyTabRt = buyTab.GetComponent<RectTransform>();
+        if (buyTabRt != null)
+        {
+            SetAnchors(buyTabRt, new Vector2(0.02f, 0.86f), new Vector2(0.32f, 0.90f));
+            SetOffsets(buyTabRt, 0f, 0f, 0f, 0f);
+        }
+
+        var sellTab = FindOrCreateChild(panel, "SellTabButton", ref createdSceneObjects);
+        var sellTabImg = EnsureComponent<Image>(sellTab, ref createdSceneObjects);
+        var sellTabBtn = EnsureComponent<Button>(sellTab, ref createdSceneObjects);
+        ConfigureSimpleTabButton(sellTabBtn, sellTabImg, "SELL");
+        var sellTabRt = sellTab.GetComponent<RectTransform>();
+        if (sellTabRt != null)
+        {
+            SetAnchors(sellTabRt, new Vector2(0.32f, 0.86f), new Vector2(0.62f, 0.90f));
+            SetOffsets(sellTabRt, 0f, 0f, 0f, 0f);
+        }
+
+        // Create sell button inside details panel alongside buy button.
+        var buyButton = GetSerializedObjectField<Button>(ui, "buyButton");
+        if (buyButton == null) return false;
+        var details = buyButton.transform != null ? buyButton.transform.parent : null;
+        if (details == null) return false;
+
+        var sellGo = FindOrCreateChild(details, "SellButton", ref createdSceneObjects);
+        var sellImg = EnsureComponent<Image>(sellGo, ref createdSceneObjects);
+        var sellBtn = EnsureComponent<Button>(sellGo, ref createdSceneObjects);
+        ConfigureSimpleActionButton(sellBtn, sellImg, "Sell");
+        var sellRt = sellGo.GetComponent<RectTransform>();
+        if (sellRt != null)
+        {
+            SetAnchors(sellRt, new Vector2(0.62f, 0.14f), new Vector2(0.95f, 0.23f));
+            SetOffsets(sellRt, 0f, 0f, 0f, 0f);
+        }
+        if (sellGo.activeSelf) sellGo.SetActive(false);
+
+        var so = new SerializedObject(ui);
+        so.FindProperty("buyTabButton").objectReferenceValue = buyTabBtn;
+        so.FindProperty("sellTabButton").objectReferenceValue = sellTabBtn;
+        so.FindProperty("sellButton").objectReferenceValue = sellBtn;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        EditorUtility.SetDirty(ui);
+        return true;
+    }
+
+    private static void ConfigureSimpleTabButton(Button btn, Image img, string label)
+    {
+        if (img != null)
+            img.color = Color.white;
+
+        if (btn != null)
+        {
+            var c = btn.colors;
+            c.normalColor = Color.white;
+            c.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+            c.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+            c.selectedColor = Color.white;
+            c.disabledColor = new Color(1f, 1f, 1f, 0.5f);
+            btn.colors = c;
+        }
+
+        EnsureButtonLabel(btn != null ? btn.gameObject : null, label, 20);
+    }
+
+    private static void ConfigureSimpleActionButton(Button btn, Image img, string label)
+    {
+        if (img != null)
+            img.color = Color.white;
+
+        if (btn != null)
+        {
+            var c = btn.colors;
+            c.normalColor = Color.white;
+            c.highlightedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+            c.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+            c.selectedColor = Color.white;
+            c.disabledColor = new Color(1f, 1f, 1f, 0.5f);
+            btn.colors = c;
+        }
+
+        EnsureButtonLabel(btn != null ? btn.gameObject : null, label, 24);
+    }
+
+    private static void EnsureButtonLabel(GameObject buttonGo, string text, int fontSize)
+    {
+        if (buttonGo == null) return;
+        var existing = buttonGo.transform.Find("Text");
+        GameObject labelGo = existing != null ? existing.gameObject : null;
+        if (labelGo == null)
+        {
+            labelGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelGo.transform.SetParent(buttonGo.transform, false);
+            StretchFullScreen(labelGo.GetComponent<RectTransform>());
+        }
+
+        var tmp = labelGo.GetComponent<TextMeshProUGUI>();
+        if (tmp == null) tmp = labelGo.AddComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = fontSize;
+        tmp.color = Color.black;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        tmp.raycastTarget = false;
+        tmp.extraPadding = true;
     }
 
     private static bool TryWireDetailsVisuals(Abyss.Shop.MerchantShopUI ui, ref int createdSceneObjects)
