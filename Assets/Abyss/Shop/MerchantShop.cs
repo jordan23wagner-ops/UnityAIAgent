@@ -32,6 +32,10 @@ namespace Abyss.Shop
         [Header("ScriptableObject Inventory (Optional)")]
         public ShopInventory shopInventory;
 
+        [Header("Sell / Buyback")]
+        [Range(0.0f, 1.0f)]
+        public float buybackPercent = 0.5f;
+
         [Header("Minimal Stock")]
         [FormerlySerializedAs("_stock")]
         [SerializeField] public List<StockEntry> stock = new();
@@ -104,6 +108,43 @@ namespace Abyss.Shop
             }
 
             return resolved;
+        }
+
+        public int GetSellUnitPrice(ItemDefinition item)
+        {
+            float pct = Mathf.Clamp01(buybackPercent);
+
+            int basis = 0;
+            if (item != null)
+            {
+                // Prefer merchant's ShopInventory price if present.
+                if (shopInventory != null && shopInventory.entries != null)
+                {
+                    foreach (var e in shopInventory.entries)
+                    {
+                        if (e == null || e.item == null) continue;
+                        if (ReferenceEquals(e.item, item)) { basis = e.price; break; }
+
+                        // Fallback match on id if needed.
+                        if (!string.IsNullOrWhiteSpace(item.itemId) &&
+                            !string.IsNullOrWhiteSpace(e.item.itemId) &&
+                            string.Equals(e.item.itemId, item.itemId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            basis = e.price;
+                            break;
+                        }
+                    }
+                }
+
+                if (basis <= 0)
+                    basis = item.baseValue;
+            }
+
+            if (basis <= 0)
+                basis = 1;
+
+            int sell = Mathf.RoundToInt(basis * pct);
+            return Mathf.Max(1, sell);
         }
 
         public int GetStockCount()

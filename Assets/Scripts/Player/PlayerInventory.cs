@@ -41,4 +41,16 @@ public class PlayerInventory : MonoBehaviour
         Debug.Log($"[Inventory] Consumed {amount}x {itemId}. Now: {Count(itemId)}");
         return true;
     }
+
+    public bool TryRemove(string itemId, int amount = 1)
+    {
+        // Alias for clarity in systems like merchant selling.
+        return TryConsume(itemId, amount);
+    }
+
+    public IReadOnlyDictionary<string, int> GetAllItemsSnapshot()
+    {
+        // Snapshot to prevent callers from mutating internal state.
+        return new Dictionary<string, int>(_items);
+    }
 }
