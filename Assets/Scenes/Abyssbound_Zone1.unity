@@ -1488,7 +1488,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Abyss.Shop.MerchantShop
   shopInventory: {fileID: 11400000, guid: e38f024bb6adfa348b539c7f36107e61, type: 2}
-  _stock: []
+  stock: []
   _merchantName: Merchant
 --- !u!1 &71649596
 GameObject:
@@ -1593,7 +1593,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Abyss.Shop.MerchantShop
   shopInventory: {fileID: 11400000, guid: c59fc707efc477b43ad53e147daa44d5, type: 2}
-  _stock: []
+  stock: []
   _merchantName: Merchant
 --- !u!1 &105638804
 GameObject:
@@ -17699,7 +17699,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Abyss.Shop.MerchantShop
   shopInventory: {fileID: 11400000, guid: 41b4de403ffb4c448972aad6245d25b1, type: 2}
-  _stock: []
+  stock: []
   _merchantName: Merchant
 --- !u!114 &1088619498
 MonoBehaviour:
@@ -20089,7 +20089,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Abyss.Shop.MerchantShop
   shopInventory: {fileID: 11400000, guid: a60f3645e24937842bffd00fccd4b939, type: 2}
-  _stock: []
+  stock: []
   _merchantName: Merchant
 --- !u!1 &1210599953
 GameObject:
