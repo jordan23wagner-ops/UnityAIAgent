@@ -5,6 +5,8 @@ public class PlayerInventory : MonoBehaviour
 {
     private readonly Dictionary<string, int> _items = new();
 
+    public event System.Action Changed;
+
     public void Add(string itemId, int amount = 1)
     {
         if (string.IsNullOrWhiteSpace(itemId)) return;
@@ -14,6 +16,8 @@ public class PlayerInventory : MonoBehaviour
         _items[itemId] = next;
 
         Debug.Log($"[Inventory] Added {amount}x {itemId}. Now: {next}", this);
+
+        try { Changed?.Invoke(); } catch { }
     }
 
     public bool Has(string itemId, int amount = 1)
@@ -39,6 +43,8 @@ public class PlayerInventory : MonoBehaviour
         else _items[itemId] = newCount;
 
         Debug.Log($"[Inventory] Consumed {amount}x {itemId}. Now: {Count(itemId)}");
+
+        try { Changed?.Invoke(); } catch { }
         return true;
     }
 

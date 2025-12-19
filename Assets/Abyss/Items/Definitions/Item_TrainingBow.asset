@@ -16,5 +16,6 @@ MonoBehaviour:
   displayName: Training Bow
   description: A basic starter bow.
   icon: {fileID: 0}
+  rarity: 1
   itemType: 0
   baseValue: 90

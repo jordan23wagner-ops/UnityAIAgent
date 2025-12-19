@@ -16,5 +16,6 @@ MonoBehaviour:
   displayName: Apprentice Staff
   description: A basic starter staff.
   icon: {fileID: 0}
+  rarity: 2
   itemType: 0
   baseValue: 100
