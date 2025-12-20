@@ -16,6 +16,10 @@ public class AIAssistantTownSetup : MonoBehaviour
 
     public bool enableAutoSpawn = false;
 
+    [Header("Debug")]
+    [Tooltip("If enabled, spawns visible sphere markers for town objects.")]
+    [SerializeField] private bool createDebugMarkers = false;
+
 #if UNITY_EDITOR
     private void Start()
     {
@@ -276,23 +280,29 @@ public class AIAssistantTownSetup : MonoBehaviour
         go.transform.position = position;
         go.AddComponent(componentType);
 
-        // Add debug marker (sphere, no collider)
-        var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        marker.transform.SetParent(go.transform, false);
-        marker.transform.localPosition = Vector3.zero;
-        marker.transform.localScale = Vector3.one * 1.5f;
-        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        mat.color = debugColor;
-        mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", debugColor * 2f);
-    #if UNITY_EDITOR
-        mat.hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
-    #endif
-        marker.GetComponent<Renderer>().sharedMaterial = mat;
-        Object.DestroyImmediate(marker.GetComponent<Collider>());
+        if (createDebugMarkers)
+        {
+            // Add debug marker (sphere, no collider)
+            var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            marker.name = "DebugMarker";
+            marker.transform.SetParent(go.transform, false);
+            marker.transform.localPosition = Vector3.zero;
+            marker.transform.localScale = Vector3.one * 1.5f;
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            mat.color = debugColor;
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", debugColor * 2f);
+        #if UNITY_EDITOR
+            mat.hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+        #endif
+            marker.GetComponent<Renderer>().sharedMaterial = mat;
+            Object.DestroyImmediate(marker.GetComponent<Collider>());
+        }
 
         // Always use the registered object
-        return TownRegistry.Instance.RegisterOrKeep(key, go);
+        var registered = TownRegistry.Instance.RegisterOrKeep(key, go);
+        RemoveDebugMarkerChildren(registered);
+        return registered;
     }
 
     private GameObject CreateInteractable(string key, System.Type componentType, Vector3 position, Color debugColor)
@@ -304,23 +314,54 @@ public class AIAssistantTownSetup : MonoBehaviour
         go.transform.position = position;
         go.AddComponent(componentType);
 
-        // Add debug marker (sphere, no collider)
-        var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        marker.transform.SetParent(go.transform, false);
-        marker.transform.localPosition = Vector3.zero;
-        marker.transform.localScale = Vector3.one * 1.5f;
-        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        mat.color = debugColor;
-        mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", debugColor * 2f);
-    #if UNITY_EDITOR
-        mat.hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
-    #endif
-        marker.GetComponent<Renderer>().sharedMaterial = mat;
-        Object.DestroyImmediate(marker.GetComponent<Collider>());
+        if (createDebugMarkers)
+        {
+            // Add debug marker (sphere, no collider)
+            var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            marker.name = "DebugMarker";
+            marker.transform.SetParent(go.transform, false);
+            marker.transform.localPosition = Vector3.zero;
+            marker.transform.localScale = Vector3.one * 1.5f;
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            mat.color = debugColor;
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", debugColor * 2f);
+        #if UNITY_EDITOR
+            mat.hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+        #endif
+            marker.GetComponent<Renderer>().sharedMaterial = mat;
+            Object.DestroyImmediate(marker.GetComponent<Collider>());
+        }
 
         // Always use the registered object
-        return TownRegistry.Instance.RegisterOrKeep(key, go);
+        var registered = TownRegistry.Instance.RegisterOrKeep(key, go);
+        RemoveDebugMarkerChildren(registered);
+        return registered;
+    }
+
+    private static void RemoveDebugMarkerChildren(GameObject root)
+    {
+        if (root == null) return;
+
+        // The old debug marker was a child named "Sphere"; the new one is "DebugMarker".
+        for (int i = root.transform.childCount - 1; i >= 0; i--)
+        {
+            var c = root.transform.GetChild(i);
+            if (c == null) continue;
+            if (!string.Equals(c.name, "Sphere", System.StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(c.name, "DebugMarker", System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Only delete if it looks like a pure visual marker.
+            if (c.GetComponent<MeshRenderer>() == null && c.GetComponent<Renderer>() == null) continue;
+
+            #if UNITY_EDITOR
+            if (!Application.isPlaying) Object.DestroyImmediate(c.gameObject);
+            else Object.Destroy(c.gameObject);
+            #else
+            Object.Destroy(c.gameObject);
+            #endif
+        }
     }
 
     private void SetupSimpleInteractPopup()

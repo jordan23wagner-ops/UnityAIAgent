@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using UnityEngine;
+using TMPro;
 
 [DisallowMultipleComponent]
 public class FloatingDamageText : MonoBehaviour
@@ -12,6 +13,9 @@ public class FloatingDamageText : MonoBehaviour
     private bool _finished;
 
     // TMP (optional, reflection-based)
+    private TMP_Text _tmpDirect;
+    private Color _tmpDirectBaseColor;
+
     private Component _tmpText;
     private PropertyInfo _tmpTextProp;
     private PropertyInfo _tmpColorProp;
@@ -44,9 +48,20 @@ public class FloatingDamageText : MonoBehaviour
             Debug.Log("[DMG] FloatingDamageText Awake", this);
         }
 
-        TryResolveTmp();
+        // Prefer direct TMP reference (supports TMP on children).
+        TryResolveTmpDirect();
 
-        if (_tmpText != null)
+        // Legacy path: reflection TMP on the same GO.
+        if (_tmpDirect == null)
+            TryResolveTmp();
+
+        if (_tmpDirect != null)
+        {
+            // TMP: keep a sane default (may be overridden by debugForceVisible on enable).
+            TrySetTmpDirectVisuals();
+            _tmpDirectBaseColor = new Color(1f, 0.2f, 0.2f, 1f);
+        }
+        else if (_tmpText != null)
         {
             // TMP: keep a sane default (may be overridden by debugForceVisible on enable).
             TrySetTmpVisuals();
@@ -102,6 +117,12 @@ public class FloatingDamageText : MonoBehaviour
     public void Init(int amount)
     {
         string s = IntStringCache.Get(amount);
+
+        if (_tmpDirect != null)
+        {
+            _tmpDirect.text = s;
+            return;
+        }
 
         if (_tmpText != null && _tmpTextProp != null)
         {
@@ -166,6 +187,14 @@ public class FloatingDamageText : MonoBehaviour
     {
         a = Mathf.Clamp01(a);
 
+        if (_tmpDirect != null)
+        {
+            var c = _tmpDirectBaseColor;
+            c.a = a;
+            _tmpDirect.color = c;
+            return;
+        }
+
         if (_tmpText != null && _tmpColorProp != null)
         {
             var c = _tmpBaseColor;
@@ -207,6 +236,44 @@ public class FloatingDamageText : MonoBehaviour
             else
                 _tmpBaseColor = new Color(1f, 0.2f, 0.2f, 1f);
         }
+    }
+
+    private void TryResolveTmpDirect()
+    {
+        try
+        {
+            _tmpDirect = GetComponentInChildren<TMP_Text>(true);
+            if (_tmpDirect != null)
+            {
+                var c = _tmpDirect.color;
+                if (c.a <= 0.01f) c = new Color(1f, 0.2f, 0.2f, 1f);
+                c.a = 1f;
+                _tmpDirect.color = c;
+                _tmpDirectBaseColor = c;
+            }
+        }
+        catch
+        {
+            _tmpDirect = null;
+        }
+    }
+
+    private void TrySetTmpDirectVisuals()
+    {
+        if (_tmpDirect == null)
+            return;
+
+        try
+        {
+            _tmpDirect.textWrappingMode = TextWrappingModes.NoWrap;
+            _tmpDirect.fontSize = Mathf.Max(_tmpDirect.fontSize, 24f);
+            var c = _tmpDirect.color;
+            if (c.a <= 0.01f) c = Color.red;
+            c.a = 1f;
+            _tmpDirect.color = c;
+            _tmpDirectBaseColor = c;
+        }
+        catch { }
     }
 
     private void TrySetTmpVisuals()
@@ -253,10 +320,26 @@ public class FloatingDamageText : MonoBehaviour
         const float minScale = 0.12f;
 
         // Ensure TMP linkage is resolved even if Awake didn't run yet (edge cases).
-        if (_tmpText == null)
+        if (_tmpDirect == null)
+            TryResolveTmpDirect();
+        if (_tmpDirect == null && _tmpText == null)
             TryResolveTmp();
 
-        if (_tmpText != null)
+        if (_tmpDirect != null)
+        {
+            try
+            {
+                _tmpDirect.fontSize = Mathf.Max(_tmpDirect.fontSize, 72f);
+                _tmpDirect.textWrappingMode = TextWrappingModes.NoWrap;
+                var c = _tmpDirect.color;
+                if (c.a <= 0.01f) c = Color.red;
+                c.a = 1f;
+                _tmpDirect.color = c;
+                _tmpDirectBaseColor = Color.red;
+            }
+            catch { }
+        }
+        else if (_tmpText != null)
         {
             // TMP: force readability.
             try

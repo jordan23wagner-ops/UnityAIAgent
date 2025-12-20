@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using Game.Systems;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -724,7 +725,7 @@ namespace AIAssistant
             // Fallback: PlayerInventory.
             try
             {
-                var inv = FindFirstObjectByType<PlayerInventory>();
+                var inv = PlayerInventoryResolver.GetOrFind();
                 if (inv != null)
                     return inv.gameObject;
             }

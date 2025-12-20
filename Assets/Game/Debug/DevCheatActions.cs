@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using UnityEngine;
+using Game.Systems;
 
 namespace Abyssbound.DebugTools
 {
@@ -36,21 +37,7 @@ namespace Abyssbound.DebugTools
 
         private static PlayerInventory FindPlayerInventory()
         {
-            // Prefer tagged Player when present.
-            GameObject player = null;
-            try { player = GameObject.FindWithTag("Player"); }
-            catch { player = null; }
-
-            if (player != null)
-            {
-                var inv = player.GetComponentInChildren<PlayerInventory>(true);
-                if (inv != null) return inv;
-            }
-
-            // Fallback: any inventory instance (bootstrapper-created players included).
-            var all = UnityEngine.Object.FindObjectsByType<PlayerInventory>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            if (all != null && all.Length > 0) return all[0];
-            return null;
+            return PlayerInventoryResolver.GetOrFind();
         }
 
         private static bool TryGrantInventoryItem(string itemId, int amount, out string tried)

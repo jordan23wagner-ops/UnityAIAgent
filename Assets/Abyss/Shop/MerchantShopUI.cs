@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using Game.Town;
 using Abyss.Items;
+using Game.Systems;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
 
@@ -138,11 +139,7 @@ namespace Abyss.Shop
 
             _wallet = PlayerGoldWallet.Instance;
 
-#if UNITY_2022_2_OR_NEWER
-            _inventory = FindFirstObjectByType<PlayerInventory>();
-#else
-            _inventory = FindObjectOfType<PlayerInventory>();
-#endif
+            _inventory = PlayerInventoryResolver.GetOrFind();
 
             SetQty(1);
             SetMessage(string.Empty);
@@ -349,11 +346,7 @@ namespace Abyss.Shop
         private void EnsureInventory()
         {
             if (_inventory != null) return;
-#if UNITY_2022_2_OR_NEWER
-            _inventory = FindFirstObjectByType<PlayerInventory>();
-#else
-            _inventory = FindObjectOfType<PlayerInventory>();
-#endif
+            _inventory = PlayerInventoryResolver.GetOrFind();
         }
 
         private void SelectOwnedRow(MerchantShopRowUI row, ItemDefinition def, int ownedCount)
@@ -530,13 +523,7 @@ namespace Abyss.Shop
             }
 
             if (_inventory == null)
-            {
-#if UNITY_2022_2_OR_NEWER
-                _inventory = FindFirstObjectByType<PlayerInventory>();
-#else
-                _inventory = FindObjectOfType<PlayerInventory>();
-#endif
-            }
+                _inventory = PlayerInventoryResolver.GetOrFind();
             if (_inventory == null)
             {
                 SetMessage("No inventory found.");
@@ -556,6 +543,13 @@ namespace Abyss.Shop
                 return;
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            try
+            {
+                Debug.Log($"[ShopBuy] Adding to PlayerInventory instanceId={_inventory.GetInstanceID()} go='{_inventory.gameObject.name}' item='{_selectedItemId}' qty={_qty}", _inventory);
+            }
+            catch { }
+#endif
             _inventory.Add(_selectedItemId, _qty);
             string purchasedName = string.IsNullOrWhiteSpace(_selectedDisplayName) ? _selectedItemId : _selectedDisplayName;
             SetMessage($"Purchased x{_qty} {purchasedName}");

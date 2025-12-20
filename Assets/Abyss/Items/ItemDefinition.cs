@@ -20,5 +20,9 @@ namespace Abyss.Items
         public ItemRarity rarity = ItemRarity.Common;
         public ItemType itemType;
         public int baseValue;
+
+        [Header("Equipment (optional)")]
+        public EquipmentSlot equipmentSlot = EquipmentSlot.None;
+        public WeaponHandedness weaponHandedness = WeaponHandedness.None;
     }
 }

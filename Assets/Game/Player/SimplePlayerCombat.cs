@@ -1,4 +1,5 @@
 using UnityEngine;
+using Abyss.Dev;
 
 public class SimplePlayerCombat : MonoBehaviour
 {
@@ -74,7 +75,12 @@ public class SimplePlayerCombat : MonoBehaviour
 
         _nextAttackTime = Time.time + Mathf.Max(0.05f, attackCooldownSeconds);
         var hitPos = best.transform.position + Vector3.up * 1.2f;
-        best.TakeDamage(Mathf.Max(1, damage), hitPos);
+        int dealt = Mathf.Max(1, damage);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (DevCheats.GodModeEnabled)
+            dealt = 999999;
+#endif
+        best.TakeDamage(dealt, hitPos);
     }
 
     private bool TryAttackSelectedTarget()
@@ -100,7 +106,12 @@ public class SimplePlayerCombat : MonoBehaviour
         }
 
         var hitPos = selectedTarget.transform.position + Vector3.up * 1.2f;
-        selectedTarget.TakeDamage(Mathf.Max(1, damage), hitPos);
+        int dealt = Mathf.Max(1, damage);
+    #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (DevCheats.GodModeEnabled)
+            dealt = 999999;
+    #endif
+        selectedTarget.TakeDamage(dealt, hitPos);
         return true;
     }
 

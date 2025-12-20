@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Abyss.Dev;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -33,6 +34,11 @@ public class PlayerHealth : MonoBehaviour
     {
         if (IsDead) return;
         if (amount <= 0) return;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (DevCheats.GodModeEnabled)
+            return;
+#endif
 
         currentHealth = Mathf.Max(0, currentHealth - amount);
         RaiseChanged();

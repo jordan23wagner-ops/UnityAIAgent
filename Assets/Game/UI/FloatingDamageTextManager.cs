@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 [DisallowMultipleComponent]
 public sealed class FloatingDamageTextManager : MonoBehaviour
@@ -208,8 +209,17 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
 
         var text = _pool.Get();
 
+        // Support both world TMP and UGUI TMP by detecting the TMP type up-front.
+        TMP_Text tmp = null;
+        try { tmp = text != null ? text.GetComponentInChildren<TMP_Text>(true) : null; } catch { tmp = null; }
+
         // Parent under a neutral non-canvas root so world-space text never inherits Canvas transforms/scales.
-        var parent = WorldUiRoot.GetOrCreateWorldTextRoot();
+        Transform parent;
+        if (tmp is TextMeshProUGUI)
+            parent = WorldUiRoot.GetOrCreateCanvasRoot();
+        else
+            parent = WorldUiRoot.GetOrCreateWorldTextRoot();
+
         if (parent)
             text.transform.SetParent(parent, false);
         text.transform.position = worldPos;
@@ -229,6 +239,54 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
 
         text.gameObject.SetActive(true);
         text.Init(amount);
+
+        // Force render-safe TMP defaults at spawn time (prevents "blue T" gizmo-only objects).
+        if (tmp != null)
+        {
+            try
+            {
+                tmp.enabled = true;
+                tmp.text = amount.ToString();
+
+                tmp.alpha = 1f;
+                tmp.textWrappingMode = TextWrappingModes.NoWrap;
+                tmp.fontSize = Mathf.Max(tmp.fontSize, 36f);
+
+                var c = tmp.color;
+                if (c.a <= 0.01f)
+                    c = Color.red;
+                c.a = 1f;
+                tmp.color = c;
+
+                // Ensure scale isn't tiny.
+                var ls = text.transform.localScale;
+                if (ls.x < 0.1f || ls.y < 0.1f || ls.z < 0.1f)
+                    text.transform.localScale = Vector3.one;
+
+                // If this is UGUI TMP, ensure there is an enabled canvas with a sane sort order.
+                var canvas = tmp.GetComponentInParent<Canvas>();
+                if (canvas != null)
+                {
+                    canvas.enabled = true;
+                    canvas.overrideSorting = true;
+                    if (canvas.sortingOrder < 100)
+                        canvas.sortingOrder = 100;
+                }
+            }
+            catch { }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (debugLogs)
+            {
+                try
+                {
+                    var tmpType = tmp.GetType().Name;
+                    Debug.Log($"[DMG] Spawned damage text type={tmpType} text='{tmp.text}' pos={worldPos}", text);
+                }
+                catch { }
+            }
+#endif
+        }
 
         // Guard rails (warn once total, no spam)
         if (!_loggedWarnParentCanvas)

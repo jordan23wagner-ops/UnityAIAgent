@@ -5,6 +5,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+using Game.Systems;
+
 using Abyssbound.DebugTools;
 
 #if ENABLE_INPUT_SYSTEM
@@ -196,7 +198,7 @@ public class GameBootstrapper : MonoBehaviour
     {
         try
         {
-            var byInventory = FindFirstObjectByType<PlayerInventory>();
+            var byInventory = PlayerInventoryResolver.GetOrFind();
             if (byInventory != null)
                 return byInventory.gameObject;
         }
