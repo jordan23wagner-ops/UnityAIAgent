@@ -27,5 +27,8 @@ namespace Abyss.Items
 
         [Tooltip("Bonus damage applied when this item is equipped as a weapon. Only meaningful for ItemType == Weapon.")]
         public int DamageBonus = 0;
+
+        [Tooltip("Added to player's Max Health when equipped. Used for armor.")]
+        public int MaxHealthBonus = 0;
     }
 }

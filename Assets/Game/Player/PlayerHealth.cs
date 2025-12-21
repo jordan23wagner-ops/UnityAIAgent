@@ -1,14 +1,21 @@
 using System;
-using UnityEngine;
+using System.Collections.Generic;
 using Abyss.Dev;
+using Abyss.Equipment;
+using Abyss.Items;
+using UnityEngine;
+using UnityEngine.Serialization;
 
 public class PlayerHealth : MonoBehaviour
 {
     [Header("Health")]
-    [SerializeField] private int maxHealth = 100;
+    [FormerlySerializedAs("maxHealth")]
+    [SerializeField] private int baseMaxHealth = 100;
     [SerializeField] private int currentHealth;
 
-    public int MaxHealth => Mathf.Max(1, maxHealth);
+    public int BaseMaxHealth => Mathf.Max(1, baseMaxHealth);
+    public int EquipmentMaxHealthBonus { get; private set; }
+    public int MaxHealth => Mathf.Max(1, BaseMaxHealth + Mathf.Max(0, EquipmentMaxHealthBonus));
     public int CurrentHealth => Mathf.Clamp(currentHealth, 0, MaxHealth);
     public float Normalized => MaxHealth <= 0 ? 0f : (float)CurrentHealth / MaxHealth;
     public bool IsDead => CurrentHealth <= 0;
@@ -16,12 +23,46 @@ public class PlayerHealth : MonoBehaviour
     public event Action<float> OnHealthChanged;
     public event Action<int, int> HealthChanged;
 
+    private PlayerEquipment _equipment;
+    private static Dictionary<string, ItemDefinition> s_DefById;
+
+    private static readonly EquipmentSlot[] s_EquipSlots =
+    {
+        EquipmentSlot.Helm,
+        EquipmentSlot.Chest,
+        EquipmentSlot.Legs,
+        EquipmentSlot.Belt,
+        EquipmentSlot.Gloves,
+        EquipmentSlot.Cape,
+        EquipmentSlot.Ammo,
+        EquipmentSlot.LeftHand,
+        EquipmentSlot.RightHand,
+        EquipmentSlot.Ring1,
+        EquipmentSlot.Ring2,
+        EquipmentSlot.Amulet,
+        EquipmentSlot.Artifact,
+    };
+
     private void Awake()
     {
         if (currentHealth <= 0)
             currentHealth = MaxHealth;
 
+        currentHealth = Mathf.Clamp(currentHealth, 0, MaxHealth);
+
         RaiseChanged();
+    }
+
+    private void OnEnable()
+    {
+        EnsureEquipment();
+        RecomputeEquipmentBonusAndApply();
+    }
+
+    private void OnDisable()
+    {
+        if (_equipment != null)
+            _equipment.Changed -= OnEquipmentChanged;
     }
 
     public void ResetHealth()
@@ -60,5 +101,123 @@ public class PlayerHealth : MonoBehaviour
 
         try { HealthChanged?.Invoke(CurrentHealth, MaxHealth); }
         catch (Exception ex) { Debug.LogError($"[PlayerHealth] HealthChanged event threw: {ex.Message}", this); }
+    }
+
+    private void EnsureEquipment()
+    {
+        if (_equipment != null)
+            return;
+
+        try
+        {
+            _equipment = PlayerEquipmentResolver.GetOrFindOrCreate();
+        }
+        catch
+        {
+            _equipment = null;
+        }
+
+        if (_equipment != null)
+        {
+            _equipment.Changed -= OnEquipmentChanged;
+            _equipment.Changed += OnEquipmentChanged;
+        }
+    }
+
+    private void OnEquipmentChanged()
+    {
+        RecomputeEquipmentBonusAndApply();
+    }
+
+    private void RecomputeEquipmentBonusAndApply()
+    {
+        EnsureEquipment();
+
+        int bonus = 0;
+
+        if (_equipment != null)
+        {
+            // Avoid double-counting the same itemId (e.g., two-handed weapons can occupy both hands).
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < s_EquipSlots.Length; i++)
+            {
+                string itemId = null;
+                try { itemId = _equipment.Get(s_EquipSlots[i]); }
+                catch { itemId = null; }
+
+                if (string.IsNullOrWhiteSpace(itemId))
+                    continue;
+
+                if (!seen.Add(itemId))
+                    continue;
+
+                var def = ResolveItemDefinition(itemId);
+                if (def == null)
+                    continue;
+
+                try
+                {
+                    bonus += Mathf.Max(0, def.MaxHealthBonus);
+                }
+                catch { }
+            }
+        }
+
+        EquipmentMaxHealthBonus = bonus;
+
+        // Clamp whenever effective max changes.
+        currentHealth = Mathf.Clamp(currentHealth, 0, MaxHealth);
+
+        Debug.Log($"[HP] Base={BaseMaxHealth} EquipBonus={EquipmentMaxHealthBonus} Max={MaxHealth} Current={CurrentHealth}", this);
+        RaiseChanged();
+    }
+
+    private static ItemDefinition ResolveItemDefinition(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return null;
+
+        s_DefById ??= BuildIndex();
+        if (s_DefById != null && s_DefById.TryGetValue(itemId, out var def) && def != null)
+            return def;
+
+        // Best-effort: rebuild once (covers domain reload / asset load order).
+        s_DefById = BuildIndex();
+        if (s_DefById != null && s_DefById.TryGetValue(itemId, out var refreshed))
+            return refreshed;
+
+        return null;
+    }
+
+    private static Dictionary<string, ItemDefinition> BuildIndex()
+    {
+        var map = new Dictionary<string, ItemDefinition>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var defs = Resources.FindObjectsOfTypeAll<ItemDefinition>();
+            if (defs == null)
+                return map;
+
+            for (int i = 0; i < defs.Length; i++)
+            {
+                var def = defs[i];
+                if (def == null)
+                    continue;
+
+                string id = null;
+                try { id = def.itemId; } catch { id = null; }
+
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+
+                if (!map.ContainsKey(id))
+                    map[id] = def;
+            }
+        }
+        catch { }
+
+        return map;
     }
 }
