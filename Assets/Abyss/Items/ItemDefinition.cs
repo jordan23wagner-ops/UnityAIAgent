@@ -24,5 +24,8 @@ namespace Abyss.Items
         [Header("Equipment (optional)")]
         public EquipmentSlot equipmentSlot = EquipmentSlot.None;
         public WeaponHandedness weaponHandedness = WeaponHandedness.None;
+
+        [Tooltip("Bonus damage applied when this item is equipped as a weapon. Only meaningful for ItemType == Weapon.")]
+        public int DamageBonus = 0;
     }
 }

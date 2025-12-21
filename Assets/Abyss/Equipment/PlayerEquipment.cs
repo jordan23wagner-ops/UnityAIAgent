@@ -65,6 +65,130 @@ namespace Abyss.Equipment
             }
         }
 
+        // MVP-friendly API: equip without consuming inventory.
+        // This is intentionally additive and does not change the existing inventory-consuming flow.
+        public bool TryEquip(Func<string, ItemDefinition> resolve, string itemId, out string message)
+        {
+            message = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                message = "No item selected.";
+                return false;
+            }
+
+            var def = resolve != null ? resolve(itemId) : null;
+            if (def == null)
+            {
+                message = $"No ItemDefinition loaded for '{itemId}'.";
+                return false;
+            }
+
+            return TryEquip(def, out message);
+        }
+
+        // MVP-friendly API: equip without consuming inventory.
+        public bool TryEquip(ItemDefinition def, out string message)
+        {
+            message = string.Empty;
+
+            if (def == null)
+            {
+                message = "No item selected.";
+                return false;
+            }
+
+            var itemId = !string.IsNullOrWhiteSpace(def.itemId) ? def.itemId : def.name;
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                message = "Item cannot be equipped (missing itemId).";
+                return false;
+            }
+
+            // Resolve slots the same way as the full inventory path.
+            if (!TryResolveTargetSlots(def, out var primarySlot, out var secondarySlot))
+            {
+                message = "That item is not equippable.";
+                return false;
+            }
+
+            // Clear conflicts (visual-only; does NOT return items to inventory).
+            if (secondarySlot.HasValue)
+            {
+                Set(EquipmentSlot.LeftHand, null);
+                Set(EquipmentSlot.RightHand, null);
+            }
+            else
+            {
+                Set(primarySlot, null);
+            }
+
+            // Rings: if preferred ring slot occupied and the other ring slot is empty, use the empty one.
+            if (!secondarySlot.HasValue && primarySlot == EquipmentSlot.Ring1)
+            {
+                if (!string.IsNullOrWhiteSpace(ring1) && string.IsNullOrWhiteSpace(ring2))
+                    primarySlot = EquipmentSlot.Ring2;
+            }
+            if (!secondarySlot.HasValue && primarySlot == EquipmentSlot.Ring2)
+            {
+                if (!string.IsNullOrWhiteSpace(ring2) && string.IsNullOrWhiteSpace(ring1))
+                    primarySlot = EquipmentSlot.Ring1;
+            }
+
+            // Hands: allow alternate slot when preferred is occupied.
+            if (!secondarySlot.HasValue && (primarySlot == EquipmentSlot.RightHand || primarySlot == EquipmentSlot.LeftHand))
+            {
+                if (!string.IsNullOrWhiteSpace(Get(primarySlot)))
+                {
+                    var alt = primarySlot == EquipmentSlot.RightHand ? EquipmentSlot.LeftHand : EquipmentSlot.RightHand;
+                    if (string.IsNullOrWhiteSpace(Get(alt)))
+                        primarySlot = alt;
+                    else
+                        Set(alt, null);
+                }
+            }
+
+            Set(primarySlot, itemId);
+            if (secondarySlot.HasValue)
+                Set(secondarySlot.Value, itemId);
+
+            RaiseChanged();
+            return true;
+        }
+
+        // MVP-friendly: unequip without returning to inventory.
+        public bool TryUnequip(Func<string, ItemDefinition> resolve, EquipmentSlot slot)
+        {
+            string itemId = Get(slot);
+            if (string.IsNullOrWhiteSpace(itemId)) return false;
+
+            // If this is a two-handed item, clear both hands.
+            bool clearBothHands = false;
+            if (slot == EquipmentSlot.LeftHand || slot == EquipmentSlot.RightHand)
+            {
+                var def = resolve != null ? resolve(itemId) : null;
+                if (def != null && def.weaponHandedness == WeaponHandedness.TwoHanded)
+                    clearBothHands = true;
+
+                // Also treat "same id in both hands" as two-handed.
+                if (!clearBothHands && !string.IsNullOrWhiteSpace(leftHand) && leftHand == rightHand)
+                    clearBothHands = true;
+            }
+
+            if (clearBothHands)
+            {
+                Set(EquipmentSlot.LeftHand, null);
+                Set(EquipmentSlot.RightHand, null);
+            }
+            else
+            {
+                Set(slot, null);
+            }
+
+            RaiseChanged();
+            return true;
+        }
+
         public bool TryEquipFromInventory(PlayerInventory inventory, Func<string, ItemDefinition> resolve, string itemId, out string message)
         {
             message = string.Empty;
@@ -93,16 +217,10 @@ namespace Abyss.Equipment
                 return false;
             }
 
-            if (def.equipmentSlot == EquipmentSlot.None)
-            {
-                message = "That item is not equippable.";
-                return false;
-            }
-
             // Unequip conflicts first (returns items to inventory).
             if (!TryResolveTargetSlots(def, out var primarySlot, out var secondarySlot))
             {
-                message = "Item cannot be equipped (invalid slot config).";
+                message = "That item is not equippable.";
                 return false;
             }
 

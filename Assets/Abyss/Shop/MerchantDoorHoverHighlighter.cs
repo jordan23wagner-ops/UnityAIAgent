@@ -1,6 +1,13 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using TMPro;
+using UnityEngine.UI;
+
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Abyss.Shop
 {
@@ -12,18 +19,40 @@ namespace Abyss.Shop
         private Camera _cam;
         private MerchantDoorClickTarget _current;
 
+        private Game.Input.PlayerInputAuthority _input;
+
         private TextMeshPro _label;
         private static readonly Color LabelColor = Color.blue;
         [SerializeField] private float labelFontSize = 14f;
 
         private void Awake()
         {
-            _cam = Camera.main;
-            if (_cam == null) _cam = FindAnyObjectByType<Camera>();
+            EnsureCamera();
+#if UNITY_2022_2_OR_NEWER
+            _input = FindFirstObjectByType<Game.Input.PlayerInputAuthority>();
+#else
+            _input = FindObjectOfType<Game.Input.PlayerInputAuthority>();
+#endif
         }
 
         private void Update()
         {
+            if (_input == null)
+            {
+#if UNITY_2022_2_OR_NEWER
+                _input = FindFirstObjectByType<Game.Input.PlayerInputAuthority>();
+#else
+                _input = FindObjectOfType<Game.Input.PlayerInputAuthority>();
+#endif
+            }
+
+            // If any UI has locked gameplay input (inventory/equipment/shop/etc), don't show world hover labels.
+            if (_input != null && _input.IsUiInputLocked)
+            {
+                Clear();
+                return;
+            }
+
             // If the shop UI is open, don't highlight anything.
             if (MerchantShopUI.IsOpen)
             {
@@ -31,30 +60,45 @@ namespace Abyss.Shop
                 return;
             }
 
-            // If pointer is over UI, don't highlight world.
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            // If pointer is over interactive UI, don't highlight world.
+            // (Non-interactive overlays like HUD panels should not block highlighting.)
+            if (IsPointerOverInteractiveUI())
             {
                 Clear();
                 return;
             }
 
-            if (_cam == null) _cam = Camera.main;
+            EnsureCamera();
             if (_cam == null) return;
 
-            var ray = _cam.ScreenPointToRay(Input.mousePosition);
-            if (!Physics.Raycast(ray, out var hit, 500f))
+            if (!TryGetMousePosition(out var mousePos))
+                return;
+
+            var ray = _cam.ScreenPointToRay(mousePos);
+
+            // RaycastAll so nearby colliders (ground/terrain) don't block hover targets.
+            var hits = Physics.RaycastAll(ray, 500f, ~0, QueryTriggerInteraction.Collide);
+            if (hits == null || hits.Length == 0)
             {
                 Clear();
                 return;
             }
 
+            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
             MerchantDoorClickTarget target = null;
-            if (hit.collider != null)
+            for (int i = 0; i < hits.Length; i++)
             {
+                var hit = hits[i];
+                if (hit.collider == null) continue;
+
                 // Prefer direct component on collider object.
                 target = hit.collider.GetComponent<MerchantDoorClickTarget>();
                 if (target == null)
                     target = hit.collider.GetComponentInParent<MerchantDoorClickTarget>();
+
+                if (target != null)
+                    break;
             }
             if (target == _current) return;
 
@@ -72,6 +116,93 @@ namespace Abyss.Shop
             {
                 HideLabel();
             }
+        }
+
+        private void EnsureCamera()
+        {
+            if (_cam != null && _cam.isActiveAndEnabled)
+                return;
+
+            var main = Camera.main;
+            if (main != null && main.isActiveAndEnabled)
+            {
+                _cam = main;
+                return;
+            }
+
+            var cams = Camera.allCameras;
+            if (cams == null || cams.Length == 0)
+            {
+                _cam = null;
+                return;
+            }
+
+            int defaultLayer = 0;
+            int interactableLayer = LayerMask.NameToLayer("Interactable");
+            int desiredMask = 1 << defaultLayer;
+            if (interactableLayer >= 0)
+                desiredMask |= 1 << interactableLayer;
+
+            Camera best = null;
+            for (int i = 0; i < cams.Length; i++)
+            {
+                var c = cams[i];
+                if (c == null || !c.isActiveAndEnabled) continue;
+                if ((c.cullingMask & desiredMask) == 0) continue;
+                if (best == null || c.depth > best.depth) best = c;
+            }
+
+            if (best == null)
+            {
+                for (int i = 0; i < cams.Length; i++)
+                {
+                    var c = cams[i];
+                    if (c == null || !c.isActiveAndEnabled) continue;
+                    if (best == null || c.depth > best.depth) best = c;
+                }
+            }
+
+            _cam = best;
+        }
+
+        private static bool TryGetMousePosition(out Vector2 pos)
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (Mouse.current != null)
+            {
+                pos = Mouse.current.position.ReadValue();
+                return true;
+            }
+#endif
+            pos = Input.mousePosition;
+            return true;
+        }
+
+        private static bool IsPointerOverInteractiveUI()
+        {
+            var es = EventSystem.current;
+            if (es == null) return false;
+
+            if (!es.IsPointerOverGameObject())
+                return false;
+
+            var eventData = new PointerEventData(es)
+            {
+                position = TryGetMousePosition(out var p) ? p : (Vector2)Input.mousePosition
+            };
+
+            var results = new List<RaycastResult>(16);
+            es.RaycastAll(eventData, results);
+            for (int i = 0; i < results.Count; i++)
+            {
+                var go = results[i].gameObject;
+                if (go == null) continue;
+
+                if (go.GetComponentInParent<Selectable>() != null)
+                    return true;
+            }
+
+            return false;
         }
 
         private void Clear()

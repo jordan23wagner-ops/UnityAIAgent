@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Abyss.Loot;
+using Game.Input;
 using UnityEngine;
 
 namespace Abyss.Dev
@@ -30,6 +31,8 @@ namespace Abyss.Dev
         private readonly List<GameObject> _spawned = new();
         private int _lastSpawnedCount;
 
+        private PlayerInputAuthority _input;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -40,6 +43,12 @@ namespace Abyss.Dev
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
+
+#if UNITY_2022_2_OR_NEWER
+            _input = FindFirstObjectByType<PlayerInputAuthority>();
+#else
+            _input = FindObjectOfType<PlayerInputAuthority>();
+#endif
         }
 
         private void OnDestroy()
@@ -144,6 +153,18 @@ namespace Abyss.Dev
             return;
 #else
             if (!showOverlay) return;
+
+            // Avoid drawing debug overlays through/over gameplay UI.
+            if (_input == null)
+            {
+    #if UNITY_2022_2_OR_NEWER
+            _input = FindFirstObjectByType<PlayerInputAuthority>();
+    #else
+            _input = FindObjectOfType<PlayerInputAuthority>();
+    #endif
+            }
+            if (_input != null && _input.IsUiInputLocked)
+            return;
 
             const float pad = 10f;
             var rect = new Rect(pad, pad, 520f, 80f);

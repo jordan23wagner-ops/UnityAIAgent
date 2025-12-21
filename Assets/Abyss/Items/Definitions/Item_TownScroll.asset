@@ -15,6 +15,9 @@ MonoBehaviour:
   itemId: scroll_town
   displayName: Town Scroll
   description: Returns you to town.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 8a961a68efc41b546adda34d29d9d471, type: 3}
+  rarity: 0
   itemType: 1
   baseValue: 25
+  equipmentSlot: 0
+  weaponHandedness: 0

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 using Abyss.Items;
 using Abyss.Equipment;
@@ -30,9 +31,24 @@ namespace Abyss.Inventory
         private const bool INVENTORY_UI_DEBUG = false;
         private static bool InventoryUiDebugEnabled => INVENTORY_UI_DEBUG;
 
+    #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private const bool INV_DIAGNOSTICS = true;
+    #else
+        private const bool INV_DIAGNOSTICS = false;
+    #endif
+
+        // OSRS-style inventory grid.
+        private const int InventoryGridColumns = 4;
+        private const int InventoryGridRows = 7;
+        private const int InventoryGridSlots = InventoryGridColumns * InventoryGridRows;
+
         [Header("Root")]
         [SerializeField] private GameObject root;
         [SerializeField] private Button closeButton;
+
+        [Header("Character Tabs (optional)")]
+        [SerializeField] private Button characterInventoryTabButton;
+        [SerializeField] private Button characterEquipmentTabButton;
 
         [Header("Top")]
         [SerializeField] private TMP_Text titleText;
@@ -54,6 +70,7 @@ namespace Abyss.Inventory
         private PlayerInventory _inventory;
         private Abyss.Shop.PlayerGoldWallet _wallet;
         private PlayerEquipment _equipment;
+        private Abyss.Equipment.PlayerEquipmentUI _equipmentUi;
 
         private string _inventorySource;
         private int _lastInventoryInstanceId;
@@ -62,11 +79,15 @@ namespace Abyss.Inventory
         private bool _loggedFirstRowVisibilityThisOpen;
 
         private readonly List<GameObject> _spawnedRows = new();
+        private readonly List<PlayerInventoryRowUI> _spawnedSlotViews = new();
         private Dictionary<string, ItemDefinition> _itemDefById;
 
         private string _selectedItemId;
         private ItemDefinition _selectedDef;
         private int _selectedCount;
+
+        // UI-only selection index for visuals (grid slot index 0..27, or -1 none)
+        private int _selectedSlotIndex = -1;
 
         private InventoryTab _activeTab = InventoryTab.WeaponsGear;
 
@@ -85,8 +106,18 @@ namespace Abyss.Inventory
 
         private bool _isOpen;
 
+        public bool IsOpen => _isOpen;
+
+        private readonly Dictionary<Image, Color> _forcedOpaqueImages = new();
+
+        private Image _backdropImage;
+        private Color _backdropOriginalColor;
+        private bool _backdropOriginalCaptured;
+
         private int _lastRefreshFrame = -1;
         private bool _refreshQueued;
+
+        private bool _warnedContentLayoutConflict;
 
         private void Awake()
         {
@@ -114,15 +145,25 @@ namespace Abyss.Inventory
             _inventory = null;
 
             detailsUI?.Clear();
+
+            WireCharacterTabs();
         }
 
         private void Update()
         {
+            // Some scenes/scripts may toggle the inventory root active without calling Open()/Close().
+            // Keep _isOpen in sync so hotkeys/buttons still work.
+            SyncOpenStateFromRoot();
+
             if (_refreshQueued)
             {
                 _refreshQueued = false;
                 RefreshAll();
             }
+
+            // TASK 1: fallback input: E equips selected item while inventory is open.
+            if (_isOpen && WasEquipPressed() && !Abyss.Shop.MerchantShopUI.IsOpen)
+                TryEquipSelected();
 
             if (!WasTogglePressed())
                 return;
@@ -133,6 +174,125 @@ namespace Abyss.Inventory
 
             if (_isOpen) Close();
             else Open();
+        }
+
+        private bool WasEquipPressed()
+        {
+#if ENABLE_INPUT_SYSTEM
+            try
+            {
+                return Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
+            }
+            catch { return false; }
+#else
+            return Input.GetKeyDown(KeyCode.E);
+#endif
+        }
+
+        private void SyncOpenStateFromRoot()
+        {
+            if (root == null)
+                return;
+
+            // If the root is visible, treat as open.
+            if (root.activeSelf)
+            {
+                if (!_isOpen)
+                {
+                    _isOpen = true;
+                    EnsureEquipButton();
+                    EnsureInventory();
+                    EnsureEquipment();
+                    RefreshDetails();
+                }
+            }
+            else
+            {
+                if (_isOpen)
+                    _isOpen = false;
+            }
+        }
+
+        private static EquipmentSlot GuessEquipSlot(ItemDefinition def)
+        {
+            if (def == null) return EquipmentSlot.None;
+
+            try
+            {
+                if (def.equipmentSlot != EquipmentSlot.None)
+                    return def.equipmentSlot;
+            }
+            catch { }
+
+            return EquipmentSlot.None;
+        }
+
+        private bool CanEquipSelected(ItemDefinition def)
+        {
+            if (def == null)
+                return false;
+
+            try
+            {
+                if (def.equipmentSlot != EquipmentSlot.None)
+                    return true;
+            }
+            catch { }
+
+            return false;
+        }
+
+        private static string SanitizeReason(string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+                return "";
+
+            reason = reason.Replace("\r", " ").Replace("\n", " ");
+            while (reason.Contains("  "))
+                reason = reason.Replace("  ", " ");
+            return reason.Trim();
+        }
+
+        private static void LogEquipAttempt(string itemId, EquipmentSlot slot, bool success, string reason)
+        {
+            itemId ??= "";
+            reason = SanitizeReason(reason);
+            var ok = success.ToString().ToLowerInvariant();
+            Debug.Log($"[EQUIP] itemId={itemId} slot={slot} success={ok} reason={reason}");
+        }
+
+        private void TryEquipSelected()
+        {
+            EnsureEquipment();
+
+            var def = _selectedDef;
+            var itemId = _selectedItemId;
+            var slot = GuessEquipSlot(def);
+
+            // TASK 1: single log line per attempt, exactly matching requested format.
+            if (_equipment == null)
+            {
+                LogEquipAttempt(itemId, slot, success: false, reason: "No PlayerEquipment");
+                return;
+            }
+
+            if (def == null || string.IsNullOrWhiteSpace(itemId))
+            {
+                LogEquipAttempt(itemId, slot, success: false, reason: "No item selected");
+                return;
+            }
+
+            // Spec: equippable only when equipmentSlot != None.
+            if (slot == EquipmentSlot.None)
+            {
+                LogEquipAttempt(itemId, slot, success: false, reason: "Not equippable (equipmentSlot=None)");
+                return;
+            }
+
+            // MVP: equip visually only (do NOT consume inventory yet).
+            bool ok = _equipment.TryEquip(def, out var message);
+            string reason = string.IsNullOrWhiteSpace(message) ? (ok ? "OK" : "Failed") : message;
+            LogEquipAttempt(itemId, slot, ok, reason);
         }
 
         public void Open()
@@ -146,6 +306,10 @@ namespace Abyss.Inventory
 
             _isOpen = true;
             root.SetActive(true);
+
+            HideStrayLegacyCategoryTexts();
+            EnsureBackdropIsTransparent();
+            ForceOpaqueBackground(true);
 
             _loggedInventoryForThisOpen = false;
             _loggedScrollWiringForThisOpen = false;
@@ -181,9 +345,272 @@ namespace Abyss.Inventory
 
             EnsureEquipment();
 
+            if (_equipmentUi == null)
+            {
+                try
+                {
+#if UNITY_2022_2_OR_NEWER
+                    _equipmentUi = FindFirstObjectByType<Abyss.Equipment.PlayerEquipmentUI>();
+#else
+                    _equipmentUi = FindObjectOfType<Abyss.Equipment.PlayerEquipmentUI>();
+#endif
+                }
+                catch { }
+            }
+
             try { _inputAuthority?.SetUiInputLocked(true); } catch { }
 
-            _refreshQueued = true;
+            // Build the grid immediately so we don't show a blank/flashy intermediate frame.
+            _refreshQueued = false;
+            RefreshAll();
+        }
+
+        private void WireCharacterTabs()
+        {
+            // Inventory tab is "selected" while this window is open.
+            if (characterInventoryTabButton != null)
+                characterInventoryTabButton.interactable = false;
+
+            if (characterEquipmentTabButton != null)
+            {
+                characterEquipmentTabButton.onClick.RemoveAllListeners();
+                characterEquipmentTabButton.onClick.AddListener(() =>
+                {
+                    Close();
+                    try { _equipmentUi?.Open(); } catch { }
+                });
+            }
+        }
+
+        private void EnsureBackdropIsTransparent()
+        {
+            if (root == null)
+                return;
+
+            try
+            {
+                if (_backdropImage == null)
+                {
+                    var t = FindDeepChild(root.transform, "Backdrop");
+                    if (t != null)
+                        _backdropImage = t.GetComponent<Image>();
+                }
+
+                if (_backdropImage == null)
+                    return;
+
+                if (!_backdropOriginalCaptured)
+                {
+                    _backdropOriginalCaptured = true;
+                    _backdropOriginalColor = _backdropImage.color;
+                }
+
+                // User request: see the game behind the inventory. Keep the backdrop for raycast-blocking,
+                // but make it visually transparent.
+                var c = _backdropImage.color;
+                if (c.a > 0.001f)
+                    _backdropImage.color = new Color(c.r, c.g, c.b, 0f);
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+        }
+
+        private void ForceOpaqueBackground(bool enabled)
+        {
+            if (root == null)
+                return;
+
+            if (!enabled)
+            {
+                if (_forcedOpaqueImages.Count == 0)
+                    return;
+
+                foreach (var kv in _forcedOpaqueImages)
+                {
+                    try
+                    {
+                        if (kv.Key != null)
+                            kv.Key.color = kv.Value;
+                    }
+                    catch { }
+                }
+
+                _forcedOpaqueImages.Clear();
+                return;
+            }
+
+            if (_forcedOpaqueImages.Count > 0)
+                return;
+
+            // Preferred: known names created by BuildPlayerInventoryUIEditor.
+            TryForceOpaqueByName("Panel");
+            TryForceOpaqueByName("ItemsScrollView");
+            TryForceOpaqueByName("DetailsPanel");
+
+            // Fallback: if we couldn't find any of the conventional panels, force opaque on large semi-transparent
+            // images under the inventory root (excluding item tiles/tabs/details).
+            if (_forcedOpaqueImages.Count == 0)
+                TryForceOpaqueHeuristic();
+        }
+
+        private void TryForceOpaqueByName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || root == null)
+                return;
+
+            var t = FindDeepChild(root.transform, name);
+            if (t == null)
+                return;
+
+            var img = t.GetComponent<Image>();
+            if (img == null)
+                return;
+
+            ForceOpaque(img);
+        }
+
+        private void TryForceOpaqueHeuristic()
+        {
+            try
+            {
+                var images = root.GetComponentsInChildren<Image>(true);
+                if (images == null || images.Length == 0)
+                    return;
+
+                for (int i = 0; i < images.Length; i++)
+                {
+                    var img = images[i];
+                    if (img == null)
+                        continue;
+
+                    // Never force the full-screen backdrop opaque; we want the world visible.
+                    if (string.Equals(img.gameObject.name, "Backdrop", StringComparison.Ordinal))
+                        continue;
+
+                    if (contentRoot != null && img.transform.IsChildOf(contentRoot))
+                        continue;
+                    if (tabsRoot != null && img.transform.IsChildOf(tabsRoot))
+                        continue;
+                    if (detailsUI != null && img.transform.IsChildOf(detailsUI.transform))
+                        continue;
+                    if (rowTemplate != null && img.transform.IsChildOf(rowTemplate.transform))
+                        continue;
+
+                    var rt = img.rectTransform;
+                    if (rt == null)
+                        continue;
+
+                    float area = Mathf.Abs(rt.rect.width * rt.rect.height);
+                    if (area < 20000f)
+                        continue;
+
+                    ForceOpaque(img);
+                }
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+        }
+
+        private void ForceOpaque(Image img)
+        {
+            if (img == null)
+                return;
+
+            try
+            {
+                var c = img.color;
+                if (c.a >= 0.999f)
+                    return;
+
+                if (!_forcedOpaqueImages.ContainsKey(img))
+                    _forcedOpaqueImages.Add(img, c);
+
+                c.a = 1f;
+                img.color = c;
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+        }
+
+        private static Transform FindDeepChild(Transform parent, string name)
+        {
+            if (parent == null || string.IsNullOrEmpty(name))
+                return null;
+
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var child = parent.GetChild(i);
+                if (child == null) continue;
+
+                if (string.Equals(child.name, name, StringComparison.Ordinal))
+                    return child;
+
+                var found = FindDeepChild(child, name);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
+        private void HideStrayLegacyCategoryTexts()
+        {
+            if (root == null)
+                return;
+
+            try
+            {
+                var texts = root.GetComponentsInChildren<TMP_Text>(true);
+                if (texts == null || texts.Length == 0)
+                    return;
+
+                for (int i = 0; i < texts.Length; i++)
+                {
+                    var t = texts[i];
+                    if (t == null) continue;
+
+                    // Keep known UI text elements.
+                    if (t == titleText || t == goldText)
+                        continue;
+
+                    if (detailsUI != null && t.transform.IsChildOf(detailsUI.transform))
+                        continue;
+
+                    // Don't hide tab button labels.
+                    if (tabsRoot != null && t.transform.IsChildOf(tabsRoot))
+                        continue;
+
+                    // Don't hide inventory slot row text.
+                    if (rowTemplate != null && t.transform.IsChildOf(rowTemplate.transform))
+                        continue;
+                    if (contentRoot != null && t.transform.IsChildOf(contentRoot))
+                        continue;
+
+                    var s = t.text;
+                    if (string.IsNullOrWhiteSpace(s))
+                        continue;
+
+                    s = s.Trim();
+                    var lower = s.ToLowerInvariant();
+
+                    // Legacy category label(s) that shouldn't float over the grid.
+                    if (lower.Contains("weapon") && (lower.Contains("util") || lower.Contains("utility") || lower.Contains("utilities")))
+                    {
+                        t.gameObject.SetActive(false);
+                        continue;
+                    }
+                }
+            }
+            catch
+            {
+                // Best-effort cleanup only.
+            }
         }
 
         public void Close()
@@ -196,6 +623,16 @@ namespace Abyss.Inventory
 #endif
 
             _isOpen = false;
+
+            ForceOpaqueBackground(false);
+
+            // Restore original backdrop tint (if any).
+            try
+            {
+                if (_backdropImage != null && _backdropOriginalCaptured)
+                    _backdropImage.color = _backdropOriginalColor;
+            }
+            catch { }
 
             try { _inputAuthority?.SetUiInputLocked(false); } catch { }
 
@@ -333,8 +770,8 @@ namespace Abyss.Inventory
             int createdRowCount = 0;
             int rowIndex = 0;
 
-            bool selectedRendered = false;
-
+            // Build a filtered list of stacks, then place them into a fixed 4x7 grid.
+            var visibleStacks = new List<(string itemId, int count, ItemDefinition def)>(keys.Count);
             foreach (var itemId in keys)
             {
                 if (string.IsNullOrWhiteSpace(itemId))
@@ -345,109 +782,244 @@ namespace Abyss.Inventory
                     continue;
 
                 var def = ResolveItemDefinition(itemId);
-
                 if (!PassesTabFilter(def, itemId))
                     continue;
 
+                visibleStacks.Add((itemId, count, def));
+            }
+
+            // Sync selected slot index based on currently selected item id (UI-only).
+            _selectedSlotIndex = FindSelectedSlotIndexInVisibleStacks(visibleStacks, _selectedItemId);
+
+            if (visibleStacks.Count > InventoryGridSlots)
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogWarning($"[PlayerInventoryUI] Inventory has {visibleStacks.Count} stacks but UI is fixed to {InventoryGridSlots} slots; truncating display.", this);
+#endif
+            }
+
+            // Prefer square cells sized to fit the viewport.
+            Vector2 cellSize = new Vector2(64f, 64f);
+            try
+            {
+                if (contentRoot != null)
+                {
+                    var grid = contentRoot.GetComponent<GridLayoutGroup>();
+                    if (grid != null)
+                        cellSize = grid.cellSize;
+                }
+            }
+            catch { }
+
+            for (int slotIndex = 0; slotIndex < InventoryGridSlots; slotIndex++)
+            {
+                bool hasItem = slotIndex < visibleStacks.Count;
+                string itemId = hasItem ? visibleStacks[slotIndex].itemId : null;
+                int count = hasItem ? visibleStacks[slotIndex].count : 0;
+                var def = hasItem ? visibleStacks[slotIndex].def : null;
+
+                int capturedSlotIndex = slotIndex;
+
                 var go = Instantiate(rowTemplate.gameObject, contentRoot, false);
                 createdRowCount++;
-                go.name = $"Row_{itemId}";
+                go.name = hasItem ? $"Row_{itemId}" : $"EmptySlot_{slotIndex}";
                 go.SetActive(true);
+
+                var capturedGo = go;
+
+                // IMPORTANT: put the row into grid mode immediately so it never renders a list-mode
+                // (often-white) background for a frame.
+                var row = go.GetComponent<PlayerInventoryRowUI>();
+                if (row != null)
+                    row.SetGridMode(true);
+
+                // Requirement: stable slot index stored on each row.
+                if (row != null)
+                {
+                    try { row.SetSlotIndex(slotIndex); } catch { }
+                }
+
+                if (row != null)
+                {
+                    if (_spawnedSlotViews.Count <= capturedSlotIndex)
+                    {
+                        while (_spawnedSlotViews.Count <= capturedSlotIndex)
+                            _spawnedSlotViews.Add(null);
+                    }
+                    _spawnedSlotViews[capturedSlotIndex] = row;
+                }
 
                 // Ensure stable layout metadata.
                 var le = go.GetComponent<LayoutElement>();
                 if (le == null) le = go.AddComponent<LayoutElement>();
-
-                float templateH = 60f;
-                try
-                {
-                    var tmplRt = rowTemplate.GetComponent<RectTransform>();
-                    if (tmplRt != null && tmplRt.rect.height > 1f) templateH = tmplRt.rect.height;
-                }
-                catch { }
-
-                le.preferredHeight = templateH;
-                le.minHeight = templateH;
+                le.preferredWidth = cellSize.x;
+                le.preferredHeight = cellSize.y;
+                le.minWidth = cellSize.x;
+                le.minHeight = cellSize.y;
+                le.flexibleWidth = 0f;
                 le.flexibleHeight = 0f;
-                le.flexibleWidth = 1f;
 
                 var rt = go.GetComponent<RectTransform>();
                 if (rt != null)
                 {
-                    rt.anchorMin = new Vector2(0f, 1f);
-                    rt.anchorMax = new Vector2(1f, 1f);
-                    rt.pivot = new Vector2(0.5f, 1f);
-
-                    // VerticalLayoutGroup controls Y positioning
-                    rt.anchoredPosition = Vector2.zero;
-
-                    // Full width, fixed height
-                    rt.sizeDelta = new Vector2(0f, le.preferredHeight);
-
+                    // GridLayoutGroup controls positioning and size.
                     rt.localScale = Vector3.one;
                     rt.localRotation = Quaternion.identity;
+
+                    // Normalize anchors so layout calculations are consistent.
+                    rt.anchorMin = new Vector2(0f, 1f);
+                    rt.anchorMax = new Vector2(0f, 1f);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
                 }
 
-                // NEW: brute-force visibility so “clickable but invisible” can’t happen.
+                // Brute-force visibility so “clickable but invisible” can’t happen.
                 ForceRowVisible(go);
 
-                // Readability + selection/hover styling (runtime only; no prefab edits).
-                ApplyRowVisualStyling(go, rowIndex, !string.IsNullOrWhiteSpace(_selectedItemId) && itemId == _selectedItemId);
+                bool isSelected = hasItem && _selectedSlotIndex == capturedSlotIndex;
+                ApplyRowVisualStyling(go, rowIndex, isSelected);
 
-                var row = go.GetComponent<PlayerInventoryRowUI>();
+                // --- [INV] Debug: build-time diagnostics (one log per slot) ---
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (INV_DIAGNOSTICS)
+                {
+                    try
+                    {
+                        var btn = go.GetComponent<Button>();
+                        var img = go.GetComponent<Image>();
+                        Debug.Log($"[INV][BUILD] Slot {slotIndex} | empty={!hasItem} | hasButton={(btn != null)} | hasImage={(img != null)} | raycast={(img != null && img.raycastTarget)}", this);
+                    }
+                    catch { }
+                }
+#endif
+
                 if (row != null)
                 {
-                    string capturedId = itemId;
-                    int capturedCount = count;
+                    // Debug context for hover logs.
+                    try { row.SetDebugContext(slotIndex, !hasItem); } catch { }
 
-                    row.Bind(def, capturedId, capturedCount, () => Select(capturedId, capturedCount));
-
-                    if (!string.IsNullOrWhiteSpace(_selectedItemId) && string.Equals(capturedId, _selectedItemId, StringComparison.OrdinalIgnoreCase))
-                        selectedRendered = true;
-
-                    if (first == null)
+                    if (hasItem)
                     {
-                        first = row;
-                        firstId = capturedId;
-                        firstCount = capturedCount;
-                    }
+                        string capturedId = itemId;
+                        int capturedCount = count;
+                        row.Bind(def, capturedId, capturedCount, () =>
+                        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            Debug.Log($"[INV][CLICK] slotIndex={capturedSlotIndex} empty=false", this);
+#endif
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            if (INV_DIAGNOSTICS)
+                            {
+                                try
+                                {
+                                    Debug.Log($"[INV][CLICK] Slot {slotIndex} empty=false", this);
+                                    Debug.Log($"[INV][CLICK ITEM] Selecting itemId={capturedId}", this);
+                                    Debug.Log($"[INV][RAYCAST] currentSelected={((EventSystem.current != null) ? EventSystem.current.currentSelectedGameObject?.name : "(no EventSystem)")}", this);
 
-                    renderedStacks++;
+                                    var btn = go.GetComponent<Button>();
+                                    var img = go.GetComponent<Image>();
+                                    Debug.Log($"[INV][RAYCAST TARGETS] hasButton={(btn != null)} targetGraphic={(btn != null && btn.targetGraphic != null ? btn.targetGraphic.name : "(null)")} hasImage={(img != null)} imgRaycast={(img != null && img.raycastTarget)}", this);
+                                }
+                                catch { }
+                            }
+#endif
+                            _selectedSlotIndex = capturedSlotIndex;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            Debug.Log($"[INV][SEL SET] _selectedSlotIndex={_selectedSlotIndex}", this);
+#endif
+                            Select(capturedId, capturedCount);
+                            UpdateSelectionVisuals();
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            Debug.Log($"[INV][SELECT] slot={_selectedSlotIndex}", this);
+#endif
+                        });
+
+                        if (first == null)
+                        {
+                            first = row;
+                            firstId = capturedId;
+                            firstCount = capturedCount;
+                        }
+
+                        renderedStacks++;
+                    }
+                    else
+                    {
+                        row.BindEmpty(() =>
+                        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            Debug.Log($"[INV][CLICK] slotIndex={capturedSlotIndex} empty=true", this);
+#endif
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            if (INV_DIAGNOSTICS)
+                            {
+                                try
+                                {
+                                    Debug.Log($"[INV][CLICK] Slot {slotIndex} empty=true", this);
+                                    Debug.Log("[INV][CLICK EMPTY] Clearing selection", this);
+                                    Debug.Log($"[INV][RAYCAST] currentSelected={((EventSystem.current != null) ? EventSystem.current.currentSelectedGameObject?.name : "(no EventSystem)")}", this);
+
+                                    var btn = go.GetComponent<Button>();
+                                    var img = go.GetComponent<Image>();
+                                    Debug.Log($"[INV][RAYCAST TARGETS] hasButton={(btn != null)} targetGraphic={(btn != null && btn.targetGraphic != null ? btn.targetGraphic.name : "(null)")} hasImage={(img != null)} imgRaycast={(img != null && img.raycastTarget)}", this);
+                                }
+                                catch { }
+                            }
+#endif
+                            _selectedSlotIndex = -1;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            Debug.Log($"[INV][SEL SET] _selectedSlotIndex={_selectedSlotIndex}", this);
+#endif
+                            ClearSelection();
+                            UpdateSelectionVisuals();
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                            Debug.Log($"[INV][SELECT] slot={_selectedSlotIndex}", this);
+#endif
+                        });
+                    }
                 }
 
                 rowIndex++;
-
                 _spawnedRows.Add(go);
             }
 
             // Keep selection valid.
-            if (string.IsNullOrWhiteSpace(_selectedItemId))
-            {
-                if (first != null)
-                    Select(firstId, firstCount);
-                else
-                    detailsUI?.Clear();
-            }
-            else
+            // If nothing is selected, keep it empty (do not auto-select first).
+            if (!string.IsNullOrWhiteSpace(_selectedItemId))
             {
                 // If selected item no longer exists, fall back to first.
                 int selCount = snap.TryGetValue(_selectedItemId, out var sc) ? sc : 0;
                 if (selCount <= 0 && first != null)
+                {
                     Select(firstId, firstCount);
-                else if (!selectedRendered)
+                    _selectedSlotIndex = 0;
+                }
+                else if (_selectedSlotIndex < 0)
                 {
                     // Selection exists in inventory but is filtered out by current tab.
                     if (first != null)
+                    {
                         Select(firstId, firstCount);
+                        _selectedSlotIndex = 0;
+                    }
                     else
                     {
                         _selectedItemId = null;
                         _selectedDef = null;
                         _selectedCount = 0;
                         detailsUI?.Clear();
+                        _selectedSlotIndex = -1;
                     }
                 }
             }
+            else
+            {
+                _selectedSlotIndex = -1;
+            }
+
+            // Ensure selection visuals survive RefreshList rebuild.
+            UpdateSelectionVisuals();
 
             // Force rebuild now that children exist.
             try
@@ -544,6 +1116,16 @@ namespace Abyss.Inventory
             RefreshDetails();
         }
 
+        private void ClearSelection()
+        {
+            _selectedItemId = null;
+            _selectedDef = null;
+            _selectedCount = 0;
+
+            UpdateSelectionHighlightVisuals();
+            RefreshDetails();
+        }
+
         private void EnsureEquipment()
         {
             if (_equipment != null)
@@ -620,35 +1202,26 @@ namespace Abyss.Inventory
             if (_equipButton == null)
                 return;
 
-            bool canEquip = selectedDef != null && selectedDef.equipmentSlot != EquipmentSlot.None;
+            bool canEquip = selectedDef != null && CanEquipSelected(selectedDef);
 
-            _equipButton.interactable = canEquip && _inventory != null;
+            // UX: only show the button when it can actually do something.
+            bool show = canEquip;
+            try { _equipButton.gameObject.SetActive(show); } catch { }
+
+            if (!show)
+                return;
+
+            _equipButton.interactable = true;
             if (_equipButtonText != null)
-                _equipButtonText.text = canEquip ? "Equip" : "Not equippable";
+                _equipButtonText.text = "Equip";
         }
 
         private void OnEquipPressed()
         {
-            EnsureInventory();
             EnsureEquipment();
 
-            if (_inventory == null || _equipment == null)
-                return;
-
-            if (string.IsNullOrWhiteSpace(_selectedItemId))
-                return;
-
-            if (_equipment.TryEquipFromInventory(_inventory, ResolveItemDefinition, _selectedItemId, out var message))
-            {
-                // Inventory change event should refresh list/details.
-                if (!string.IsNullOrWhiteSpace(message))
-                    Debug.Log($"[Equipment] {message}");
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(message))
-                    Debug.LogWarning($"[Equipment] {message}");
-            }
+            // Same equip attempt as hotkey.
+            TryEquipSelected();
         }
 
         private void ClearRows()
@@ -700,6 +1273,61 @@ namespace Abyss.Inventory
             }
 
             _spawnedRows.Clear();
+            _spawnedSlotViews.Clear();
+        }
+
+        private int FindSelectedSlotIndexInVisibleStacks(List<(string itemId, int count, ItemDefinition def)> visibleStacks, string selectedItemId)
+        {
+            if (string.IsNullOrWhiteSpace(selectedItemId) || visibleStacks == null)
+                return -1;
+
+            for (int i = 0; i < visibleStacks.Count && i < InventoryGridSlots; i++)
+            {
+                if (string.Equals(visibleStacks[i].itemId, selectedItemId, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private void UpdateSelectionVisualsBySlotIndex(int selectedIndexOrMinus1)
+        {
+            // Iterate instantiated slot views and set selection state.
+            for (int i = 0; i < _spawnedSlotViews.Count; i++)
+            {
+                var row = _spawnedSlotViews[i];
+                if (row == null) continue;
+                row.SetSelected(i == selectedIndexOrMinus1);
+            }
+        }
+
+        private void UpdateSelectionVisuals()
+        {
+            if (contentRoot == null)
+                return;
+
+            // Requirement: iterate all PlayerInventoryRowUI instances under contentRoot.
+            try
+            {
+                var rows = contentRoot.GetComponentsInChildren<PlayerInventoryRowUI>(includeInactive: false);
+                if (rows == null)
+                    return;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.Log($"[INV][SEL APPLY] applying selectedSlot={_selectedSlotIndex} to rows={rows.Length}", this);
+#endif
+
+                for (int i = 0; i < rows.Length; i++)
+                {
+                    var row = rows[i];
+                    if (row == null) continue;
+                    row.SetSelected(row.SlotIndex == _selectedSlotIndex);
+                }
+            }
+            catch
+            {
+                // Best-effort only.
+            }
         }
 
         private void EnsureInventory()
@@ -871,6 +1499,9 @@ namespace Abyss.Inventory
                     if (candidate != null)
                         scrollRect.viewport = candidate;
                 }
+
+                if (scrollRect.viewport != null)
+                    MakeViewportTransparent(scrollRect.viewport);
             }
             catch { }
 
@@ -956,47 +1587,105 @@ namespace Abyss.Inventory
                     if (vpGo.GetComponent<RectMask2D>() == null)
                         vpGo.AddComponent<RectMask2D>();
 
-                    // Ensure an Image exists (can be transparent); RectMask2D is the clipper.
+                    // RectMask2D does not require an Image. If one exists, force it fully transparent
+                    // to avoid a one-frame white flash on open.
                     var img = vpGo.GetComponent<Image>();
-                    if (img == null) img = vpGo.AddComponent<Image>();
-                    var c = img.color;
-                    if (c.a > 0.001f)
-                        img.color = new Color(c.r, c.g, c.b, 0f);
+                    if (img != null)
+                    {
+                        var c = img.color;
+                        if (c.a > 0.001f)
+                            img.color = new Color(c.r, c.g, c.b, 0f);
+                    }
                 }
                 catch { }
             }
 
-            // Content should be top-stretched.
+            // Content should stretch (GridLayoutGroup will align items).
             try
             {
-                contentRoot.anchorMin = new Vector2(0f, 1f);
+                contentRoot.anchorMin = new Vector2(0f, 0f);
                 contentRoot.anchorMax = new Vector2(1f, 1f);
-                contentRoot.pivot = new Vector2(0.5f, 1f);
-                contentRoot.anchoredPosition = Vector2.zero;
-
-                contentRoot.sizeDelta = new Vector2(0f, 0f);
+                contentRoot.pivot = new Vector2(0.5f, 0.5f);
+                contentRoot.offsetMin = Vector2.zero;
+                contentRoot.offsetMax = Vector2.zero;
             }
             catch { }
 
-            // Layout components on Content.
+            // Layout components on Content: fixed 4x7 grid.
             try
             {
+                // Remove list layout components if present.
                 var vlg = contentRoot.GetComponent<VerticalLayoutGroup>();
-                if (vlg == null) vlg = contentRoot.gameObject.AddComponent<VerticalLayoutGroup>();
-
-                vlg.childAlignment = TextAnchor.UpperLeft;
-                vlg.childControlWidth = true;
-                vlg.childControlHeight = true;
-                vlg.childForceExpandWidth = true;
-                vlg.childForceExpandHeight = false;
-                vlg.spacing = 6f;
-                vlg.padding = new RectOffset(10, 10, 10, 10);
+                if (vlg != null)
+                {
+                    // IMPORTANT: in play mode we must remove immediately; Destroy() is deferred and will
+                    // prevent adding GridLayoutGroup in the same frame.
+                    try { DestroyImmediate(vlg); } catch { if (Application.isPlaying) Destroy(vlg); else DestroyImmediate(vlg); }
+                }
 
                 var csf = contentRoot.GetComponent<ContentSizeFitter>();
-                if (csf == null) csf = contentRoot.gameObject.AddComponent<ContentSizeFitter>();
+                if (csf != null)
+                {
+                    // IMPORTANT: same reasoning as above.
+                    try { DestroyImmediate(csf); } catch { if (Application.isPlaying) Destroy(csf); else DestroyImmediate(csf); }
+                }
 
-                csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-                csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                // If something still blocks, bail out (and warn once) rather than spamming the console.
+                if (contentRoot.GetComponent<VerticalLayoutGroup>() != null || contentRoot.GetComponent<ContentSizeFitter>() != null)
+                {
+                    if (!_warnedContentLayoutConflict)
+                    {
+                        _warnedContentLayoutConflict = true;
+                        Debug.LogWarning("[PlayerInventoryUI] ContentRoot still has list-layout components; cannot ensure GridLayoutGroup this frame.", this);
+                    }
+                    return;
+                }
+
+                var grid = contentRoot.GetComponent<GridLayoutGroup>();
+                if (grid == null) grid = contentRoot.gameObject.AddComponent<GridLayoutGroup>();
+
+                // Border around the grid pane (not per-slot lines).
+                EnsureGridPaneBorder(scrollRect.viewport);
+
+                grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                grid.constraintCount = InventoryGridColumns;
+                grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+                grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+                grid.childAlignment = TextAnchor.UpperLeft;
+                grid.spacing = new Vector2(4f, 4f);
+                grid.padding = new RectOffset(8, 8, 8, 8);
+
+                // Compute a TRUE square cell size that fits 4x7 in the viewport.
+                float cell = 64f;
+                try
+                {
+                    var vp = scrollRect.viewport;
+                    if (vp != null)
+                    {
+                        float padX = grid.padding.left + grid.padding.right;
+                        float padY = grid.padding.top + grid.padding.bottom;
+                        float availW = Mathf.Max(0f, vp.rect.width - padX - grid.spacing.x * (InventoryGridColumns - 1));
+                        float availH = Mathf.Max(0f, vp.rect.height - padY - grid.spacing.y * (InventoryGridRows - 1));
+
+                        float cw = Mathf.Floor(availW / InventoryGridColumns);
+                        float ch = Mathf.Floor(availH / InventoryGridRows);
+                        cell = Mathf.Clamp(Mathf.Floor(Mathf.Min(cw, ch)), 48f, 220f);
+                    }
+                }
+                catch { }
+
+                // Pixel-perfect (prefer even) to keep 1px/2px outlines consistent.
+                int size = Mathf.FloorToInt(cell);
+                size = Mathf.Clamp(size, 48, 220);
+                if ((size % 2) == 1) size -= 1;
+                if (size < 48) size = 48;
+                cell = size;
+
+                grid.cellSize = new Vector2(cell, cell);
+
+                // No scrolling for a fixed 4x7 inventory.
+                scrollRect.horizontal = false;
+                scrollRect.vertical = false;
             }
             catch { }
 
@@ -1007,6 +1696,104 @@ namespace Abyss.Inventory
                     scrollRect.content = contentRoot;
             }
             catch { }
+        }
+
+        private static void EnsureGridPaneBorder(RectTransform viewport)
+        {
+            if (viewport == null)
+                return;
+
+            try
+            {
+                // Create (or reuse) a simple border overlay in the viewport.
+                Transform borderTf = null;
+                try { borderTf = viewport.Find("GridPaneBorder"); } catch { }
+
+                GameObject borderGo;
+                if (borderTf == null)
+                {
+                    borderGo = new GameObject("GridPaneBorder", typeof(RectTransform));
+                    borderGo.transform.SetParent(viewport, false);
+                }
+                else
+                {
+                    borderGo = borderTf.gameObject;
+                }
+
+                var brt = borderGo.GetComponent<RectTransform>();
+                brt.anchorMin = Vector2.zero;
+                brt.anchorMax = Vector2.one;
+                brt.offsetMin = Vector2.zero;
+                brt.offsetMax = Vector2.zero;
+                brt.pivot = new Vector2(0.5f, 0.5f);
+
+                // Keep border above content but not blocking interaction.
+                borderGo.transform.SetAsLastSibling();
+
+                const float thickness = 1f;
+                var lineColor = new Color(1f, 1f, 1f, 0.65f);
+
+                EnsureBorderLine(borderGo.transform, "TopLine", lineColor,
+                    anchorMin: new Vector2(0f, 1f), anchorMax: new Vector2(1f, 1f),
+                    pivot: new Vector2(0.5f, 1f), sizeDelta: new Vector2(0f, thickness), anchoredPos: Vector2.zero);
+
+                EnsureBorderLine(borderGo.transform, "BottomLine", lineColor,
+                    anchorMin: new Vector2(0f, 0f), anchorMax: new Vector2(1f, 0f),
+                    pivot: new Vector2(0.5f, 0f), sizeDelta: new Vector2(0f, thickness), anchoredPos: Vector2.zero);
+
+                EnsureBorderLine(borderGo.transform, "LeftLine", lineColor,
+                    anchorMin: new Vector2(0f, 0f), anchorMax: new Vector2(0f, 1f),
+                    pivot: new Vector2(0f, 0.5f), sizeDelta: new Vector2(thickness, 0f), anchoredPos: Vector2.zero);
+
+                EnsureBorderLine(borderGo.transform, "RightLine", lineColor,
+                    anchorMin: new Vector2(1f, 0f), anchorMax: new Vector2(1f, 1f),
+                    pivot: new Vector2(1f, 0.5f), sizeDelta: new Vector2(thickness, 0f), anchoredPos: Vector2.zero);
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+        }
+
+        private static void EnsureBorderLine(
+            Transform parent,
+            string name,
+            Color color,
+            Vector2 anchorMin,
+            Vector2 anchorMax,
+            Vector2 pivot,
+            Vector2 sizeDelta,
+            Vector2 anchoredPos)
+        {
+            if (parent == null || string.IsNullOrWhiteSpace(name))
+                return;
+
+            Transform tf = null;
+            try { tf = parent.Find(name); } catch { }
+
+            GameObject go;
+            if (tf == null)
+            {
+                go = new GameObject(name, typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(parent, false);
+            }
+            else
+            {
+                go = tf.gameObject;
+                if (go.GetComponent<Image>() == null)
+                    go.AddComponent<Image>();
+            }
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
+            rt.pivot = pivot;
+            rt.sizeDelta = sizeDelta;
+            rt.anchoredPosition = anchoredPos;
+
+            var img = go.GetComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
         }
 
         /// <summary>
@@ -1301,13 +2088,23 @@ namespace Abyss.Inventory
         {
             if (rowGo == null) return;
 
+            // Grid slots are icon+count only; don't modify TMP sizing/colors here.
+            try
+            {
+                var rowUi = rowGo.GetComponent<PlayerInventoryRowUI>();
+                if (rowUi != null && rowUi.IsGridMode)
+                    return;
+            }
+            catch { }
+
             try
             {
                 var nameTmp = FindTmpByNameHint(rowGo, "Name", "ItemName", "Title", "Label");
                 if (nameTmp != null)
                 {
-                    if (nameTmp.fontSize < 22f)
-                        nameTmp.fontSize = 22f;
+                    // Keep names readable but don't blow up grid tiles.
+                    if (nameTmp.fontSize < 16f)
+                        nameTmp.fontSize = 16f;
 
                     var c = nameTmp.color;
                     nameTmp.color = new Color(c.r, c.g, c.b, 1f);
@@ -1320,7 +2117,8 @@ namespace Abyss.Inventory
                 var countTmp = FindTmpByNameHint(rowGo, "Count", "Qty", "Quantity", "Stack");
                 if (countTmp != null)
                 {
-                    countTmp.fontSize = 20f;
+                    if (countTmp.fontSize < 14f)
+                        countTmp.fontSize = 14f;
                     var c2 = countTmp.color;
                     countTmp.color = new Color(c2.r, c2.g, c2.b, 0.95f);
                 }
@@ -1331,6 +2129,14 @@ namespace Abyss.Inventory
         private void ApplyRowVisualStyling(GameObject rowGo, int rowIndex, bool isSelected)
         {
             if (rowGo == null) return;
+
+            bool isGrid = false;
+            try
+            {
+                var rowUi = rowGo.GetComponent<PlayerInventoryRowUI>();
+                isGrid = rowUi != null && rowUi.IsGridMode;
+            }
+            catch { }
 
             // Normal shading
             const float evenAlpha = 0.18f;
@@ -1343,18 +2149,36 @@ namespace Abyss.Inventory
             var bg = EnsureRowBackgroundImage(rowGo);
             var baseColor = GetRowBaseColor();
 
-            if (bg != null)
+            // Raycast fix: tiles must always have a raycastable graphic.
+            try
+            {
+                if (bg != null)
+                    bg.raycastTarget = true;
+            }
+            catch { }
+
+            // For grid tiles, background/hover is handled by PlayerInventoryRowUI.
+            // Driving bg.color here can cause one-frame flashes on open.
+            if (!isGrid && bg != null)
             {
                 try
                 {
                     bg.color = WithAlpha(new Color(baseColor.r, baseColor.g, baseColor.b, 1f), a);
-                    bg.raycastTarget = true;
                 }
                 catch { }
             }
 
             // Optional accent bar for selected
-            EnsureSelectedBar(rowGo, isSelected, baseColor);
+            if (!isGrid)
+                EnsureSelectedBar(rowGo, isSelected, baseColor);
+            else
+                EnsureSelectedBar(rowGo, false, baseColor);
+
+            // Grid slot border (subtle) + stronger when selected.
+            if (isGrid)
+            {
+                // Border/hover/selection visuals are handled by PlayerInventoryRowUI.
+            }
 
             // Hover styling only if there is a Button
             try
@@ -1365,7 +2189,15 @@ namespace Abyss.Inventory
                     if (bg != null && btn.targetGraphic == null)
                         btn.targetGraphic = bg;
 
-                    ConfigureButtonColors(btn, bg != null ? bg.color : WithAlpha(baseColor, a));
+                    if (isGrid)
+                    {
+                        // Prevent Unity's Selectable tinting from flashing tiles.
+                        btn.transition = Selectable.Transition.None;
+                    }
+                    else
+                    {
+                        ConfigureButtonColors(btn, bg != null ? bg.color : WithAlpha(baseColor, a));
+                    }
                 }
             }
             catch { }
@@ -1390,6 +2222,21 @@ namespace Abyss.Inventory
                 var go = ch.gameObject;
                 bool isSelected = !string.IsNullOrWhiteSpace(_selectedItemId) && go != null && go.name == $"Row_{_selectedItemId}";
                 ApplyRowVisualStyling(go, rowIndex, isSelected);
+
+                try
+                {
+                    var rowUi = go != null ? go.GetComponent<PlayerInventoryRowUI>() : null;
+                    if (rowUi != null)
+                    {
+                        // Grid selection is slot-index based (stable), not name-based.
+                        if (rowUi.IsGridMode)
+                            rowUi.SetSelected(rowUi.SlotIndex == _selectedSlotIndex);
+                        else
+                            rowUi.SetSelected(isSelected);
+                    }
+                }
+                catch { }
+
                 rowIndex++;
             }
         }
@@ -1413,9 +2260,32 @@ namespace Abyss.Inventory
             catch { }
         }
 
+        private static void MakeViewportTransparent(RectTransform viewport)
+        {
+            if (viewport == null)
+                return;
+
+            try
+            {
+                var img = viewport.GetComponent<Image>();
+                if (img == null)
+                    return;
+
+                var c = img.color;
+                if (c.a > 0.001f)
+                    img.color = new Color(c.r, c.g, c.b, 0f);
+            }
+            catch { }
+        }
+
         private Dictionary<string, ItemDefinition> BuildItemDefinitionIndex()
         {
             var map = new Dictionary<string, ItemDefinition>(StringComparer.OrdinalIgnoreCase);
+
+            static bool HasIcon(ItemDefinition d)
+            {
+                try { return d != null && d.icon != null; } catch { return false; }
+            }
 
             try
             {
@@ -1434,8 +2304,19 @@ namespace Abyss.Inventory
                             if (e == null || e.item == null) continue;
                             var def = e.item;
                             var id = ResolveItemId(def);
-                            if (!string.IsNullOrWhiteSpace(id) && !map.ContainsKey(id))
+                            if (string.IsNullOrWhiteSpace(id))
+                                continue;
+
+                            if (!map.TryGetValue(id, out var existing) || existing == null)
+                            {
                                 map[id] = def;
+                            }
+                            else
+                            {
+                                // Prefer the definition that actually has an icon assigned.
+                                if (!HasIcon(existing) && HasIcon(def))
+                                    map[id] = def;
+                            }
                         }
                     }
                 }
@@ -1447,8 +2328,18 @@ namespace Abyss.Inventory
                     {
                         if (def == null) continue;
                         var id = ResolveItemId(def);
-                        if (!string.IsNullOrWhiteSpace(id) && !map.ContainsKey(id))
+                        if (string.IsNullOrWhiteSpace(id))
+                            continue;
+
+                        if (!map.TryGetValue(id, out var existing) || existing == null)
+                        {
                             map[id] = def;
+                        }
+                        else
+                        {
+                            if (!HasIcon(existing) && HasIcon(def))
+                                map[id] = def;
+                        }
                     }
                 }
             }
@@ -1464,7 +2355,22 @@ namespace Abyss.Inventory
 
             _itemDefById ??= BuildItemDefinitionIndex();
             if (_itemDefById != null && _itemDefById.TryGetValue(itemId, out var def))
+            {
+                // If we found a definition but it doesn't have an icon, it may be a stale/duplicate instance.
+                // Rebuild the index once and retry.
+                try
+                {
+                    if (def != null && def.icon == null)
+                    {
+                        _itemDefById = BuildItemDefinitionIndex();
+                        if (_itemDefById != null && _itemDefById.TryGetValue(itemId, out var refreshed))
+                            return refreshed;
+                    }
+                }
+                catch { }
+
                 return def;
+            }
 
             return null;
         }

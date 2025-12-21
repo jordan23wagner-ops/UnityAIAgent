@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Abyss.Inventory;
 using Abyss.Items;
 using Game.Systems;
 using TMPro;
@@ -16,19 +17,26 @@ namespace Abyss.Equipment
     [DefaultExecutionOrder(110)]
     public sealed class PlayerEquipmentUI : MonoBehaviour
     {
+#pragma warning disable 0649 // Assigned by Unity serialization (inspector / prefab)
         [Serializable]
         private struct SlotWidget
         {
             public EquipmentSlot slot;
             public Button button;
             public Image iconImage;
+            public Image rarityStrip;
             public TMP_Text labelText;
             public Sprite emptyIcon;
         }
+#pragma warning restore 0649
 
         [Header("Root")]
         [SerializeField] private GameObject root;
         [SerializeField] private Button closeButton;
+
+        [Header("Character Tabs (optional)")]
+        [SerializeField] private Button characterInventoryTabButton;
+        [SerializeField] private Button characterEquipmentTabButton;
 
         [Header("Top")]
         [SerializeField] private TMP_Text titleText;
@@ -43,8 +51,20 @@ namespace Abyss.Equipment
 
         private bool _isOpen;
 
+        private Game.Input.PlayerInputAuthority _inputAuthority;
+
+        private Abyss.Inventory.PlayerInventoryUI _inventoryUi;
+
+        public bool IsOpen => _isOpen;
+
         private void Awake()
         {
+#if UNITY_2022_2_OR_NEWER
+            _inputAuthority = FindFirstObjectByType<Game.Input.PlayerInputAuthority>();
+#else
+            _inputAuthority = FindObjectOfType<Game.Input.PlayerInputAuthority>();
+#endif
+
             if (root != null)
                 root.SetActive(false);
 
@@ -56,6 +76,8 @@ namespace Abyss.Equipment
 
             if (titleText != null && string.IsNullOrWhiteSpace(titleText.text))
                 titleText.text = "Equipment";
+
+            WireCharacterTabs();
 
             WireSlotButtons();
         }
@@ -81,6 +103,8 @@ namespace Abyss.Equipment
             _isOpen = true;
             root.SetActive(true);
 
+            try { _inputAuthority?.SetUiInputLocked(true); } catch { }
+
             EnsureRefs();
             Refresh();
         }
@@ -91,6 +115,8 @@ namespace Abyss.Equipment
                 return;
 
             _isOpen = false;
+
+            try { _inputAuthority?.SetUiInputLocked(false); } catch { }
 
             if (_equipment != null)
                 _equipment.Changed -= OnEquipmentChanged;
@@ -109,6 +135,15 @@ namespace Abyss.Equipment
         {
             _inventory = PlayerInventoryResolver.GetOrFind();
             _equipment = PlayerEquipmentResolver.GetOrFindOrCreate();
+
+            if (_inventoryUi == null)
+            {
+#if UNITY_2022_2_OR_NEWER
+                _inventoryUi = FindFirstObjectByType<Abyss.Inventory.PlayerInventoryUI>();
+#else
+                _inventoryUi = FindObjectOfType<Abyss.Inventory.PlayerInventoryUI>();
+#endif
+            }
 
             if (_equipment != null)
             {
@@ -136,25 +171,77 @@ namespace Abyss.Equipment
 
                 bool hasItem = !string.IsNullOrWhiteSpace(itemId);
 
+                // Inventory UI rule: never show placeholders for empty slots.
+                bool hasIcon = hasItem && def != null && def.icon != null;
+
                 if (w.iconImage != null)
                 {
-                    // Prefer equipped item icon; otherwise show the slot's empty silhouette if provided.
-                    var equippedSprite = def != null ? def.icon : null;
-                    w.iconImage.sprite = hasItem ? equippedSprite : w.emptyIcon;
-                    w.iconImage.enabled = w.iconImage.sprite != null;
+                    w.iconImage.sprite = hasIcon ? def.icon : null;
+                    w.iconImage.enabled = hasIcon;
+                    if (w.iconImage.gameObject.activeSelf != hasIcon)
+                        w.iconImage.gameObject.SetActive(hasIcon);
                     w.iconImage.preserveAspect = true;
-                    // Keep silhouettes visible and white for now (we can lighten/alpha-tune later).
+                    // Alpha tuned by EquipmentSlotFeedback (empty vs equipped).
                     w.iconImage.color = Color.white;
+                    w.iconImage.raycastTarget = false;
+                }
+
+                if (w.rarityStrip != null)
+                {
+                    bool showStrip = hasItem && def != null;
+                    var c = showStrip ? InventoryRarityColors.GetColor(def.rarity) : Color.white;
+
+                    w.rarityStrip.enabled = showStrip;
+                    w.rarityStrip.color = showStrip
+                        ? c
+                        : new Color(c.r, c.g, c.b, 0f);
+
+                    if (!w.rarityStrip.gameObject.activeSelf)
+                        w.rarityStrip.gameObject.SetActive(true);
+
+                    try { w.rarityStrip.raycastTarget = false; } catch { }
                 }
 
                 if (w.labelText != null)
                 {
-                    // Icons only (like the reference). Keep text hidden.
-                    w.labelText.gameObject.SetActive(false);
+                    // Optional: item name; cleared when empty.
+                    w.labelText.text = hasItem
+                        ? (def != null && !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : itemId)
+                        : string.Empty;
                 }
 
-                w.button.interactable = hasItem;
+                // Keep interactable so we can still hover to see the slot label.
+                w.button.interactable = true;
+
+                EnsureSlotFeedback(w);
             }
+        }
+
+        private void EnsureSlotFeedback(SlotWidget w)
+        {
+            if (w.button == null)
+                return;
+
+            try
+            {
+                var feedback = w.button.GetComponent<EquipmentSlotFeedback>();
+                if (feedback == null)
+                    feedback = w.button.gameObject.AddComponent<EquipmentSlotFeedback>();
+
+                // Prevent Selectable from tinting the fill on hover; we do border-only.
+                w.button.transition = Selectable.Transition.None;
+
+                var outline = w.button.GetComponent<Outline>();
+                var bg = w.button.GetComponent<Image>();
+                feedback.Configure(bg, outline, w.iconImage, w.labelText);
+
+                bool hasItem = _equipment != null && !string.IsNullOrWhiteSpace(_equipment.Get(w.slot));
+                feedback.SetHasItem(hasItem);
+
+                if (w.labelText != null)
+                    w.labelText.raycastTarget = false;
+            }
+            catch { }
         }
 
         private void WireSlotButtons()
@@ -170,10 +257,28 @@ namespace Abyss.Equipment
                 w.button.onClick.RemoveAllListeners();
                 w.button.onClick.AddListener(() =>
                 {
-                    if (_inventory == null || _equipment == null) return;
+                    if (_equipment == null) return;
                     var slot = slots[index].slot;
                     if (string.IsNullOrWhiteSpace(_equipment.Get(slot))) return;
-                    _equipment.TryUnequipToInventory(_inventory, ResolveItemDefinition, slot);
+                    _equipment.TryUnequip(ResolveItemDefinition, slot);
+                });
+            }
+        }
+
+        private void WireCharacterTabs()
+        {
+            // Equipment tab is "selected" while this window is open.
+            if (characterEquipmentTabButton != null)
+                characterEquipmentTabButton.interactable = false;
+
+            if (characterInventoryTabButton != null)
+            {
+                characterInventoryTabButton.onClick.RemoveAllListeners();
+                characterInventoryTabButton.onClick.AddListener(() =>
+                {
+                    // Switch to inventory window.
+                    Close();
+                    try { _inventoryUi?.Open(); } catch { }
                 });
             }
         }

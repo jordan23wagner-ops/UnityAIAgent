@@ -15,6 +15,10 @@ MonoBehaviour:
   itemId: weapon_bronze_sword
   displayName: Bronze Sword
   description: A basic starter sword.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 3f633ac3d1d214547b3669d43c38fa54, type: 3}
+  rarity: 0
   itemType: 0
   baseValue: 80
+  equipmentSlot: 0
+  weaponHandedness: 0
+  DamageBonus: 3

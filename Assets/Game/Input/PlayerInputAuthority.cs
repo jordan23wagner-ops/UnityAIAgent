@@ -37,6 +37,8 @@ namespace Game.Input
         private bool _uiInputLocked = false;
         private bool _ignoreNextWorldClick = false;
 
+        public bool IsUiInputLocked => _uiInputLocked;
+
         public void SetGameplayInputBlocked(bool blocked) => gameplayInputBlocked = blocked;
 
         // Support for UI blocking from MerchantShopUI

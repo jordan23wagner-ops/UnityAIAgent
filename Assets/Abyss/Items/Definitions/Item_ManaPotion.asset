@@ -15,6 +15,9 @@ MonoBehaviour:
   itemId: potion_mana
   displayName: Mana Potion
   description: Restores mana.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 3f633ac3d1d214547b3669d43c38fa54, type: 3}
+  rarity: 0
   itemType: 1
   baseValue: 12
+  equipmentSlot: 0
+  weaponHandedness: 0

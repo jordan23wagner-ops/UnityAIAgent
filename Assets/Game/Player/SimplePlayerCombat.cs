@@ -17,6 +17,9 @@ public class SimplePlayerCombat : MonoBehaviour
 
     private float _nextAttackTime;
 
+    private PlayerCombatStats _stats;
+    private bool _warnedMissingStats;
+
     public float Range => range;
 
     public EnemyHealth SelectedTarget
@@ -75,7 +78,7 @@ public class SimplePlayerCombat : MonoBehaviour
 
         _nextAttackTime = Time.time + Mathf.Max(0.05f, attackCooldownSeconds);
         var hitPos = best.transform.position + Vector3.up * 1.2f;
-        int dealt = Mathf.Max(1, damage);
+        int dealt = Mathf.Max(1, GetDamageForAttack());
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (DevCheats.GodModeEnabled)
             dealt = 999999;
@@ -106,13 +109,38 @@ public class SimplePlayerCombat : MonoBehaviour
         }
 
         var hitPos = selectedTarget.transform.position + Vector3.up * 1.2f;
-        int dealt = Mathf.Max(1, damage);
+        int dealt = Mathf.Max(1, GetDamageForAttack());
     #if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (DevCheats.GodModeEnabled)
             dealt = 999999;
     #endif
         selectedTarget.TakeDamage(dealt, hitPos);
         return true;
+    }
+
+    private int GetDamageForAttack()
+    {
+        // MVP: if PlayerCombatStats exists, use it; otherwise preserve legacy behavior.
+        if (_stats == null)
+        {
+            try
+            {
+                _stats = GetComponent<PlayerCombatStats>();
+                if (_stats == null) _stats = GetComponentInParent<PlayerCombatStats>();
+            }
+            catch { _stats = null; }
+        }
+
+        if (_stats != null)
+            return _stats.DamageFinal;
+
+        if (!_warnedMissingStats)
+        {
+            _warnedMissingStats = true;
+            Debug.LogWarning($"[STATS] PlayerCombatStats missing; using fallback damage={damage}", this);
+        }
+
+        return damage;
     }
 
 #if UNITY_EDITOR

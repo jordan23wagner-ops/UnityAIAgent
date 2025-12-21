@@ -17,11 +17,17 @@ namespace Abyss.Inventory
 
         public void Clear()
         {
-            Set(null, null, 0);
+            ApplyEmptyState();
         }
 
         public void Set(ItemDefinition def, string fallbackItemId, int count)
         {
+            if (def == null && string.IsNullOrWhiteSpace(fallbackItemId))
+            {
+                ApplyEmptyState();
+                return;
+            }
+
             string displayName = def != null
                 ? (string.IsNullOrWhiteSpace(def.displayName) ? ResolveFallbackName(def, fallbackItemId) : def.displayName)
                 : (string.IsNullOrWhiteSpace(fallbackItemId) ? string.Empty : fallbackItemId);
@@ -51,6 +57,29 @@ namespace Abyss.Inventory
                 iconImage.enabled = hasIcon;
                 if (iconImage.gameObject.activeSelf != hasIcon)
                     iconImage.gameObject.SetActive(hasIcon);
+            }
+        }
+
+        private void ApplyEmptyState()
+        {
+            if (nameText != null)
+                nameText.text = "Select an item";
+
+            if (rarityText != null)
+                rarityText.text = string.Empty;
+
+            if (countText != null)
+                countText.text = string.Empty;
+
+            if (descriptionText != null)
+                descriptionText.text = "Select an item to view its details.";
+
+            if (iconImage != null)
+            {
+                iconImage.sprite = null;
+                iconImage.enabled = false;
+                if (iconImage.gameObject.activeSelf)
+                    iconImage.gameObject.SetActive(false);
             }
         }
 

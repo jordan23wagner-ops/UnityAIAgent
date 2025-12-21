@@ -15,6 +15,9 @@ MonoBehaviour:
   itemId: tool_hatchet
   displayName: Hatchet
   description: Used for woodcutting.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 8a961a68efc41b546adda34d29d9d471, type: 3}
+  rarity: 0
   itemType: 2
   baseValue: 55
+  equipmentSlot: 0
+  weaponHandedness: 0

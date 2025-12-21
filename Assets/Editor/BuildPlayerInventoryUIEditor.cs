@@ -68,6 +68,14 @@ namespace Abyss.Inventory.EditorTools
             uiGO.transform.SetParent(canvasGO.transform, false);
             StretchFullScreen(uiGO.GetComponent<RectTransform>());
 
+            // MVP: equip button should equip visually only (no inventory consumption yet).
+            try
+            {
+                if (uiGO.GetComponent<Abyss.Equipment.InventoryEquipButtonMvpAdapter>() == null)
+                    uiGO.AddComponent<Abyss.Equipment.InventoryEquipButtonMvpAdapter>();
+            }
+            catch { }
+
             // Header title
             var titleGo = new GameObject("Title", typeof(RectTransform), typeof(TextMeshProUGUI));
             titleGo.transform.SetParent(panel.transform, false);
@@ -80,6 +88,31 @@ namespace Abyss.Inventory.EditorTools
             titleTmp.fontStyle = FontStyles.Bold;
             titleTmp.color = Color.white;
             titleTmp.alignment = TextAlignmentOptions.Left;
+
+            // Character tabs (Inventory / Equipment)
+            var characterTabs = new GameObject("CharacterTabs", typeof(RectTransform));
+            characterTabs.transform.SetParent(panel.transform, false);
+            var tabsRt = characterTabs.GetComponent<RectTransform>();
+            SetAnchors(tabsRt, new Vector2(0.52f, 0.90f), new Vector2(0.88f, 0.98f));
+            SetOffsets(tabsRt, 0, 0, 0, 0);
+
+            var tabInventoryGo = new GameObject("Tab_Inventory", typeof(RectTransform), typeof(Image), typeof(Button));
+            tabInventoryGo.transform.SetParent(characterTabs.transform, false);
+            var tabInvRt = tabInventoryGo.GetComponent<RectTransform>();
+            SetAnchors(tabInvRt, new Vector2(0f, 0f), new Vector2(0.5f, 1f));
+            SetOffsets(tabInvRt, 0, 0, 0, 0);
+            tabInventoryGo.GetComponent<Image>().color = new Color(0.20f, 0.20f, 0.20f, 0.95f);
+            var tabInvBtn = tabInventoryGo.GetComponent<Button>();
+            EnsureButtonLabel(tabInventoryGo, "Inventory", 18);
+
+            var tabEquipmentGo = new GameObject("Tab_Equipment", typeof(RectTransform), typeof(Image), typeof(Button));
+            tabEquipmentGo.transform.SetParent(characterTabs.transform, false);
+            var tabEqRt = tabEquipmentGo.GetComponent<RectTransform>();
+            SetAnchors(tabEqRt, new Vector2(0.5f, 0f), new Vector2(1f, 1f));
+            SetOffsets(tabEqRt, 0, 0, 0, 0);
+            tabEquipmentGo.GetComponent<Image>().color = new Color(0.16f, 0.16f, 0.16f, 0.95f);
+            var tabEqBtn = tabEquipmentGo.GetComponent<Button>();
+            EnsureButtonLabel(tabEquipmentGo, "Equipment", 18);
 
             // Close button
             var closeGo = new GameObject("CloseButton", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -116,6 +149,8 @@ namespace Abyss.Inventory.EditorTools
             StretchFullScreen(viewportRt);
             viewport.GetComponent<Image>().color = new Color(0, 0, 0, 0);
             viewport.GetComponent<Mask>().showMaskGraphic = false;
+
+            EnsureGridInsetPanel(viewport.transform);
 
             var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             content.transform.SetParent(viewport.transform, false);
@@ -181,6 +216,8 @@ namespace Abyss.Inventory.EditorTools
             var so = new SerializedObject(ui);
             so.FindProperty("root").objectReferenceValue = root;
             so.FindProperty("closeButton").objectReferenceValue = closeBtn;
+            so.FindProperty("characterInventoryTabButton").objectReferenceValue = tabInvBtn;
+            so.FindProperty("characterEquipmentTabButton").objectReferenceValue = tabEqBtn;
             so.FindProperty("titleText").objectReferenceValue = titleTmp;
             so.FindProperty("goldText").objectReferenceValue = goldTmp;
             so.FindProperty("scrollRect").objectReferenceValue = scrollRect;
@@ -226,6 +263,18 @@ namespace Abyss.Inventory.EditorTools
             foreach (var ui in sceneUis)
             {
                 if (ui == null) continue;
+
+                // MVP: ensure Equip uses visual-only equipment state (no inventory consumption yet).
+                try
+                {
+                    if (ui.GetComponent<Abyss.Equipment.InventoryEquipButtonMvpAdapter>() == null)
+                    {
+                        ui.gameObject.AddComponent<Abyss.Equipment.InventoryEquipButtonMvpAdapter>();
+                        created++;
+                    }
+                }
+                catch { }
+
                 if (TryWireByName(ui, ref created))
                     wired++;
             }
@@ -291,6 +340,47 @@ namespace Abyss.Inventory.EditorTools
                 if (rowTemplate.activeSelf)
                     rowTemplate.SetActive(false);
             }
+
+            // Ensure RowTemplate's PlayerInventoryRowUI has Icon wired (child named "Icon").
+            try
+            {
+                if (rowTemplate != null)
+                {
+                    var rowUi = rowTemplate.GetComponent<Abyss.Inventory.PlayerInventoryRowUI>();
+                    var iconImg = rowTemplate.transform.Find("Icon") != null
+                        ? rowTemplate.transform.Find("Icon").GetComponent<Image>()
+                        : null;
+
+                    var rarityStripImg = rowTemplate.transform.Find("RarityStrip") != null
+                        ? rowTemplate.transform.Find("RarityStrip").GetComponent<Image>()
+                        : null;
+
+                    if (rowUi != null && iconImg != null)
+                    {
+                        var rowSo = new SerializedObject(rowUi);
+                        var p = rowSo.FindProperty("iconImage");
+                        if (p != null && p.objectReferenceValue == null)
+                        {
+                            p.objectReferenceValue = iconImg;
+                            rowSo.ApplyModifiedPropertiesWithoutUndo();
+                            EditorUtility.SetDirty(rowUi);
+                        }
+                    }
+
+                    if (rowUi != null && rarityStripImg != null)
+                    {
+                        var rowSo = new SerializedObject(rowUi);
+                        var p = rowSo.FindProperty("rarityStrip");
+                        if (p != null && p.objectReferenceValue == null)
+                        {
+                            p.objectReferenceValue = rarityStripImg;
+                            rowSo.ApplyModifiedPropertiesWithoutUndo();
+                            EditorUtility.SetDirty(rowUi);
+                        }
+                    }
+                }
+            }
+            catch { }
 
             if (detailsPanel != null && details == null)
                 details = detailsPanel.gameObject.AddComponent<Abyss.Inventory.PlayerInventoryDetailsUI>();
@@ -404,7 +494,7 @@ namespace Abyss.Inventory.EditorTools
 
         private static GameObject BuildRowTemplate(Transform contentParent)
         {
-            var row = new GameObject("RowTemplate", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement), typeof(Abyss.Inventory.PlayerInventoryRowUI));
+            var row = new GameObject("RowTemplate", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement), typeof(Outline), typeof(Abyss.Inventory.PlayerInventoryRowUI));
             row.transform.SetParent(contentParent, false);
 
             var rt = row.GetComponent<RectTransform>();
@@ -417,6 +507,12 @@ namespace Abyss.Inventory.EditorTools
 
             var bg = row.GetComponent<Image>();
             bg.color = new Color(0.10f, 0.10f, 0.10f, 0.85f);
+
+            // Outline (used for hover/selected borders in grid mode)
+            var outline = row.GetComponent<Outline>();
+            outline.effectColor = new Color(1f, 1f, 1f, 0.15f);
+            outline.effectDistance = new Vector2(1f, -1f);
+            outline.useGraphicAlpha = false;
 
             // Rarity strip
             var strip = new GameObject("RarityStrip", typeof(RectTransform), typeof(Image));
@@ -437,6 +533,7 @@ namespace Abyss.Inventory.EditorTools
             var iconImg = icon.GetComponent<Image>();
             iconImg.color = Color.white;
             iconImg.preserveAspect = true;
+            iconImg.raycastTarget = false;
             icon.SetActive(false);
 
             // Name
@@ -450,6 +547,7 @@ namespace Abyss.Inventory.EditorTools
             nameTmp.fontSize = 22;
             nameTmp.color = Color.white;
             nameTmp.alignment = TextAlignmentOptions.Left;
+            nameTmp.raycastTarget = false;
 
             // Count
             var countGo = new GameObject("Count", typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -462,11 +560,13 @@ namespace Abyss.Inventory.EditorTools
             countTmp.fontSize = 22;
             countTmp.color = Color.white;
             countTmp.alignment = TextAlignmentOptions.Right;
+            countTmp.raycastTarget = false;
 
             // Wire row UI
             var rowUi = row.GetComponent<Abyss.Inventory.PlayerInventoryRowUI>();
             var so = new SerializedObject(rowUi);
             so.FindProperty("background").objectReferenceValue = bg;
+            // PlayerInventoryRowUI no longer stores an Outline reference; it self-manages borders at runtime.
             so.FindProperty("iconImage").objectReferenceValue = iconImg;
             so.FindProperty("rarityStrip").objectReferenceValue = strip.GetComponent<Image>();
             so.FindProperty("nameText").objectReferenceValue = nameTmp;
@@ -549,6 +649,8 @@ namespace Abyss.Inventory.EditorTools
             if (mask == null) mask = viewportGo.AddComponent<Mask>();
             mask.showMaskGraphic = false;
 
+            EnsureGridInsetPanel(viewportGo.transform);
+
             // Ensure content is child of viewport.
             var contentGo = FindDeepChild(scrollGo, "Content");
             if (contentGo == null)
@@ -630,6 +732,33 @@ namespace Abyss.Inventory.EditorTools
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.raycastTarget = false;
             tmp.extraPadding = true;
+        }
+
+        private static void EnsureGridInsetPanel(Transform viewport)
+        {
+            if (viewport == null) return;
+
+            var existing = viewport.Find("GridInsetPanel");
+            GameObject panelGo;
+            if (existing != null)
+                panelGo = existing.gameObject;
+            else
+                panelGo = new GameObject("GridInsetPanel", typeof(RectTransform), typeof(Image), typeof(Outline));
+
+            panelGo.transform.SetParent(viewport, false);
+            panelGo.transform.SetAsFirstSibling(); // behind Content
+
+            var rt = panelGo.GetComponent<RectTransform>();
+            StretchFullScreen(rt);
+
+            var img = panelGo.GetComponent<Image>();
+            img.color = new Color(0f, 0f, 0f, 0.18f);
+            img.raycastTarget = false;
+
+            var outline = panelGo.GetComponent<Outline>();
+            outline.effectColor = new Color(1f, 1f, 1f, 0.10f);
+            outline.effectDistance = new Vector2(1f, -1f);
+            outline.useGraphicAlpha = false;
         }
 
         private static GameObject FindDeepChild(GameObject root, string name)

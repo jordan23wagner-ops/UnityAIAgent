@@ -77,6 +77,31 @@ namespace Abyss.Equipment.EditorTools
             titleTmp.color = Color.white;
             titleTmp.alignment = TextAlignmentOptions.Left;
 
+            // Character tabs (Inventory / Equipment)
+            var characterTabs = new GameObject("CharacterTabs", typeof(RectTransform));
+            characterTabs.transform.SetParent(panel.transform, false);
+            var tabsRt = characterTabs.GetComponent<RectTransform>();
+            SetAnchors(tabsRt, new Vector2(0.52f, 0.90f), new Vector2(0.86f, 0.98f));
+            SetOffsets(tabsRt, 0, 0, 0, 0);
+
+            var tabInventoryGo = new GameObject("Tab_Inventory", typeof(RectTransform), typeof(Image), typeof(Button));
+            tabInventoryGo.transform.SetParent(characterTabs.transform, false);
+            var tabInvRt = tabInventoryGo.GetComponent<RectTransform>();
+            SetAnchors(tabInvRt, new Vector2(0f, 0f), new Vector2(0.5f, 1f));
+            SetOffsets(tabInvRt, 0, 0, 0, 0);
+            tabInventoryGo.GetComponent<Image>().color = new Color(0.22f, 0.18f, 0.11f, 0.96f);
+            var tabInvBtn = tabInventoryGo.GetComponent<Button>();
+            EnsureButtonLabel(tabInventoryGo, "Inventory", 18);
+
+            var tabEquipmentGo = new GameObject("Tab_Equipment", typeof(RectTransform), typeof(Image), typeof(Button));
+            tabEquipmentGo.transform.SetParent(characterTabs.transform, false);
+            var tabEqRt = tabEquipmentGo.GetComponent<RectTransform>();
+            SetAnchors(tabEqRt, new Vector2(0.5f, 0f), new Vector2(1f, 1f));
+            SetOffsets(tabEqRt, 0, 0, 0, 0);
+            tabEquipmentGo.GetComponent<Image>().color = new Color(0.18f, 0.15f, 0.09f, 0.96f);
+            var tabEqBtn = tabEquipmentGo.GetComponent<Button>();
+            EnsureButtonLabel(tabEquipmentGo, "Equipment", 18);
+
             // Close button
             var closeGo = new GameObject("CloseButton", typeof(RectTransform), typeof(Image), typeof(Button));
             closeGo.transform.SetParent(panel.transform, false);
@@ -188,6 +213,8 @@ namespace Abyss.Equipment.EditorTools
             var so = new SerializedObject(ui);
             so.FindProperty("root").objectReferenceValue = root;
             so.FindProperty("closeButton").objectReferenceValue = closeBtn;
+            so.FindProperty("characterInventoryTabButton").objectReferenceValue = tabInvBtn;
+            so.FindProperty("characterEquipmentTabButton").objectReferenceValue = tabEqBtn;
             so.FindProperty("titleText").objectReferenceValue = titleTmp;
 
             so.FindProperty("paperDollSilhouette").objectReferenceValue = silImg;
@@ -195,19 +222,19 @@ namespace Abyss.Equipment.EditorTools
             var slotsProp = so.FindProperty("slots");
             slotsProp.arraySize = 0;
 
-            AddSlotWidget(slotsProp, 0, Abyss.Items.EquipmentSlot.Helm, slotHelm.button, slotHelm.icon, slotHelm.label);
-            AddSlotWidget(slotsProp, 1, Abyss.Items.EquipmentSlot.Cape, slotCape.button, slotCape.icon, slotCape.label);
-            AddSlotWidget(slotsProp, 2, Abyss.Items.EquipmentSlot.Amulet, slotAmulet.button, slotAmulet.icon, slotAmulet.label);
-            AddSlotWidget(slotsProp, 3, Abyss.Items.EquipmentSlot.LeftHand, slotLeftHand.button, slotLeftHand.icon, slotLeftHand.label);
-            AddSlotWidget(slotsProp, 4, Abyss.Items.EquipmentSlot.Chest, slotChest.button, slotChest.icon, slotChest.label);
-            AddSlotWidget(slotsProp, 5, Abyss.Items.EquipmentSlot.RightHand, slotRightHand.button, slotRightHand.icon, slotRightHand.label);
-            AddSlotWidget(slotsProp, 6, Abyss.Items.EquipmentSlot.Gloves, slotGloves.button, slotGloves.icon, slotGloves.label);
-            AddSlotWidget(slotsProp, 7, Abyss.Items.EquipmentSlot.Belt, slotBelt.button, slotBelt.icon, slotBelt.label);
-            AddSlotWidget(slotsProp, 8, Abyss.Items.EquipmentSlot.Legs, slotLegs.button, slotLegs.icon, slotLegs.label);
-            AddSlotWidget(slotsProp, 9, Abyss.Items.EquipmentSlot.Ammo, slotAmmo.button, slotAmmo.icon, slotAmmo.label);
-            AddSlotWidget(slotsProp, 10, Abyss.Items.EquipmentSlot.Ring1, slotRing1.button, slotRing1.icon, slotRing1.label);
-            AddSlotWidget(slotsProp, 11, Abyss.Items.EquipmentSlot.Ring2, slotRing2.button, slotRing2.icon, slotRing2.label);
-            AddSlotWidget(slotsProp, 12, Abyss.Items.EquipmentSlot.Artifact, slotArtifact.button, slotArtifact.icon, slotArtifact.label);
+            AddSlotWidget(slotsProp, 0, Abyss.Items.EquipmentSlot.Helm, slotHelm.button, slotHelm.icon, slotHelm.rarityStrip, slotHelm.label);
+            AddSlotWidget(slotsProp, 1, Abyss.Items.EquipmentSlot.Cape, slotCape.button, slotCape.icon, slotCape.rarityStrip, slotCape.label);
+            AddSlotWidget(slotsProp, 2, Abyss.Items.EquipmentSlot.Amulet, slotAmulet.button, slotAmulet.icon, slotAmulet.rarityStrip, slotAmulet.label);
+            AddSlotWidget(slotsProp, 3, Abyss.Items.EquipmentSlot.LeftHand, slotLeftHand.button, slotLeftHand.icon, slotLeftHand.rarityStrip, slotLeftHand.label);
+            AddSlotWidget(slotsProp, 4, Abyss.Items.EquipmentSlot.Chest, slotChest.button, slotChest.icon, slotChest.rarityStrip, slotChest.label);
+            AddSlotWidget(slotsProp, 5, Abyss.Items.EquipmentSlot.RightHand, slotRightHand.button, slotRightHand.icon, slotRightHand.rarityStrip, slotRightHand.label);
+            AddSlotWidget(slotsProp, 6, Abyss.Items.EquipmentSlot.Gloves, slotGloves.button, slotGloves.icon, slotGloves.rarityStrip, slotGloves.label);
+            AddSlotWidget(slotsProp, 7, Abyss.Items.EquipmentSlot.Belt, slotBelt.button, slotBelt.icon, slotBelt.rarityStrip, slotBelt.label);
+            AddSlotWidget(slotsProp, 8, Abyss.Items.EquipmentSlot.Legs, slotLegs.button, slotLegs.icon, slotLegs.rarityStrip, slotLegs.label);
+            AddSlotWidget(slotsProp, 9, Abyss.Items.EquipmentSlot.Ammo, slotAmmo.button, slotAmmo.icon, slotAmmo.rarityStrip, slotAmmo.label);
+            AddSlotWidget(slotsProp, 10, Abyss.Items.EquipmentSlot.Ring1, slotRing1.button, slotRing1.icon, slotRing1.rarityStrip, slotRing1.label);
+            AddSlotWidget(slotsProp, 11, Abyss.Items.EquipmentSlot.Ring2, slotRing2.button, slotRing2.icon, slotRing2.rarityStrip, slotRing2.label);
+            AddSlotWidget(slotsProp, 12, Abyss.Items.EquipmentSlot.Artifact, slotArtifact.button, slotArtifact.icon, slotArtifact.rarityStrip, slotArtifact.label);
 
             so.ApplyModifiedProperties();
 
@@ -222,6 +249,7 @@ namespace Abyss.Equipment.EditorTools
         {
             public Button button;
             public Image icon;
+            public Image rarityStrip;
             public TextMeshProUGUI label;
         }
 
@@ -265,6 +293,20 @@ namespace Abyss.Equipment.EditorTools
             icon.color = Color.white;
             icon.preserveAspect = true;
             icon.enabled = false;
+            icon.raycastTarget = false;
+
+            // Rarity strip (hidden when empty; colored when equipped)
+            var rarityStripGo = new GameObject("RarityStrip", typeof(RectTransform), typeof(Image));
+            rarityStripGo.transform.SetParent(go.transform, false);
+            var stripRt = rarityStripGo.GetComponent<RectTransform>();
+            stripRt.anchorMin = new Vector2(0.0f, 0.90f);
+            stripRt.anchorMax = new Vector2(1.0f, 1.0f);
+            stripRt.offsetMin = Vector2.zero;
+            stripRt.offsetMax = Vector2.zero;
+            var stripImg = rarityStripGo.GetComponent<Image>();
+            stripImg.color = new Color(1f, 1f, 1f, 0f);
+            stripImg.enabled = false;
+            stripImg.raycastTarget = false;
 
             var labelGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
             labelGo.transform.SetParent(go.transform, false);
@@ -286,11 +328,12 @@ namespace Abyss.Equipment.EditorTools
             {
                 button = go.GetComponent<Button>(),
                 icon = icon,
+                rarityStrip = stripImg,
                 label = label,
             };
         }
 
-        private static void AddSlotWidget(SerializedProperty arrayProp, int index, Abyss.Items.EquipmentSlot slot, Button button, Image icon, TextMeshProUGUI label)
+        private static void AddSlotWidget(SerializedProperty arrayProp, int index, Abyss.Items.EquipmentSlot slot, Button button, Image icon, Image rarityStrip, TextMeshProUGUI label)
         {
             arrayProp.arraySize = index + 1;
             var el = arrayProp.GetArrayElementAtIndex(index);
@@ -298,6 +341,7 @@ namespace Abyss.Equipment.EditorTools
             el.FindPropertyRelative("slot").intValue = (int)slot;
             el.FindPropertyRelative("button").objectReferenceValue = button;
             el.FindPropertyRelative("iconImage").objectReferenceValue = icon;
+            el.FindPropertyRelative("rarityStrip").objectReferenceValue = rarityStrip;
             el.FindPropertyRelative("labelText").objectReferenceValue = label;
             el.FindPropertyRelative("emptyIcon").objectReferenceValue = GetEmptySilhouetteForSlot(slot);
         }
