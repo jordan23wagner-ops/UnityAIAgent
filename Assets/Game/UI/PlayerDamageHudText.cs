@@ -17,7 +17,7 @@ public sealed class PlayerDamageHudText : MonoBehaviour
 
     private static readonly Color32 s_DamageColor = new Color32(245, 215, 110, 255);
     private static readonly Color32 s_OutlineColor = new Color32(0, 0, 0, 255);
-    private static readonly Color32 s_BgColor = new Color32(0, 0, 0, 180);
+    private static readonly Color32 s_BgColor = new Color32(0, 0, 0, 190);
 
     private static Transform FindByNameRecursive(Transform root, string name)
     {
@@ -52,79 +52,110 @@ public sealed class PlayerDamageHudText : MonoBehaviour
         if (hudCanvas == null)
             return;
 
-        Transform existingTf = null;
-        try { existingTf = hudCanvas.transform.Find("DamageText"); } catch { existingTf = null; }
-        if (existingTf == null)
-        {
-            // Fallback: if something reparented it under the HUD canvas, find it recursively.
-            existingTf = FindByNameRecursive(hudCanvas.transform, "DamageText");
-        }
+        // Always create/find a dedicated root so BG + text are guaranteed and not clipped by other groups.
+        // Abyss_HUDCanvas
+        //   DamageHudRoot
+        //     DamageTextBG (Image)
+        //     DamageText   (TextMeshProUGUI + PlayerDamageHudText)
+        var canvasTf = hudCanvas.transform;
 
-        GameObject go;
-        if (existingTf == null)
+        Transform rootTf = null;
+        try { rootTf = canvasTf.Find("DamageHudRoot"); } catch { rootTf = null; }
+        if (rootTf == null)
+            rootTf = FindByNameRecursive(canvasTf, "DamageHudRoot");
+
+        GameObject rootGo;
+        if (rootTf == null)
         {
-            go = new GameObject("DamageText");
-            go.transform.SetParent(hudCanvas.transform, false);
+            rootGo = new GameObject("DamageHudRoot");
+            rootGo.transform.SetParent(canvasTf, false);
         }
         else
         {
-            go = existingTf.gameObject;
+            rootGo = rootTf.gameObject;
+        }
+
+        if (rootGo == null)
+            return;
+
+        // Keep it in the HUD canvas top layer.
+        if (rootGo.transform.parent != canvasTf)
+        {
+            try { rootGo.transform.SetParent(canvasTf, false); } catch { }
+        }
+
+        var rootRt = rootGo.GetComponent<RectTransform>();
+        if (rootRt == null)
+            rootRt = rootGo.AddComponent<RectTransform>();
+
+        // Root: top-right.
+        rootRt.anchorMin = new Vector2(1f, 1f);
+        rootRt.anchorMax = new Vector2(1f, 1f);
+        rootRt.pivot = new Vector2(1f, 1f);
+        rootRt.anchoredPosition = new Vector2(-20f, -20f);
+        rootRt.sizeDelta = new Vector2(180f, 40f);
+        rootRt.localScale = Vector3.one;
+
+        // Find/reparent any existing objects.
+        Transform textTf = null;
+        try { textTf = rootGo.transform.Find("DamageText"); } catch { textTf = null; }
+        if (textTf == null)
+        {
+            textTf = FindByNameRecursive(canvasTf, "DamageText");
+        }
+
+        GameObject go;
+        if (textTf == null)
+        {
+            go = new GameObject("DamageText");
+            go.transform.SetParent(rootGo.transform, false);
+        }
+        else
+        {
+            go = textTf.gameObject;
+            if (go.transform.parent != rootGo.transform)
+            {
+                try { go.transform.SetParent(rootGo.transform, false); } catch { }
+            }
         }
 
         if (go == null)
             return;
 
-        // Force both BG + text under the HUD canvas (avoid masked/clipped sub-groups).
-        var parent = hudCanvas.transform;
-        if (go.transform.parent != parent)
-        {
-            try { go.transform.SetParent(parent, false); } catch { }
-        }
-
-        // Ensure a background panel exists as a sibling directly behind DamageText under the same parent.
-        GameObject bgGo = null;
         Transform bgTf = null;
-        try { bgTf = parent.Find("DamageTextBG"); } catch { bgTf = null; }
+        try { bgTf = rootGo.transform.Find("DamageTextBG"); } catch { bgTf = null; }
         if (bgTf == null)
         {
-            bgTf = FindByNameRecursive(parent, "DamageTextBG");
+            bgTf = FindByNameRecursive(canvasTf, "DamageTextBG");
         }
-        bgGo = bgTf != null ? bgTf.gameObject : null;
 
-        if (bgGo == null)
+        GameObject bgGo;
+        if (bgTf == null)
         {
             bgGo = new GameObject("DamageTextBG");
-            bgGo.transform.SetParent(parent, false);
+            bgGo.transform.SetParent(rootGo.transform, false);
         }
-        else if (bgGo.transform.parent != parent)
+        else
         {
-            try { bgGo.transform.SetParent(parent, false); } catch { }
+            bgGo = bgTf.gameObject;
+            if (bgGo.transform.parent != rootGo.transform)
+            {
+                try { bgGo.transform.SetParent(rootGo.transform, false); } catch { }
+            }
         }
 
-        var rt = go.GetComponent<RectTransform>();
-        if (rt == null)
-            rt = go.AddComponent<RectTransform>();
-
-        // Top-left anchored with padding.
-        rt.anchorMin = new Vector2(0f, 1f);
-        rt.anchorMax = new Vector2(0f, 1f);
-        rt.pivot = new Vector2(0f, 1f);
-        // Reposition down to avoid DevCheats overlap.
-        rt.anchoredPosition = new Vector2(20f, -60f);
-        rt.sizeDelta = new Vector2(260f, 40f);
-        rt.localScale = Vector3.one;
-
+        // BG: stretches to root and renders behind.
         if (bgGo != null)
         {
             var bgRt = bgGo.GetComponent<RectTransform>();
             if (bgRt == null)
                 bgRt = bgGo.AddComponent<RectTransform>();
 
-            bgRt.anchorMin = new Vector2(0f, 1f);
-            bgRt.anchorMax = new Vector2(0f, 1f);
-            bgRt.pivot = new Vector2(0f, 1f);
-            bgRt.anchoredPosition = rt.anchoredPosition;
-            bgRt.sizeDelta = new Vector2(160f, 40f);
+            bgRt.anchorMin = Vector2.zero;
+            bgRt.anchorMax = Vector2.one;
+            bgRt.pivot = new Vector2(0.5f, 0.5f);
+            bgRt.anchoredPosition = Vector2.zero;
+            bgRt.sizeDelta = Vector2.zero;
             bgRt.localScale = Vector3.one;
 
             var img = bgGo.GetComponent<Image>();
@@ -133,27 +164,33 @@ public sealed class PlayerDamageHudText : MonoBehaviour
 
             img.color = s_BgColor;
             img.raycastTarget = false;
-
-            // Enforce draw order: BG immediately before the text.
-            try
-            {
-                int textIndex = go.transform.GetSiblingIndex();
-                int bgIndex = bgGo.transform.GetSiblingIndex();
-
-                // Put BG directly before text.
-                if (bgIndex != textIndex - 1)
-                {
-                    int desiredBgIndex = Mathf.Max(0, textIndex - 1);
-                    bgGo.transform.SetSiblingIndex(desiredBgIndex);
-                    go.transform.SetSiblingIndex(Mathf.Min(desiredBgIndex + 1, parent.childCount - 1));
-                }
-            }
-            catch { }
         }
+
+        // Text: stretches to root with padding.
+        var rt = go.GetComponent<RectTransform>();
+        if (rt == null)
+            rt = go.AddComponent<RectTransform>();
+
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.offsetMin = new Vector2(10f, 6f);
+        rt.offsetMax = new Vector2(-10f, -6f);
+        rt.localScale = Vector3.one;
 
         var tmp = go.GetComponent<TextMeshProUGUI>();
         if (tmp == null)
             tmp = go.AddComponent<TextMeshProUGUI>();
+
+        // Enforce order: BG first, then text.
+        try
+        {
+            if (bgGo != null)
+                bgGo.transform.SetSiblingIndex(0);
+            go.transform.SetSiblingIndex(Mathf.Min(1, rootGo.transform.childCount - 1));
+        }
+        catch { }
 
         // Ensure behaviour exists and is wired.
         var hud = go.GetComponent<PlayerDamageHudText>();
@@ -286,7 +323,7 @@ public sealed class PlayerDamageHudText : MonoBehaviour
         if (damageText is TextMeshProUGUI ugui)
         {
             ugui.fontSize = 24f;
-            ugui.alignment = TextAlignmentOptions.TopLeft;
+            ugui.alignment = TextAlignmentOptions.TopRight;
             ugui.textWrappingMode = TextWrappingModes.NoWrap;
             ugui.raycastTarget = false;
 
@@ -296,7 +333,7 @@ public sealed class PlayerDamageHudText : MonoBehaviour
                 var mat = ugui.fontMaterial;
                 if (mat != null)
                 {
-                    mat.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.35f);
+                    mat.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.24f);
                     mat.SetColor(ShaderUtilities.ID_OutlineColor, s_OutlineColor);
                     ugui.fontMaterial = mat;
                 }

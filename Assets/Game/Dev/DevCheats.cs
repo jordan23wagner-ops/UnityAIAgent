@@ -33,6 +33,10 @@ namespace Abyss.Dev
 
         private PlayerInputAuthority _input;
 
+        private static Texture2D s_BgTex;
+        private static GUIStyle s_LabelStyle;
+        private static GUIStyle s_BoxStyle;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -166,6 +170,8 @@ namespace Abyss.Dev
             if (_input != null && _input.IsUiInputLocked)
             return;
 
+            EnsureGuiStyles();
+
             const float pad = 10f;
             var rect = new Rect(pad, pad, 520f, 80f);
 
@@ -174,8 +180,42 @@ namespace Abyss.Dev
                 $"LastSpawn: {_lastSpawnedCount}  ActiveSpawned: {_spawned.Count}\n" +
                 $"Keys: {toggleGodModeKey}=GodMode  {spawnEnemyKey}=Spawn  {killSpawnedKey}=Kill";
 
-            GUI.Label(rect, text);
+            // Measure height so the background fits the content.
+            float h = s_LabelStyle != null ? s_LabelStyle.CalcHeight(new GUIContent(text), rect.width) : rect.height;
+            var bgRect = new Rect(rect.x, rect.y, rect.width, Mathf.Max(rect.height, h) + 8f);
+
+            GUI.Box(bgRect, GUIContent.none, s_BoxStyle);
+            GUI.Label(new Rect(rect.x + 6f, rect.y + 4f, rect.width - 12f, bgRect.height - 8f), text, s_LabelStyle);
 #endif
+        }
+
+        private static void EnsureGuiStyles()
+        {
+            if (s_BgTex == null)
+            {
+                s_BgTex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+                s_BgTex.hideFlags = HideFlags.HideAndDontSave;
+                s_BgTex.SetPixel(0, 0, new Color32(0, 0, 0, 160));
+                s_BgTex.Apply();
+            }
+
+            if (s_BoxStyle == null)
+            {
+                s_BoxStyle = new GUIStyle(GUI.skin.box);
+                s_BoxStyle.normal.background = s_BgTex;
+                s_BoxStyle.border = new RectOffset(0, 0, 0, 0);
+                s_BoxStyle.margin = new RectOffset(0, 0, 0, 0);
+                s_BoxStyle.padding = new RectOffset(0, 0, 0, 0);
+            }
+
+            if (s_LabelStyle == null)
+            {
+                s_LabelStyle = new GUIStyle(GUI.skin.label);
+                s_LabelStyle.normal.textColor = Color.white;
+                s_LabelStyle.fontSize = 14;
+                s_LabelStyle.richText = false;
+                s_LabelStyle.wordWrap = true;
+            }
         }
 
         private static Transform FindAnchor()
