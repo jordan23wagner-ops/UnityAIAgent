@@ -54,6 +54,9 @@ namespace Abyss.Shop
         [SerializeField] private TMP_Text goldText;
         [SerializeField] private TMP_Text titleText;
 
+        [Header("Debug")]
+        [SerializeField] private bool debugPurchaseLogs;
+
         private MerchantShop _currentShop;
         private bool _isOpen;
         private Game.Input.PlayerInputAuthority _inputAuthority;
@@ -557,6 +560,8 @@ namespace Abyss.Shop
             int after = GetWalletGold();
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log($"[ShopBuy] GoldAfter={after}", this);
+            if (debugPurchaseLogs)
+                Debug.Log($"[SHOP] Purchased itemId={_selectedItemId} cost={totalCost} goldAfter={after}", this);
 #endif
             RefreshAffordabilityUI();
         }
