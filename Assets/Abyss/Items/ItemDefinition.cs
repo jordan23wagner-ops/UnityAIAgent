@@ -30,5 +30,8 @@ namespace Abyss.Items
 
         [Tooltip("Added to player's Max Health when equipped. Used for armor.")]
         public int MaxHealthBonus = 0;
+
+        [Tooltip("Reduces incoming damage by this amount while equipped (flat per hit).")]
+        public int DamageReductionFlat = 0;
     }
 }

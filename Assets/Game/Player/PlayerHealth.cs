@@ -13,8 +13,13 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] private int baseMaxHealth = 100;
     [SerializeField] private int currentHealth;
 
+    [Header("Debug")]
+    [SerializeField] private bool debugMitigationLogs;
+
     public int BaseMaxHealth => Mathf.Max(1, baseMaxHealth);
     public int EquipmentMaxHealthBonus { get; private set; }
+    public int EquipmentDamageReductionFlat { get; private set; }
+    public int TotalDamageReductionFlat => Mathf.Max(0, EquipmentDamageReductionFlat);
     public int MaxHealth => Mathf.Max(1, BaseMaxHealth + Mathf.Max(0, EquipmentMaxHealthBonus));
     public int CurrentHealth => Mathf.Clamp(currentHealth, 0, MaxHealth);
     public float Normalized => MaxHealth <= 0 ? 0f : (float)CurrentHealth / MaxHealth;
@@ -81,7 +86,13 @@ public class PlayerHealth : MonoBehaviour
             return;
 #endif
 
-        currentHealth = Mathf.Max(0, currentHealth - amount);
+        int mitigated = Mathf.Max(1, amount - TotalDamageReductionFlat);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (debugMitigationLogs)
+            Debug.Log($"[MIT] incoming={amount} flat={TotalDamageReductionFlat} final={mitigated}", this);
+#endif
+
+        currentHealth = Mathf.Max(0, currentHealth - mitigated);
         RaiseChanged();
     }
 
@@ -133,7 +144,8 @@ public class PlayerHealth : MonoBehaviour
     {
         EnsureEquipment();
 
-        int bonus = 0;
+        int maxHpBonus = 0;
+        int flatMitigation = 0;
 
         if (_equipment != null)
         {
@@ -158,18 +170,21 @@ public class PlayerHealth : MonoBehaviour
 
                 try
                 {
-                    bonus += Mathf.Max(0, def.MaxHealthBonus);
+                    maxHpBonus += Mathf.Max(0, def.MaxHealthBonus);
+                    flatMitigation += Mathf.Max(0, def.DamageReductionFlat);
                 }
                 catch { }
             }
         }
 
-        EquipmentMaxHealthBonus = bonus;
+        EquipmentMaxHealthBonus = maxHpBonus;
+        EquipmentDamageReductionFlat = flatMitigation;
 
         // Clamp whenever effective max changes.
         currentHealth = Mathf.Clamp(currentHealth, 0, MaxHealth);
 
         Debug.Log($"[HP] Base={BaseMaxHealth} EquipBonus={EquipmentMaxHealthBonus} Max={MaxHealth} Current={CurrentHealth}", this);
+        Debug.Log($"[MIT] Flat={TotalDamageReductionFlat}", this);
         RaiseChanged();
     }
 

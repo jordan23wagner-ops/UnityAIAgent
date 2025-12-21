@@ -20,13 +20,22 @@ namespace Abyss.Dev
         public KeyCode toggleGodModeKey = KeyCode.F1;
         public KeyCode spawnEnemyKey = KeyCode.F2;
         public KeyCode killSpawnedKey = KeyCode.F3;
+        public KeyCode selfDamageKey = KeyCode.F4;
 
         [Header("Spawning")]
         public List<GameObject> enemyPrefabs = new();
         public EnemyTier spawnTier = EnemyTier.Normal;
         public ZoneLootTable overrideZoneLootTable;
         public float spawnDistance = 4f;
-        public int spawnCount = 1;
+
+        [Tooltip("Default enemy spawn count for F2. Clamped to 1..2 for MVP testing.")]
+        public int spawnCount = 2;
+
+        [Tooltip("If true, hold Shift while pressing F2 to spawn up to 50 enemies (useful for stress testing).")]
+        public bool holdShiftForMassSpawn = true;
+
+        [Tooltip("Spawn count when Shift-mass-spawn is enabled.")]
+        public int massSpawnCount = 50;
 
         private readonly List<GameObject> _spawned = new();
         private int _lastSpawnedCount;
@@ -76,6 +85,9 @@ namespace Abyss.Dev
 
             if (Input.GetKeyDown(killSpawnedKey))
                 KillSpawned();
+
+            if (Input.GetKeyDown(selfDamageKey))
+                SelfDamage(10);
 #endif
         }
 
@@ -98,7 +110,11 @@ namespace Abyss.Dev
             Vector3 basePos = anchor != null ? anchor.position : Vector3.zero;
             Vector3 forward = anchor != null ? anchor.forward : Vector3.forward;
 
-            int count = Mathf.Clamp(spawnCount, 1, 50);
+            int count = Mathf.Clamp(spawnCount, 1, 2);
+
+            if (holdShiftForMassSpawn && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                count = Mathf.Clamp(massSpawnCount, 1, 50);
+
             for (int i = 0; i < count; i++)
             {
                 Vector3 jitter = new Vector3(Random.Range(-1.5f, 1.5f), 0f, Random.Range(-1.5f, 1.5f));
@@ -107,12 +123,42 @@ namespace Abyss.Dev
                 go.name = prefab.name;
 
                 ApplyLootOverrides(go);
+                EnsureEnemyMeleeAttack(go);
                 _spawned.Add(go);
             }
 
             _lastSpawnedCount = count;
 
             Debug.Log($"[DevCheats] Spawned {count}x '{prefab.name}'.");
+        }
+
+        private static void EnsureEnemyMeleeAttack(GameObject enemy)
+        {
+            if (enemy == null) return;
+
+            // Try the root first, then children; if missing, add to root.
+            var atk = enemy.GetComponent<EnemyMeleeAttack>();
+            if (atk != null) return;
+
+            atk = enemy.GetComponentInChildren<EnemyMeleeAttack>(true);
+            if (atk != null) return;
+
+            enemy.AddComponent<EnemyMeleeAttack>();
+        }
+
+        private void SelfDamage(int amount)
+        {
+            if (amount <= 0) return;
+
+            var playerHealth = FindFirstObjectByType<PlayerHealth>(FindObjectsInactive.Exclude);
+            if (playerHealth == null)
+            {
+                Debug.LogWarning("[DEV] SelfDamage: PlayerHealth not found.");
+                return;
+            }
+
+            playerHealth.TakeDamage(amount);
+            Debug.Log($"[DEV] SelfDamage {amount}");
         }
 
         private void ApplyLootOverrides(GameObject enemy)
@@ -178,7 +224,7 @@ namespace Abyss.Dev
             string text =
                 $"DevCheats  |  GodMode: {(godMode ? "ON" : "OFF")}\n" +
                 $"LastSpawn: {_lastSpawnedCount}  ActiveSpawned: {_spawned.Count}\n" +
-                $"Keys: {toggleGodModeKey}=GodMode  {spawnEnemyKey}=Spawn  {killSpawnedKey}=Kill";
+                $"Keys: {toggleGodModeKey}=GodMode  {spawnEnemyKey}=Spawn  {killSpawnedKey}=Kill  {selfDamageKey}=SelfDamage";
 
             // Measure height so the background fits the content.
             float h = s_LabelStyle != null ? s_LabelStyle.CalcHeight(new GUIContent(text), rect.width) : rect.height;
