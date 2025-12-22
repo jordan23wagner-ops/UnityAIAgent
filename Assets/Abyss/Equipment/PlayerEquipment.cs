@@ -13,6 +13,7 @@ namespace Abyss.Equipment
         [SerializeField] private string legs;
         [SerializeField] private string belt;
         [SerializeField] private string gloves;
+        [SerializeField] private string boots;
         [SerializeField] private string cape;
         [SerializeField] private string ammo;
         [SerializeField] private string leftHand;
@@ -33,6 +34,7 @@ namespace Abyss.Equipment
                 EquipmentSlot.Legs => legs,
                 EquipmentSlot.Belt => belt,
                 EquipmentSlot.Gloves => gloves,
+                EquipmentSlot.Boots => boots,
                 EquipmentSlot.Cape => cape,
                 EquipmentSlot.Ammo => ammo,
                 EquipmentSlot.LeftHand => leftHand,
@@ -54,6 +56,7 @@ namespace Abyss.Equipment
                 case EquipmentSlot.Legs: legs = itemId; break;
                 case EquipmentSlot.Belt: belt = itemId; break;
                 case EquipmentSlot.Gloves: gloves = itemId; break;
+                case EquipmentSlot.Boots: boots = itemId; break;
                 case EquipmentSlot.Cape: cape = itemId; break;
                 case EquipmentSlot.Ammo: ammo = itemId; break;
                 case EquipmentSlot.LeftHand: leftHand = itemId; break;

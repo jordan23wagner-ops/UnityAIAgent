@@ -53,6 +53,8 @@ namespace Abyss.Inventory
         private int _debugSlotIndex = -1;
         private bool _debugIsEmpty;
 
+        private ItemTooltipTrigger _tooltipTrigger;
+
         public int SlotIndex { get; private set; } = -1;
         public bool IsEmpty => !_hasItem;
 
@@ -203,6 +205,8 @@ namespace Abyss.Inventory
                 EnsureGridBorderLines();
             RenderState();
 
+            EnsureTooltipTrigger();
+
             if (nameText != null)
                 _baseNameColor = nameText.color;
         }
@@ -262,6 +266,21 @@ namespace Abyss.Inventory
                 ? (string.IsNullOrWhiteSpace(def.displayName) ? ResolveFallbackName(def, fallbackItemId) : def.displayName)
                 : (string.IsNullOrWhiteSpace(fallbackItemId) ? "(Unknown)" : fallbackItemId);
 
+            // Rolled loot items: show base item display name if available.
+            if (def == null && !string.IsNullOrWhiteSpace(fallbackItemId))
+            {
+                try
+                {
+                    var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                    if (reg != null && reg.TryResolveDisplay(fallbackItemId, out var lootName, out var lootIcon))
+                    {
+                        if (!string.IsNullOrWhiteSpace(lootName))
+                            display = lootName;
+                    }
+                }
+                catch { }
+            }
+
             // Grid mode requirement: no item name text inside the cell.
             if (!_isGridMode)
             {
@@ -285,6 +304,15 @@ namespace Abyss.Inventory
             // Resolve ItemDefinition even if caller only supplies a string key (some inventories use display name keys).
             var resolvedDef = def != null ? def : ResolveItemDefinitionFallback(fallbackItemId, display);
 
+            // Tooltip binding (hover): uses the resolved definition where possible.
+            try
+            {
+                EnsureTooltipTrigger();
+                if (_tooltipTrigger != null)
+                    _tooltipTrigger.BindInventoryItem(resolvedDef, fallbackItemId, safeCount);
+            }
+            catch { }
+
             Sprite icon = null;
             AbyssItemRarity rarity = AbyssItemRarity.Common;
             try
@@ -296,6 +324,17 @@ namespace Abyss.Inventory
                 }
             }
             catch { }
+
+            if (icon == null && resolvedDef == null && !string.IsNullOrWhiteSpace(fallbackItemId))
+            {
+                try
+                {
+                    var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                    if (reg != null && reg.TryResolveDisplay(fallbackItemId, out _, out var lootIcon) && lootIcon != null)
+                        icon = lootIcon;
+                }
+                catch { }
+            }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_hasItem)
@@ -344,6 +383,15 @@ namespace Abyss.Inventory
             _boundCount = 0;
             _hasItem = false;
 
+            // Clear tooltip binding for empty slots.
+            try
+            {
+                EnsureTooltipTrigger();
+                if (_tooltipTrigger != null)
+                    _tooltipTrigger.BindInventoryItem(null, null, 0);
+            }
+            catch { }
+
             _isHovered = false;
             _isSelected = false;
 
@@ -374,6 +422,23 @@ namespace Abyss.Inventory
             }
 
             RenderState();
+        }
+
+        private void EnsureTooltipTrigger()
+        {
+            if (_tooltipTrigger != null)
+                return;
+
+            try
+            {
+                _tooltipTrigger = GetComponent<ItemTooltipTrigger>();
+                if (_tooltipTrigger == null)
+                    _tooltipTrigger = gameObject.AddComponent<ItemTooltipTrigger>();
+            }
+            catch
+            {
+                _tooltipTrigger = null;
+            }
         }
 
         public void SetSelected(bool selected)

@@ -149,6 +149,7 @@ namespace Abyss.Equipment.EditorTools
             const float yChest = 0.56f;
             const float yBelt = 0.42f;
             const float yLegs = 0.28f;
+            const float yBoots = 0.14f;
 
             // Jewelry column vertical positions (separate from main gear)
             const float yJewelryAmulet = 0.78f;
@@ -175,6 +176,7 @@ namespace Abyss.Equipment.EditorTools
             var slotGloves = BuildSlotBox(frame.transform, "Slot_Gloves", new Vector2(xLeft, yBelt), slotSize);
             var slotBelt = BuildSlotBox(frame.transform, "Slot_Belt", new Vector2(xCenter, yBelt), slotSize);
             var slotLegs = BuildSlotBox(frame.transform, "Slot_Legs", new Vector2(xCenter, yLegs), slotSize);
+            var slotBoots = BuildSlotBox(frame.transform, "Slot_Boots", new Vector2(xCenter, yBoots), slotSize);
 
             // Connector lines (simple orthogonal connectors like the reference)
             var connectors = new GameObject("Connectors", typeof(RectTransform));
@@ -194,6 +196,7 @@ namespace Abyss.Equipment.EditorTools
             BuildVLineInset(connectors.transform, "Line_Helm_Chest", xCenter, yChest, yHelm, t, inset);
             BuildVLineInset(connectors.transform, "Line_Chest_Belt", xCenter, yBelt, yChest, t, inset);
             BuildVLineInset(connectors.transform, "Line_Belt_Legs", xCenter, yLegs, yBelt, t, inset);
+            BuildVLineInset(connectors.transform, "Line_Legs_Boots", xCenter, yBoots, yLegs, t, inset);
 
             // Arms
             BuildHLineInset(connectors.transform, "Line_Left_Chest", xLeft, xCenter, yChest, t, inset);
@@ -231,10 +234,11 @@ namespace Abyss.Equipment.EditorTools
             AddSlotWidget(slotsProp, 6, Abyss.Items.EquipmentSlot.Gloves, slotGloves.button, slotGloves.icon, slotGloves.rarityStrip, slotGloves.label);
             AddSlotWidget(slotsProp, 7, Abyss.Items.EquipmentSlot.Belt, slotBelt.button, slotBelt.icon, slotBelt.rarityStrip, slotBelt.label);
             AddSlotWidget(slotsProp, 8, Abyss.Items.EquipmentSlot.Legs, slotLegs.button, slotLegs.icon, slotLegs.rarityStrip, slotLegs.label);
-            AddSlotWidget(slotsProp, 9, Abyss.Items.EquipmentSlot.Ammo, slotAmmo.button, slotAmmo.icon, slotAmmo.rarityStrip, slotAmmo.label);
-            AddSlotWidget(slotsProp, 10, Abyss.Items.EquipmentSlot.Ring1, slotRing1.button, slotRing1.icon, slotRing1.rarityStrip, slotRing1.label);
-            AddSlotWidget(slotsProp, 11, Abyss.Items.EquipmentSlot.Ring2, slotRing2.button, slotRing2.icon, slotRing2.rarityStrip, slotRing2.label);
-            AddSlotWidget(slotsProp, 12, Abyss.Items.EquipmentSlot.Artifact, slotArtifact.button, slotArtifact.icon, slotArtifact.rarityStrip, slotArtifact.label);
+            AddSlotWidget(slotsProp, 9, Abyss.Items.EquipmentSlot.Boots, slotBoots.button, slotBoots.icon, slotBoots.rarityStrip, slotBoots.label);
+            AddSlotWidget(slotsProp, 10, Abyss.Items.EquipmentSlot.Ammo, slotAmmo.button, slotAmmo.icon, slotAmmo.rarityStrip, slotAmmo.label);
+            AddSlotWidget(slotsProp, 11, Abyss.Items.EquipmentSlot.Ring1, slotRing1.button, slotRing1.icon, slotRing1.rarityStrip, slotRing1.label);
+            AddSlotWidget(slotsProp, 12, Abyss.Items.EquipmentSlot.Ring2, slotRing2.button, slotRing2.icon, slotRing2.rarityStrip, slotRing2.label);
+            AddSlotWidget(slotsProp, 13, Abyss.Items.EquipmentSlot.Artifact, slotArtifact.button, slotArtifact.icon, slotArtifact.rarityStrip, slotArtifact.label);
 
             so.ApplyModifiedProperties();
 
@@ -366,6 +370,7 @@ namespace Abyss.Equipment.EditorTools
                 Abyss.Items.EquipmentSlot.Belt => "sil_belt",
                 Abyss.Items.EquipmentSlot.Gloves => "sil_gloves",
                 Abyss.Items.EquipmentSlot.Legs => "sil_boots",
+                Abyss.Items.EquipmentSlot.Boots => "sil_boots",
 
                 _ => null,
             };

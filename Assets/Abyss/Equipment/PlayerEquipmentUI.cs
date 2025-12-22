@@ -103,6 +103,9 @@ namespace Abyss.Equipment
             _isOpen = true;
             root.SetActive(true);
 
+            // Ensure a single tooltip instance exists under this UI root.
+            try { ItemTooltipUI.GetOrCreateUnder(root.transform); } catch { }
+
             try { _inputAuthority?.SetUiInputLocked(true); } catch { }
 
             EnsureRefs();
@@ -171,12 +174,29 @@ namespace Abyss.Equipment
 
                 bool hasItem = !string.IsNullOrWhiteSpace(itemId);
 
+                // Rolled loot items may not have an Abyss.Items.ItemDefinition asset.
+                Sprite lootIcon = null;
+                string lootName = null;
+                if (hasItem && def == null)
+                {
+                    try
+                    {
+                        var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                        if (reg != null && reg.TryResolveDisplay(itemId, out var dn, out var ic))
+                        {
+                            lootName = dn;
+                            lootIcon = ic;
+                        }
+                    }
+                    catch { }
+                }
+
                 // Inventory UI rule: never show placeholders for empty slots.
-                bool hasIcon = hasItem && def != null && def.icon != null;
+                bool hasIcon = hasItem && ((def != null && def.icon != null) || lootIcon != null);
 
                 if (w.iconImage != null)
                 {
-                    w.iconImage.sprite = hasIcon ? def.icon : null;
+                    w.iconImage.sprite = hasIcon ? (def != null ? def.icon : lootIcon) : null;
                     w.iconImage.enabled = hasIcon;
                     if (w.iconImage.gameObject.activeSelf != hasIcon)
                         w.iconImage.gameObject.SetActive(hasIcon);
@@ -206,15 +226,35 @@ namespace Abyss.Equipment
                 {
                     // Optional: item name; cleared when empty.
                     w.labelText.text = hasItem
-                        ? (def != null && !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : itemId)
+                        ? (def != null && !string.IsNullOrWhiteSpace(def.displayName)
+                            ? def.displayName
+                            : (!string.IsNullOrWhiteSpace(lootName) ? lootName : itemId))
                         : string.Empty;
                 }
+
+                EnsureSlotTooltip(w, def, itemId);
 
                 // Keep interactable so we can still hover to see the slot label.
                 w.button.interactable = true;
 
                 EnsureSlotFeedback(w);
             }
+        }
+
+        private void EnsureSlotTooltip(SlotWidget w, ItemDefinition def, string itemId)
+        {
+            if (w.button == null)
+                return;
+
+            try
+            {
+                var trigger = w.button.GetComponent<ItemTooltipTrigger>();
+                if (trigger == null)
+                    trigger = w.button.gameObject.AddComponent<ItemTooltipTrigger>();
+
+                trigger.BindEquipmentSlot(w.slot, def, itemId);
+            }
+            catch { }
         }
 
         private void EnsureSlotFeedback(SlotWidget w)

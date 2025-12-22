@@ -124,6 +124,7 @@ namespace Abyss.Dev
 
                 ApplyLootOverrides(go);
                 EnsureEnemyMeleeAttack(go);
+                EnsureEnemyAggroChase(go);
                 _spawned.Add(go);
             }
 
@@ -144,6 +145,23 @@ namespace Abyss.Dev
             if (atk != null) return;
 
             enemy.AddComponent<EnemyMeleeAttack>();
+        }
+
+        private void EnsureEnemyAggroChase(GameObject enemy)
+        {
+            if (enemy == null) return;
+
+            // Prefer the optional helper if the user has added it to DevCheats or the spawner.
+            var helper = GetComponent<EnsureEnemyAggroChaseOnSpawn>();
+            if (helper != null)
+            {
+                helper.Ensure(enemy);
+                return;
+            }
+
+            // Otherwise, ensure directly (no tuning changes).
+            if (enemy.GetComponent<EnemyAggroChase>() == null)
+                enemy.AddComponent<EnemyAggroChase>();
         }
 
         private void SelfDamage(int amount)

@@ -6,9 +6,12 @@ namespace Abyss.Items
 
         Helm = 1,
         Chest = 2,
+        Body = Chest,
         Legs = 3,
         Belt = 4,
         Gloves = 5,
+
+        Boots = 14,
 
         Cape = 12,
         Ammo = 13,
@@ -19,6 +22,7 @@ namespace Abyss.Items
         Ring1 = 8,
         Ring2 = 9,
         Amulet = 10,
+        Necklace = Amulet,
         Artifact = 11,
     }
 }

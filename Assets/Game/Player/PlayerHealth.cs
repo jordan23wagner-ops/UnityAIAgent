@@ -38,6 +38,7 @@ public class PlayerHealth : MonoBehaviour
         EquipmentSlot.Legs,
         EquipmentSlot.Belt,
         EquipmentSlot.Gloves,
+        EquipmentSlot.Boots,
         EquipmentSlot.Cape,
         EquipmentSlot.Ammo,
         EquipmentSlot.LeftHand,
@@ -163,6 +164,37 @@ public class PlayerHealth : MonoBehaviour
 
                 if (!seen.Add(itemId))
                     continue;
+
+                // Rolled loot instance support.
+                try
+                {
+                    var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                    if (reg != null && reg.TryGetRolledInstance(itemId, out var inst) && inst != null)
+                    {
+                        var mods = inst.GetAllStatMods(reg);
+                        if (mods != null)
+                        {
+                            for (int mi = 0; mi < mods.Count; mi++)
+                            {
+                                var m = mods[mi];
+                                if (m.percent) continue;
+
+                                switch (m.stat)
+                                {
+                                    case Abyssbound.Loot.StatType.MaxHealth:
+                                        maxHpBonus += Mathf.Max(0, Mathf.RoundToInt(m.value));
+                                        break;
+                                    case Abyssbound.Loot.StatType.Defense:
+                                        flatMitigation += Mathf.Max(0, Mathf.RoundToInt(m.value));
+                                        break;
+                                }
+                            }
+                        }
+
+                        continue;
+                    }
+                }
+                catch { }
 
                 var def = ResolveItemDefinition(itemId);
                 if (def == null)

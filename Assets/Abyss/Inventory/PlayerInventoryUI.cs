@@ -307,6 +307,9 @@ namespace Abyss.Inventory
             _isOpen = true;
             root.SetActive(true);
 
+            // Ensure a single tooltip instance exists under this UI root.
+            try { ItemTooltipUI.GetOrCreateUnder(root.transform); } catch { }
+
             HideStrayLegacyCategoryTexts();
             EnsureBackdropIsTransparent();
             ForceOpaqueBackground(true);

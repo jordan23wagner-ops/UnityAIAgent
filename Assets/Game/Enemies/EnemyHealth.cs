@@ -153,6 +153,33 @@ public class EnemyHealth : MonoBehaviour
         OnDamaged?.Invoke(this, appliedInt);
         Damaged?.Invoke(appliedInt, LastHitWorldPos);
 
+        // Optional additive AI hook: if EnemyAggroChase exists, force aggro on damage.
+        // Attacker is not currently threaded through TakeDamage, so we use a safe tag lookup
+        // ONLY on the damage event (never per-frame).
+        try
+        {
+            var aggro = GetComponent<EnemyAggroChase>();
+            if (aggro != null)
+            {
+                Transform attacker = null;
+                try
+                {
+                    var playerGo = GameObject.FindGameObjectWithTag("Player");
+                    attacker = playerGo != null ? playerGo.transform : null;
+                }
+                catch
+                {
+                    attacker = null;
+                }
+
+                aggro.ForceAggro(attacker);
+            }
+        }
+        catch
+        {
+            // Intentionally silent: avoid console spam.
+        }
+
         if (debugLogs)
             Debug.Log($"[EnemyHealth] Damaged '{name}' for {appliedInt}. HP={CurrentHealth}/{MaxHealth}", this);
 
@@ -189,8 +216,18 @@ public class EnemyHealth : MonoBehaviour
         OnDeath?.Invoke(this);
         Died?.Invoke();
 
-        // Disable gameplay-facing parts, then deactivate for pooling shortly after.
-        DisableForPooling();
+        // Centralized cleanup if present (preferred).
+        // Fallback to legacy pooling cleanup if not.
+        var cleanup = GetComponent<EnemyDeathCleanup>();
+        if (cleanup != null)
+        {
+            cleanup.Run();
+        }
+        else
+        {
+            // Disable gameplay-facing parts, then deactivate for pooling shortly after.
+            DisableForPooling();
+        }
     }
 
     private void DisableForPooling()

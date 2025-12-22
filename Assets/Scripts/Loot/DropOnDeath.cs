@@ -16,6 +16,14 @@ public class DropOnDeath : MonoBehaviour
     [Min(0)] public int goldMin = 0;
     [Min(0)] public int goldMax = 0;
 
+    [Header("World Pickups (optional)")]
+    [Tooltip("If enabled and a pickup prefab is assigned, drops spawn into the world instead of going straight into the inventory.")]
+    public bool spawnWorldPickups = false;
+    public GameObject pickupPrefab;
+    [Min(0f)] public float pickupScatterRadius = 0.35f;
+    public AffixPool affixPool;
+    public AffixRollRules affixRules;
+
     [Header("Destination")]
     public PlayerInventory playerInventory;
 
@@ -57,7 +65,10 @@ public class DropOnDeath : MonoBehaviour
             if (tier == EnemyTier.MiniBoss)
                 ZoneLootRoller.ApplyBossOverrides(zoneLootTable, zoneDrops, null, logError);
 
-            GrantItems(zoneDrops);
+            if (spawnWorldPickups && pickupPrefab != null)
+                SpawnPickups(zoneDrops);
+            else
+                GrantItems(zoneDrops);
             return;
         }
 
@@ -136,6 +147,60 @@ public class DropOnDeath : MonoBehaviour
 
         if (granted > 0)
             Debug.Log($"[DropOnDeath] '{name}' dropped {granted} item(s) (tier: {tier}).");
+        else if (logNoDrop)
+            Debug.Log($"[DropOnDeath] No valid drops for '{name}' (tier: {tier}).");
+    }
+
+    private void SpawnPickups(System.Collections.Generic.List<Abyss.Items.ItemDefinition> drops)
+    {
+        if (drops == null || drops.Count == 0)
+        {
+            if (logNoDrop) Debug.Log($"[DropOnDeath] No drops for '{name}' (tier: {tier}).");
+            return;
+        }
+
+        if (pickupPrefab == null)
+        {
+            Debug.LogError($"[DropOnDeath] spawnWorldPickups is enabled but pickupPrefab is null on '{name}'.");
+            return;
+        }
+
+        int spawned = 0;
+        for (int i = 0; i < drops.Count; i++)
+        {
+            var def = drops[i];
+            if (def == null || string.IsNullOrWhiteSpace(def.itemId)) continue;
+
+            Vector3 pos = transform.position;
+            if (pickupScatterRadius > 0f)
+            {
+                var o = UnityEngine.Random.insideUnitCircle * pickupScatterRadius;
+                pos += new Vector3(o.x, 0f, o.y);
+            }
+
+            var go = Instantiate(pickupPrefab, pos, Quaternion.identity);
+            if (go == null) continue;
+
+            var pickup = go.GetComponent<WorldLootPickup>();
+            if (pickup == null)
+            {
+                Debug.LogError($"[DropOnDeath] Pickup prefab '{pickupPrefab.name}' is missing WorldLootPickup.");
+                continue;
+            }
+
+            Abyss.Loot.LootItemInstance inst = null;
+            try
+            {
+                inst = Abyss.Loot.LootRoller.RollInstance(def, affixPool, affixRules, null);
+            }
+            catch { inst = null; }
+
+            pickup.Initialize(def, 1, inst);
+            spawned++;
+        }
+
+        if (spawned > 0)
+            Debug.Log($"[DropOnDeath] '{name}' spawned {spawned} pickup(s) (tier: {tier}).");
         else if (logNoDrop)
             Debug.Log($"[DropOnDeath] No valid drops for '{name}' (tier: {tier}).");
     }

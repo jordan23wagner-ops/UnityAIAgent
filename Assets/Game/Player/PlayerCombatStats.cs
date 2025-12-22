@@ -95,6 +95,36 @@ public sealed class PlayerCombatStats : MonoBehaviour
         if (seen != null && !seen.Add(itemId))
             return;
 
+        // Rolled loot instance support (inventory/equipment stores the rolled instance id).
+        try
+        {
+            var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+            if (reg != null && reg.TryGetRolledInstance(itemId, out var inst) && inst != null)
+            {
+                var mods = inst.GetAllStatMods(reg);
+                if (mods != null)
+                {
+                    for (int i = 0; i < mods.Count; i++)
+                    {
+                        var m = mods[i];
+                        if (m.percent) continue; // percent not applied yet
+
+                        switch (m.stat)
+                        {
+                            case Abyssbound.Loot.StatType.MeleeDamage:
+                            case Abyssbound.Loot.StatType.RangedDamage:
+                            case Abyssbound.Loot.StatType.MagicDamage:
+                                bonus += Mathf.Max(0, Mathf.RoundToInt(m.value));
+                                break;
+                        }
+                    }
+                }
+
+                return;
+            }
+        }
+        catch { }
+
         var def = ResolveItemDefinition(itemId);
         if (def == null)
             return;
