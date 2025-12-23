@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7f21c927f5c9e84ba5c7a2fc9be113d, type: 3}
+  m_Name: ItemRegistry
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemRegistrySO
+  items:
+  - {fileID: 11400000, guid: 34805b2b6f1b9934689551adbd51de23, type: 2}
+  - {fileID: 11400000, guid: a6e705ac6c5f019468913160fb881ece, type: 2}
+  - {fileID: 11400000, guid: 05c5588e390c89a4f9955f4d896651f5, type: 2}
+  - {fileID: 11400000, guid: 359bb969922c1844c9b1e68b5c1ec27d, type: 2}
+  - {fileID: 11400000, guid: 4969868816ae2174189444be380efd50, type: 2}
+  - {fileID: 11400000, guid: 000f6586b44c35c4a982910c4b4c33c1, type: 2}
+  - {fileID: 11400000, guid: fc3a5807d1c35e44eba21a40bc5cf56e, type: 2}
+  - {fileID: 11400000, guid: 91fc3c3afdd06c64182ecf34d109b741, type: 2}
+  - {fileID: 11400000, guid: ca9133901195d4e49ab424c2fc86d1c8, type: 2}

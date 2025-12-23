@@ -9,6 +9,7 @@ using UnityEngine;
 public static class CreateStarterLootContent
 {
     private const string Root = "Assets/Resources/Loot";
+    private const string BootstrapPath = "Assets/Resources/Loot/Bootstrap.asset";
 
     [MenuItem("Tools/Abyssbound/Loot/Create Starter Loot Content")]
     public static void Create()
@@ -16,11 +17,23 @@ public static class CreateStarterLootContent
         EnsureFolder("Assets/Resources");
         EnsureFolder(Root);
 
+        // Ensure the bootstrap path is available and not occupied by a wrong asset type.
+        try
+        {
+            var main = AssetDatabase.LoadMainAssetAtPath(BootstrapPath);
+            if (main != null && main is not LootRegistryBootstrapSO)
+            {
+                var moveTo = "Assets/Resources/Loot/Bootstrap_WrongType.asset";
+                AssetDatabase.MoveAsset(BootstrapPath, moveTo);
+            }
+        }
+        catch { }
+
         // Registries
         var itemReg = CreateOrLoad<ItemRegistrySO>($"{Root}/ItemRegistry.asset");
         var rarityReg = CreateOrLoad<RarityRegistrySO>($"{Root}/RarityRegistry.asset");
         var affixReg = CreateOrLoad<AffixRegistrySO>($"{Root}/AffixRegistry.asset");
-        var bootstrap = CreateOrLoad<LootRegistryBootstrapSO>($"{Root}/Bootstrap.asset");
+        var bootstrap = CreateOrLoad<LootRegistryBootstrapSO>(BootstrapPath);
 
         bootstrap.itemRegistry = itemReg;
         bootstrap.rarityRegistry = rarityReg;
@@ -81,12 +94,13 @@ public static class CreateStarterLootContent
             if (a != null && !string.IsNullOrWhiteSpace(a.id))
                 existingAffixIds.Add(a.id);
 
-        void AddAffix(string id, string name, StatType stat, float min, float max, params AffixTag[] tags)
+        void AddAffix(string id, string name, StatType stat, float min, float max, int weight, params AffixTag[] tags)
         {
             var path = $"{Root}/Affixes/Affix_{id}.asset";
             var so = CreateOrLoad<AffixDefinitionSO>(path);
             so.id = id;
             so.displayName = name;
+            so.weight = weight;
             so.stat = stat;
             so.minRoll = min;
             so.maxRoll = max;
@@ -102,16 +116,18 @@ public static class CreateStarterLootContent
             }
         }
 
-        AddAffix("Power","of Power",StatType.MeleeDamage,1,4,AffixTag.WeaponMelee);
-        AddAffix("Precision","of Precision",StatType.RangedDamage,1,4,AffixTag.WeaponRanged);
-        AddAffix("Sorcery","of Sorcery",StatType.MagicDamage,1,4,AffixTag.WeaponMagic);
-        AddAffix("Fortitude","of Fortitude",StatType.MaxHealth,5,20,AffixTag.Armor,AffixTag.Jewelry);
-        AddAffix("Bulwark","of Bulwark",StatType.Defense,1,4,AffixTag.Armor);
-        AddAffix("Swiftness","of Swiftness",StatType.MoveSpeed,0.1f,0.35f,AffixTag.Armor,AffixTag.Jewelry);
-        AddAffix("Fury","of Fury",StatType.AttackSpeed,0.1f,0.35f,AffixTag.WeaponMelee,AffixTag.WeaponRanged,AffixTag.WeaponMagic);
-        AddAffix("Strength","of Strength",StatType.Strength,1,3,AffixTag.Any);
-        AddAffix("AttackSkill","of the Duelist",StatType.Attack,1,3,AffixTag.WeaponMelee);
-        AddAffix("MagicSkill","of the Arcanist",StatType.MagicSkill,1,3,AffixTag.WeaponMagic);
+        // Recommended default weights (baseline 100):
+        // Damage 100, Defense/MaxHealth 90, Skills 60, AttackSpeed 35, MoveSpeed 25.
+        AddAffix("Power","of Power",StatType.MeleeDamage,1,4,100,AffixTag.WeaponMelee);
+        AddAffix("Precision","of Precision",StatType.RangedDamage,1,4,100,AffixTag.WeaponRanged);
+        AddAffix("Sorcery","of Sorcery",StatType.MagicDamage,1,4,100,AffixTag.WeaponMagic);
+        AddAffix("Fortitude","of Fortitude",StatType.MaxHealth,5,20,90,AffixTag.Armor,AffixTag.Jewelry);
+        AddAffix("Bulwark","of Bulwark",StatType.Defense,1,4,90,AffixTag.Armor);
+        AddAffix("Swiftness","of Swiftness",StatType.MoveSpeed,0.1f,0.35f,25,AffixTag.Armor,AffixTag.Jewelry);
+        AddAffix("Fury","of Fury",StatType.AttackSpeed,0.1f,0.35f,35,AffixTag.WeaponMelee,AffixTag.WeaponRanged,AffixTag.WeaponMagic);
+        AddAffix("Strength","of Strength",StatType.Strength,1,3,60,AffixTag.Any);
+        AddAffix("AttackSkill","of the Duelist",StatType.Attack,1,3,60,AffixTag.WeaponMelee);
+        AddAffix("MagicSkill","of the Arcanist",StatType.MagicSkill,1,3,60,AffixTag.WeaponMagic);
 
         EditorUtility.SetDirty(affixReg);
 
@@ -242,11 +258,93 @@ public static class CreateStarterLootContent
         table.affixPoolOverride = new List<AffixDefinitionSO>();
         EditorUtility.SetDirty(table);
 
+        // Zone 1 tuning tables (assets only)
+        CreateOrUpdateZone1Tables(rarityReg, table);
+
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
         Debug.Log("[Loot] Starter loot content created/updated under Assets/Resources/Loot");
         Selection.activeObject = table;
+    }
+
+    private static void CreateOrUpdateZone1Tables(RarityRegistrySO rarityReg, LootTableSO starterTable)
+    {
+        if (starterTable == null) return;
+
+        EnsureFolder($"{Root}/Tables");
+
+        var rarityById = new Dictionary<string, RarityDefinitionSO>(StringComparer.OrdinalIgnoreCase);
+        if (rarityReg != null && rarityReg.rarities != null)
+        {
+            for (int i = 0; i < rarityReg.rarities.Count; i++)
+            {
+                var r = rarityReg.rarities[i];
+                if (r == null || string.IsNullOrWhiteSpace(r.id)) continue;
+                if (!rarityById.ContainsKey(r.id)) rarityById[r.id] = r;
+            }
+        }
+
+        void ApplyRarityWeights(LootTableSO t, (string id, float w)[] weights)
+        {
+            if (t == null) return;
+            t.rarities = new List<LootTableSO.WeightedRarityEntry>(weights.Length);
+
+            for (int i = 0; i < weights.Length; i++)
+            {
+                var (id, w) = weights[i];
+                if (string.IsNullOrWhiteSpace(id)) continue;
+                if (!rarityById.TryGetValue(id, out var r) || r == null) continue;
+                t.rarities.Add(new LootTableSO.WeightedRarityEntry { rarity = r, weight = w });
+            }
+        }
+
+        LootTableSO CreateOrLoadTable(string fileName, string id)
+        {
+            var t = CreateOrLoad<LootTableSO>($"{Root}/Tables/{fileName}.asset");
+            t.id = id;
+            // Reuse starter items by default for Zone1 tuning.
+            t.items = starterTable.items != null
+                ? new List<LootTableSO.WeightedItemEntry>(starterTable.items)
+                : new List<LootTableSO.WeightedItemEntry>();
+            t.affixPoolOverride = new List<AffixDefinitionSO>();
+            EditorUtility.SetDirty(t);
+            return t;
+        }
+
+        // Only Common -> Legendary used
+        var trash = CreateOrLoadTable("Zone1_Trash", "Zone1_Trash");
+        ApplyRarityWeights(trash, new[]
+        {
+            ("Common", 78f),
+            ("Uncommon", 18f),
+            ("Magic", 3.5f),
+            ("Rare", 0.5f),
+            ("Epic", 0f),
+            ("Legendary", 0f),
+        });
+
+        var elite = CreateOrLoadTable("Zone1_Elite", "Zone1_Elite");
+        ApplyRarityWeights(elite, new[]
+        {
+            ("Common", 55f),
+            ("Uncommon", 30f),
+            ("Magic", 12f),
+            ("Rare", 2.5f),
+            ("Epic", 0.5f),
+            ("Legendary", 0f),
+        });
+
+        var boss = CreateOrLoadTable("Zone1_Boss", "Zone1_Boss");
+        ApplyRarityWeights(boss, new[]
+        {
+            ("Common", 35f),
+            ("Uncommon", 35f),
+            ("Magic", 20f),
+            ("Rare", 8f),
+            ("Epic", 1.8f),
+            ("Legendary", 0.2f),
+        });
     }
 
     private static T CreateOrLoad<T>(string assetPath) where T : ScriptableObject

@@ -49,7 +49,7 @@ namespace Abyssbound.Loot
 
             for (int i = 0; i < affixCount; i++)
             {
-                var affix = RollWeighted(pool, a => a, a => 1f, rng, used);
+                var affix = RollWeighted(pool, a => a, a => a != null ? Mathf.Max(0f, a.weight) : 0f, rng, used);
                 if (affix == null) break;
                 if (string.IsNullOrWhiteSpace(affix.id)) continue;
                 if (!used.Add(affix.id)) continue;
@@ -86,6 +86,9 @@ namespace Abyssbound.Loot
         private static void TryAddIfEligible(ItemDefinitionSO baseItem, AffixDefinitionSO affix, List<AffixDefinitionSO> pool)
         {
             if (baseItem == null || affix == null || pool == null) return;
+
+            // Disabled affixes should never roll.
+            if (affix.weight <= 0) return;
 
             // Slot constraint (if specified)
             if (affix.allowedSlots != null && affix.allowedSlots.Count > 0)

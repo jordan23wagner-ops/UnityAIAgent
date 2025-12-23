@@ -96,18 +96,47 @@ public static class Add2HTestItemsToInventory
         }
 
         // Ensure these items are part of the bootstrap registry (so they work with normal runtime resolution too).
-        var bootstrap = AssetDatabase.LoadAssetAtPath<LootRegistryBootstrapSO>("Assets/Resources/Loot/Bootstrap.asset");
-        if (bootstrap == null)
+        // QA should never block on missing Resources assets; auto-create minimal bootstrap/registries if absent.
+        const string resourcesRoot = "Assets/Resources";
+        const string lootRoot = "Assets/Resources/Loot";
+        const string bootstrapPath = "Assets/Resources/Loot/Bootstrap.asset";
+        const string itemRegPath = "Assets/Resources/Loot/ItemRegistry.asset";
+        const string rarityRegPath = "Assets/Resources/Loot/RarityRegistry.asset";
+        const string affixRegPath = "Assets/Resources/Loot/AffixRegistry.asset";
+
+        EnsureFolder(resourcesRoot);
+        EnsureFolder(lootRoot);
+
+        static T CreateOrLoadAtPath<T>(string path) where T : ScriptableObject
         {
-            error = "Missing loot bootstrap at Assets/Resources/Loot/Bootstrap.asset. Run: Tools/Abyssbound/Loot/Create Starter Loot Content";
-            return false;
+            var existing = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (existing != null) return existing;
+            var so = ScriptableObject.CreateInstance<T>();
+            AssetDatabase.CreateAsset(so, path);
+            EditorUtility.SetDirty(so);
+            return so;
         }
 
-        if (bootstrap.itemRegistry == null)
-        {
-            error = "Loot bootstrap has no item registry assigned.";
-            return false;
-        }
+        var bootstrap = AssetDatabase.LoadAssetAtPath<LootRegistryBootstrapSO>(bootstrapPath);
+        if (bootstrap == null)
+            bootstrap = CreateOrLoadAtPath<LootRegistryBootstrapSO>(bootstrapPath);
+
+        var itemRegistry = bootstrap.itemRegistry != null ? bootstrap.itemRegistry : AssetDatabase.LoadAssetAtPath<ItemRegistrySO>(itemRegPath);
+        if (itemRegistry == null)
+            itemRegistry = CreateOrLoadAtPath<ItemRegistrySO>(itemRegPath);
+
+        var rarityRegistry = bootstrap.rarityRegistry != null ? bootstrap.rarityRegistry : AssetDatabase.LoadAssetAtPath<RarityRegistrySO>(rarityRegPath);
+        if (rarityRegistry == null)
+            rarityRegistry = CreateOrLoadAtPath<RarityRegistrySO>(rarityRegPath);
+
+        var affixRegistry = bootstrap.affixRegistry != null ? bootstrap.affixRegistry : AssetDatabase.LoadAssetAtPath<AffixRegistrySO>(affixRegPath);
+        if (affixRegistry == null)
+            affixRegistry = CreateOrLoadAtPath<AffixRegistrySO>(affixRegPath);
+
+        bootstrap.itemRegistry = itemRegistry;
+        bootstrap.rarityRegistry = rarityRegistry;
+        bootstrap.affixRegistry = affixRegistry;
+        EditorUtility.SetDirty(bootstrap);
 
         bootstrap.itemRegistry.items ??= new List<ItemDefinitionSO>();
 
@@ -133,11 +162,10 @@ public static class Add2HTestItemsToInventory
         }
 
         if (changed)
-        {
             EditorUtility.SetDirty(bootstrap.itemRegistry);
-            EditorUtility.SetDirty(bootstrap);
+
+        if (changed)
             AssetDatabase.SaveAssets();
-        }
 
         return true;
     }

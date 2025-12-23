@@ -15,6 +15,9 @@ namespace Abyssbound.Loot
         public List<EquipmentSlot> allowedSlots = new();
 
         [Header("Roll")]
+        [Tooltip("Relative likelihood when rolling affixes. 100 = baseline. 0 or less = never roll.")]
+        public int weight = 100;
+
         public StatType stat;
         public float minRoll = 1f;
         public float maxRoll = 3f;

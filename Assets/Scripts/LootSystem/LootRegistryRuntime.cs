@@ -8,6 +8,7 @@ namespace Abyssbound.Loot
     public sealed class LootRegistryRuntime : MonoBehaviour
     {
         private const string BootstrapResourcesPath = "Loot/Bootstrap";
+        private const string BootstrapAssetPathInProject = "Assets/Resources/Loot/Bootstrap.asset";
 
         public static LootRegistryRuntime Instance { get; private set; }
 
@@ -19,6 +20,7 @@ namespace Abyssbound.Loot
         private readonly Dictionary<string, ItemInstance> _instancesByRolledId = new(StringComparer.OrdinalIgnoreCase);
 
         private bool _built;
+        private bool _warnedMissingBootstrap;
 
         public static LootRegistryRuntime GetOrCreate()
         {
@@ -45,21 +47,80 @@ namespace Abyssbound.Loot
         public void BuildIfNeeded()
         {
             if (_built) return;
-            _built = true;
 
             LootRegistryBootstrapSO bootstrap = null;
             try { bootstrap = Resources.Load<LootRegistryBootstrapSO>(BootstrapResourcesPath); } catch { bootstrap = null; }
 
+#if UNITY_EDITOR
             if (bootstrap == null)
             {
-                Debug.LogWarning($"[LootRegistryRuntime] No bootstrap asset found at Resources/{BootstrapResourcesPath}.asset");
+                TryEnsureBootstrapAssetInEditor();
+                try { bootstrap = Resources.Load<LootRegistryBootstrapSO>(BootstrapResourcesPath); } catch { bootstrap = null; }
+            }
+#endif
+
+            if (bootstrap == null)
+            {
+                if (!_warnedMissingBootstrap)
+                {
+                    _warnedMissingBootstrap = true;
+                    Debug.LogWarning($"[LootRegistryRuntime] Missing loot bootstrap at Resources/{BootstrapResourcesPath}.asset (expected project asset at {BootstrapAssetPathInProject}). Run Tools/Abyssbound/Loot/Create Starter Loot Content.");
+                }
                 return;
             }
 
             IndexItems(bootstrap.itemRegistry);
             IndexRarities(bootstrap.rarityRegistry);
             IndexAffixes(bootstrap.affixRegistry);
+
+            _built = true;
         }
+
+#if UNITY_EDITOR
+        private static void TryEnsureBootstrapAssetInEditor()
+        {
+            // Editor-only safety net: create the exact bootstrap asset path if missing.
+            // This avoids QA being blocked by a missing Resources asset.
+            try
+            {
+                // Avoid taking a UnityEditor dependency outside UNITY_EDITOR.
+                var existing = UnityEditor.AssetDatabase.LoadAssetAtPath<LootRegistryBootstrapSO>(BootstrapAssetPathInProject);
+                if (existing != null)
+                    return;
+
+                EnsureEditorFolder("Assets/Resources");
+                EnsureEditorFolder("Assets/Resources/Loot");
+
+                var so = ScriptableObject.CreateInstance<LootRegistryBootstrapSO>();
+                UnityEditor.AssetDatabase.CreateAsset(so, BootstrapAssetPathInProject);
+                UnityEditor.EditorUtility.SetDirty(so);
+                UnityEditor.AssetDatabase.SaveAssets();
+                UnityEditor.AssetDatabase.Refresh();
+            }
+            catch
+            {
+                // Intentionally swallow: runtime should still just warn once and continue.
+            }
+        }
+
+        private static void EnsureEditorFolder(string path)
+        {
+            if (UnityEditor.AssetDatabase.IsValidFolder(path))
+                return;
+
+            var parent = System.IO.Path.GetDirectoryName(path)?.Replace('\\', '/');
+            var name = System.IO.Path.GetFileName(path);
+
+            if (string.IsNullOrWhiteSpace(parent) || string.IsNullOrWhiteSpace(name))
+                return;
+
+            if (!UnityEditor.AssetDatabase.IsValidFolder(parent))
+                EnsureEditorFolder(parent);
+
+            if (!UnityEditor.AssetDatabase.IsValidFolder(path))
+                UnityEditor.AssetDatabase.CreateFolder(parent, name);
+        }
+#endif
 
         private void IndexItems(ItemRegistrySO reg)
         {

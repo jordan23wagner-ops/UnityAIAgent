@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c3d78412b79fde4c974d44d63d9ca29, type: 3}
+  m_Name: RarityRegistry
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.RarityRegistrySO
+  rarities:
+  - {fileID: 11400000, guid: 1b3aaf7d1f37a3e42b08a39e6a29a50e, type: 2}
+  - {fileID: 11400000, guid: a0d813125eed27e49aedb7a4016ffdae, type: 2}
+  - {fileID: 11400000, guid: 81cbfbfcd09894447bddba6e76069734, type: 2}
+  - {fileID: 11400000, guid: a8ab8b780e6bf0349ae042147e837be9, type: 2}
+  - {fileID: 11400000, guid: 2477ae5c6ca2f33418fa22718c8a2577, type: 2}
+  - {fileID: 11400000, guid: 00e7e77cc42a4dc4498c8adf74ad9cb2, type: 2}
+  - {fileID: 11400000, guid: 4d4648168356db64ebe30415acb8cf45, type: 2}
+  - {fileID: 11400000, guid: 90f558de9625d17489fda44c4b271f6e, type: 2}
+  - {fileID: 11400000, guid: 61a71ada177fc654ab695cce76f3f5a9, type: 2}
+  - {fileID: 11400000, guid: 069a30d20b66e4343a118d33e40fe707, type: 2}

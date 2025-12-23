@@ -406,6 +406,47 @@ public sealed class ItemTooltipUI : MonoBehaviour
         return s_Sb.ToString();
     }
 
+    private static string FormatSlotName(EquipmentSlot slot)
+    {
+        switch (slot)
+        {
+            case EquipmentSlot.LeftHand: return "Left Hand";
+            case EquipmentSlot.RightHand: return "Right Hand";
+            default: return slot.ToString();
+        }
+    }
+
+    private static string BuildOccupiesLine(Abyssbound.Loot.ItemDefinitionSO baseItem)
+    {
+        if (baseItem == null || baseItem.occupiesSlots == null) return string.Empty;
+
+        bool hasL = false;
+        bool hasR = false;
+        var parts = new System.Collections.Generic.List<string>(4);
+
+        for (int i = 0; i < baseItem.occupiesSlots.Count; i++)
+        {
+            var s = baseItem.occupiesSlots[i];
+            if (s == EquipmentSlot.LeftHand) hasL = true;
+            else if (s == EquipmentSlot.RightHand) hasR = true;
+            else if (s != EquipmentSlot.None) parts.Add(FormatSlotName(s));
+        }
+
+        // Stable, readable ordering for hands.
+        if (hasL) parts.Insert(0, "Left Hand");
+        if (hasR) parts.Insert(hasL ? 1 : 0, "Right Hand");
+
+        if (parts.Count == 0) return string.Empty;
+        return "Occupies: " + string.Join(", ", parts);
+    }
+
+    private static string TrimTrailingNewline(StringBuilder sb)
+    {
+        if (sb == null || sb.Length == 0) return string.Empty;
+        if (sb[sb.Length - 1] == '\n') sb.Length -= 1;
+        return sb.ToString();
+    }
+
     private void BuildRuntimeVisualTree()
     {
         // Minimal layout: Panel(Image) -> (VerticalLayoutGroup) -> Title/Sub/Stats
