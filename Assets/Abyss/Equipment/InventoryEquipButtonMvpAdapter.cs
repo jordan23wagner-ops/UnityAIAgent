@@ -17,8 +17,6 @@ namespace Abyss.Equipment
         private FieldInfo _selectedDefField;
         private FieldInfo _selectedItemIdField;
 
-        private bool _wired;
-
         private void Awake()
         {
 #if UNITY_2022_2_OR_NEWER
@@ -33,7 +31,6 @@ namespace Abyss.Equipment
         private void Update()
         {
             EnsureButtonRef();
-            EnsureWired();
         }
 
         private void EnsureButtonRef()
@@ -74,23 +71,6 @@ namespace Abyss.Equipment
                 {
                     _equipButton = t.GetComponent<Button>();
                 }
-            }
-            catch { }
-        }
-
-        private void EnsureWired()
-        {
-            if (_wired)
-                return;
-
-            if (_equipButton == null)
-                return;
-
-            try
-            {
-                _equipButton.onClick.RemoveAllListeners();
-                _equipButton.onClick.AddListener(OnEquipPressedMvp);
-                _wired = true;
             }
             catch { }
         }

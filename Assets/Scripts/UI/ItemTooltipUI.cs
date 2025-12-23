@@ -109,12 +109,15 @@ public sealed class ItemTooltipUI : MonoBehaviour
             string typeStr = def != null ? def.itemType.ToString() : string.Empty;
             EquipmentSlot slot = def != null ? def.equipmentSlot : slotContext;
 
+            bool isTwoHanded = false;
+            try { isTwoHanded = def != null && def.weaponHandedness == WeaponHandedness.TwoHanded; } catch { isTwoHanded = false; }
+
             if (slot != EquipmentSlot.None && !string.IsNullOrEmpty(typeStr))
-                subText.text = $"{typeStr} • {slot}";
+                subText.text = isTwoHanded ? $"{typeStr} • {slot} • Two-Handed" : $"{typeStr} • {slot}";
             else if (slot != EquipmentSlot.None)
-                subText.text = slot.ToString();
+                subText.text = isTwoHanded ? $"{slot} • Two-Handed" : slot.ToString();
             else if (!string.IsNullOrEmpty(typeStr))
-                subText.text = typeStr;
+                subText.text = isTwoHanded ? $"{typeStr} • Two-Handed" : typeStr;
             else
                 subText.text = string.Empty;
         }
@@ -153,6 +156,9 @@ public sealed class ItemTooltipUI : MonoBehaviour
             string typeStr = def != null ? def.itemType.ToString() : string.Empty;
             EquipmentSlot slot = def != null ? def.equipmentSlot : slotContext;
 
+            bool isTwoHanded = false;
+            try { isTwoHanded = def != null && def.weaponHandedness == WeaponHandedness.TwoHanded; } catch { isTwoHanded = false; }
+
             s_Sb.Clear();
 
             if (!string.IsNullOrWhiteSpace(rarityLine))
@@ -168,6 +174,12 @@ public sealed class ItemTooltipUI : MonoBehaviour
             {
                 if (s_Sb.Length > 0) s_Sb.Append("  ");
                 s_Sb.Append(slot);
+            }
+
+            if (isTwoHanded)
+            {
+                if (s_Sb.Length > 0) s_Sb.Append("   ");
+                s_Sb.Append("Two-Handed");
             }
 
             subText.text = s_Sb.ToString();
@@ -215,12 +227,42 @@ public sealed class ItemTooltipUI : MonoBehaviour
         if (subText != null)
         {
             string slot = baseItem != null ? baseItem.slot.ToString() : string.Empty;
-            if (!string.IsNullOrWhiteSpace(rarityLine) && !string.IsNullOrWhiteSpace(slot))
-                subText.text = $"{rarityLine}  {slot}";
-            else if (!string.IsNullOrWhiteSpace(rarityLine))
-                subText.text = rarityLine;
-            else
-                subText.text = slot;
+
+            bool isTwoHanded = false;
+            try
+            {
+                if (baseItem != null && baseItem.occupiesSlots != null && baseItem.occupiesSlots.Count > 0)
+                {
+                    bool hasL = false;
+                    bool hasR = false;
+                    for (int i = 0; i < baseItem.occupiesSlots.Count; i++)
+                    {
+                        if (baseItem.occupiesSlots[i] == EquipmentSlot.LeftHand) hasL = true;
+                        if (baseItem.occupiesSlots[i] == EquipmentSlot.RightHand) hasR = true;
+                    }
+                    isTwoHanded = hasL && hasR;
+                }
+            }
+            catch { isTwoHanded = false; }
+
+            s_Sb.Clear();
+
+            if (!string.IsNullOrWhiteSpace(rarityLine))
+                s_Sb.Append(rarityLine);
+
+            if (!string.IsNullOrWhiteSpace(slot))
+            {
+                if (s_Sb.Length > 0) s_Sb.Append("   ");
+                s_Sb.Append(slot);
+            }
+
+            if (isTwoHanded)
+            {
+                if (s_Sb.Length > 0) s_Sb.Append("   ");
+                s_Sb.Append("Two-Handed");
+            }
+
+            subText.text = s_Sb.ToString();
         }
 
         if (statsText != null)

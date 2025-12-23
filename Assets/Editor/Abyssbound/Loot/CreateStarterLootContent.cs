@@ -144,6 +144,17 @@ public static class CreateStarterLootContent
             return so;
         }
 
+        void MarkTwoHanded(ItemDefinitionSO so)
+        {
+            if (so == null) return;
+            try
+            {
+                so.occupiesSlots = new List<EquipmentSlot> { EquipmentSlot.RightHand, EquipmentSlot.LeftHand };
+                EditorUtility.SetDirty(so);
+            }
+            catch { }
+        }
+
         var sword = AddItem(
             "Starter_Sword",
             "Rusty Sword",
@@ -157,6 +168,31 @@ public static class CreateStarterLootContent
             EquipmentSlot.RightHand,
             new List<StatMod> { new StatMod { stat = StatType.RangedDamage, value = 2, percent = false } },
             AffixTag.WeaponRanged);
+
+        // 2H QA weapons (occupy both hands)
+        var greatsword = AddItem(
+            "QA_Greatsword_2H",
+            "Greatsword",
+            EquipmentSlot.RightHand,
+            new List<StatMod> { new StatMod { stat = StatType.MeleeDamage, value = 4, percent = false } },
+            AffixTag.WeaponMelee);
+        MarkTwoHanded(greatsword);
+
+        var longbow = AddItem(
+            "QA_Longbow_2H",
+            "Longbow",
+            EquipmentSlot.RightHand,
+            new List<StatMod> { new StatMod { stat = StatType.RangedDamage, value = 4, percent = false } },
+            AffixTag.WeaponRanged);
+        MarkTwoHanded(longbow);
+
+        var staff = AddItem(
+            "QA_Staff_2H",
+            "Staff",
+            EquipmentSlot.RightHand,
+            new List<StatMod> { new StatMod { stat = StatType.MagicDamage, value = 4, percent = false } },
+            AffixTag.WeaponMagic);
+        MarkTwoHanded(staff);
 
         var chest = AddItem(
             "Starter_Chest",
@@ -180,6 +216,9 @@ public static class CreateStarterLootContent
         {
             new LootTableSO.WeightedItemEntry{ item = sword, weight = 1f },
             new LootTableSO.WeightedItemEntry{ item = bow, weight = 1f },
+            new LootTableSO.WeightedItemEntry{ item = greatsword, weight = 0.5f },
+            new LootTableSO.WeightedItemEntry{ item = longbow, weight = 0.5f },
+            new LootTableSO.WeightedItemEntry{ item = staff, weight = 0.5f },
             new LootTableSO.WeightedItemEntry{ item = chest, weight = 1f },
         };
 

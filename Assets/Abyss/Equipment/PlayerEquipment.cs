@@ -2,6 +2,10 @@ using System;
 using Abyss.Items;
 using UnityEngine;
 
+using LootRegistryRuntime = Abyssbound.Loot.LootRegistryRuntime;
+using LootItemInstance = Abyssbound.Loot.ItemInstance;
+using LootItemDefinitionSO = Abyssbound.Loot.ItemDefinitionSO;
+
 namespace Abyss.Equipment
 {
     [DisallowMultipleComponent]
@@ -214,16 +218,11 @@ namespace Abyss.Equipment
             }
 
             var def = resolve != null ? resolve(itemId) : null;
-            if (def == null)
-            {
-                message = $"No ItemDefinition loaded for '{itemId}'.";
-                return false;
-            }
 
             // Unequip conflicts first (returns items to inventory).
-            if (!TryResolveTargetSlots(def, out var primarySlot, out var secondarySlot))
+            if (!TryResolveTargetSlotsForItemId(itemId, def, out var primarySlot, out var secondarySlot, out var resolveReason))
             {
-                message = "That item is not equippable.";
+                message = string.IsNullOrWhiteSpace(resolveReason) ? "That item is not equippable." : resolveReason;
                 return false;
             }
 
@@ -279,6 +278,127 @@ namespace Abyss.Equipment
                 Set(secondarySlot.Value, itemId);
 
             RaiseChanged();
+            return true;
+        }
+
+        private static bool TryResolveTargetSlotsForItemId(
+            string itemId,
+            ItemDefinition legacyDef,
+            out EquipmentSlot primary,
+            out EquipmentSlot? secondary,
+            out string reason)
+        {
+            primary = EquipmentSlot.None;
+            secondary = null;
+            reason = string.Empty;
+
+            // Legacy items (Abyss.Items.ItemDefinition)
+            if (legacyDef != null)
+            {
+                // Two-handed / offhand / onehanded handled by weaponHandedness.
+                if (legacyDef.weaponHandedness == WeaponHandedness.TwoHanded)
+                {
+                    primary = EquipmentSlot.RightHand;
+                    secondary = EquipmentSlot.LeftHand;
+                    return true;
+                }
+
+                if (legacyDef.weaponHandedness == WeaponHandedness.Offhand)
+                {
+                    primary = EquipmentSlot.LeftHand;
+                    return true;
+                }
+
+                if (legacyDef.weaponHandedness == WeaponHandedness.OneHanded)
+                {
+                    primary = EquipmentSlot.RightHand;
+                    return true;
+                }
+
+                primary = legacyDef.equipmentSlot;
+                return primary != EquipmentSlot.None;
+            }
+
+            // Loot V2 rolled instances (inventory stores rolledId like ri_...)
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                reason = "No item selected.";
+                return false;
+            }
+
+            LootItemInstance inst = null;
+            LootItemDefinitionSO baseItem = null;
+            try
+            {
+                var reg = LootRegistryRuntime.GetOrCreate();
+                if (reg != null && reg.TryGetRolledInstance(itemId, out inst) && inst != null)
+                    reg.TryGetItem(inst.baseItemId, out baseItem);
+            }
+            catch
+            {
+                inst = null;
+                baseItem = null;
+            }
+
+            if (inst == null || baseItem == null)
+            {
+                reason = $"No ItemDefinition loaded for '{itemId}'.";
+                return false;
+            }
+
+            // Lowest-risk representation: the same rolledId occupies both slots for 2H.
+            bool occupiesLeft = false;
+            bool occupiesRight = false;
+
+            try
+            {
+                if (baseItem.occupiesSlots != null && baseItem.occupiesSlots.Count > 0)
+                {
+                    for (int i = 0; i < baseItem.occupiesSlots.Count; i++)
+                    {
+                        if (baseItem.occupiesSlots[i] == EquipmentSlot.LeftHand) occupiesLeft = true;
+                        if (baseItem.occupiesSlots[i] == EquipmentSlot.RightHand) occupiesRight = true;
+                    }
+                }
+            }
+            catch { }
+
+            if (occupiesLeft && occupiesRight)
+            {
+                primary = EquipmentSlot.RightHand;
+                secondary = EquipmentSlot.LeftHand;
+                return true;
+            }
+
+            if (occupiesLeft)
+            {
+                primary = EquipmentSlot.LeftHand;
+                return true;
+            }
+
+            if (occupiesRight)
+            {
+                primary = EquipmentSlot.RightHand;
+                return true;
+            }
+
+            // If occupiesSlots is empty, fall back to slot.
+            try
+            {
+                primary = baseItem.slot;
+            }
+            catch
+            {
+                primary = EquipmentSlot.None;
+            }
+
+            if (primary == EquipmentSlot.None)
+            {
+                reason = "That item is not equippable.";
+                return false;
+            }
+
+            // Convention: offhand items should be authored with slot=LeftHand.
             return true;
         }
 

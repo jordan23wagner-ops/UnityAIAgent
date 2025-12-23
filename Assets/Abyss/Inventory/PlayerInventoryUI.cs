@@ -213,29 +213,64 @@ namespace Abyss.Inventory
             }
         }
 
-        private static EquipmentSlot GuessEquipSlot(ItemDefinition def)
+        private static EquipmentSlot GuessEquipSlot(ItemDefinition def, string itemId)
         {
-            if (def == null) return EquipmentSlot.None;
+            if (def != null)
+            {
+                try
+                {
+                    if (def.equipmentSlot != EquipmentSlot.None)
+                        return def.equipmentSlot;
+                }
+                catch { }
 
+                return EquipmentSlot.None;
+            }
+
+            if (string.IsNullOrWhiteSpace(itemId))
+                return EquipmentSlot.None;
+
+            // Rolled loot instance support
             try
             {
-                if (def.equipmentSlot != EquipmentSlot.None)
-                    return def.equipmentSlot;
+                var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                if (reg != null && reg.TryGetRolledInstance(itemId, out var inst) && inst != null)
+                {
+                    if (reg.TryGetItem(inst.baseItemId, out var baseItem) && baseItem != null)
+                        return baseItem.slot;
+                }
             }
             catch { }
 
             return EquipmentSlot.None;
         }
 
-        private bool CanEquipSelected(ItemDefinition def)
+        private bool CanEquipSelected(ItemDefinition def, string itemId)
         {
-            if (def == null)
+            if (def != null)
+            {
+                try
+                {
+                    if (def.equipmentSlot != EquipmentSlot.None)
+                        return true;
+                }
+                catch { }
+
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(itemId))
                 return false;
 
+            // Rolled loot instance support
             try
             {
-                if (def.equipmentSlot != EquipmentSlot.None)
-                    return true;
+                var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                if (reg != null && reg.TryGetRolledInstance(itemId, out var inst) && inst != null)
+                {
+                    if (reg.TryGetItem(inst.baseItemId, out var baseItem) && baseItem != null)
+                        return baseItem.slot != EquipmentSlot.None;
+                }
             }
             catch { }
 
@@ -264,10 +299,11 @@ namespace Abyss.Inventory
         private void TryEquipSelected()
         {
             EnsureEquipment();
+            EnsureInventory();
 
             var def = _selectedDef;
             var itemId = _selectedItemId;
-            var slot = GuessEquipSlot(def);
+            var slot = GuessEquipSlot(def, itemId);
 
             // TASK 1: single log line per attempt, exactly matching requested format.
             if (_equipment == null)
@@ -276,7 +312,7 @@ namespace Abyss.Inventory
                 return;
             }
 
-            if (def == null || string.IsNullOrWhiteSpace(itemId))
+            if (string.IsNullOrWhiteSpace(itemId))
             {
                 LogEquipAttempt(itemId, slot, success: false, reason: "No item selected");
                 return;
@@ -289,10 +325,19 @@ namespace Abyss.Inventory
                 return;
             }
 
-            // MVP: equip visually only (do NOT consume inventory yet).
-            bool ok = _equipment.TryEquip(def, out var message);
+            if (_inventory == null)
+            {
+                LogEquipAttempt(itemId, slot, success: false, reason: "No PlayerInventory");
+                return;
+            }
+
+            // Inventory-authoritative: consume 1 from inventory, equip, and return conflicts to inventory.
+            bool ok = _equipment.TryEquipFromInventory(_inventory, ResolveItemDefinition, itemId, out var message);
             string reason = string.IsNullOrWhiteSpace(message) ? (ok ? "OK" : "Failed") : message;
             LogEquipAttempt(itemId, slot, ok, reason);
+
+            if (ok)
+                RefreshAll();
         }
 
         public void Open()
@@ -1205,7 +1250,7 @@ namespace Abyss.Inventory
             if (_equipButton == null)
                 return;
 
-            bool canEquip = selectedDef != null && CanEquipSelected(selectedDef);
+            bool canEquip = CanEquipSelected(selectedDef, _selectedItemId);
 
             // UX: only show the button when it can actually do something.
             bool show = canEquip;
