@@ -106,6 +106,15 @@ namespace Abyssbound.Loot
             return _itemsById.TryGetValue(id, out item);
         }
 
+        public void RegisterOrUpdateItem(ItemDefinitionSO item)
+        {
+            if (item == null) return;
+            if (string.IsNullOrWhiteSpace(item.id)) return;
+
+            BuildIfNeeded();
+            _itemsById[item.id] = item;
+        }
+
         public bool TryGetRarity(string id, out RarityDefinitionSO rarity)
         {
             BuildIfNeeded();
