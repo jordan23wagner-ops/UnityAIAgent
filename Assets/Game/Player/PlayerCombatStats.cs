@@ -77,6 +77,13 @@ public sealed class PlayerCombatStats : MonoBehaviour
             AccumulateSlot(EquipmentSlot.LeftHand, seen, ref bonus);
         }
 
+        // Set bonuses (Loot V2) - data-driven tiers from ItemSetDefinitionSO.
+        try
+        {
+            Abyssbound.Loot.SetBonusRuntime.AccumulateActiveSetBonusesForDamage(ref bonus);
+        }
+        catch { }
+
         EquipmentDamageBonus = bonus;
         Debug.Log($"[STATS] Base={BaseDamage} EquipBonus={EquipmentDamageBonus} Final={DamageFinal}", this);
     }

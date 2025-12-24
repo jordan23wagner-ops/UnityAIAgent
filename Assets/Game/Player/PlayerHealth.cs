@@ -209,6 +209,13 @@ public class PlayerHealth : MonoBehaviour
             }
         }
 
+        // Set bonuses (Loot V2) - data-driven tiers from ItemSetDefinitionSO.
+        try
+        {
+            Abyssbound.Loot.SetBonusRuntime.AccumulateActiveSetBonusesForHealth(ref maxHpBonus, ref flatMitigation);
+        }
+        catch { }
+
         EquipmentMaxHealthBonus = maxHpBonus;
         EquipmentDamageReductionFlat = flatMitigation;
 

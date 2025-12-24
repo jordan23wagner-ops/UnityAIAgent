@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -9,6 +10,7 @@ public sealed class ItemTooltipUI : MonoBehaviour
 {
     [Header("Wiring")]
     [SerializeField] private RectTransform panel;
+    [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text subText;
     [SerializeField] private TMP_Text statsText;
@@ -31,6 +33,10 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
     private Canvas _canvas;
     private RectTransform _canvasRect;
+
+    private bool _capturedDefaultColors;
+    private Color _titleDefaultColor;
+    private Color _subDefaultColor;
 
     private bool _visible;
     private Object _currentOwner;
@@ -67,6 +73,18 @@ public sealed class ItemTooltipUI : MonoBehaviour
         // Disabled by default.
         if (panel != null && panel.gameObject.activeSelf)
             panel.gameObject.SetActive(false);
+
+        CaptureDefaultTextColorsIfNeeded();
+    }
+
+    private void CaptureDefaultTextColorsIfNeeded()
+    {
+        if (_capturedDefaultColors)
+            return;
+
+        _capturedDefaultColors = true;
+        try { _titleDefaultColor = titleText != null ? titleText.color : Color.white; } catch { _titleDefaultColor = Color.white; }
+        try { _subDefaultColor = subText != null ? subText.color : Color.white; } catch { _subDefaultColor = Color.white; }
     }
 
     private void LateUpdate()
@@ -97,11 +115,32 @@ public sealed class ItemTooltipUI : MonoBehaviour
     {
         _currentOwner = owner;
 
+        CaptureDefaultTextColorsIfNeeded();
+
         ApplyReadabilitySettings();
+
+        try
+        {
+            Sprite icon = null;
+            try { icon = def != null ? def.icon : null; } catch { icon = null; }
+            ApplyIcon(icon);
+        }
+        catch { }
 
         string name = ResolveName(def, fallbackItemId);
         if (titleText != null)
+        {
             titleText.text = name;
+            try
+            {
+                var r = def != null ? ItemRarityVisuals.Normalize(def.rarity) : Abyss.Items.ItemRarity.Common;
+                titleText.color = Abyssbound.Loot.RarityColorMap.GetColorOrDefault(r, _titleDefaultColor);
+            }
+            catch
+            {
+                titleText.color = _titleDefaultColor;
+            }
+        }
 
         if (subText != null)
         {
@@ -145,11 +184,32 @@ public sealed class ItemTooltipUI : MonoBehaviour
     {
         _currentOwner = owner;
 
+        CaptureDefaultTextColorsIfNeeded();
+
         ApplyReadabilitySettings();
+
+        try
+        {
+            Sprite icon = null;
+            try { icon = def != null ? def.icon : null; } catch { icon = null; }
+            ApplyIcon(icon);
+        }
+        catch { }
 
         string name = ResolveName(def, fallbackItemId);
         if (titleText != null)
+        {
             titleText.text = name;
+            try
+            {
+                var r = def != null ? ItemRarityVisuals.Normalize(def.rarity) : Abyss.Items.ItemRarity.Common;
+                titleText.color = Abyssbound.Loot.RarityColorMap.GetColorOrDefault(r, _titleDefaultColor);
+            }
+            catch
+            {
+                titleText.color = _titleDefaultColor;
+            }
+        }
 
         if (subText != null)
         {
@@ -166,19 +226,19 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
             if (!string.IsNullOrWhiteSpace(typeStr))
             {
-                if (s_Sb.Length > 0) s_Sb.Append("  ");
+                if (s_Sb.Length > 0) s_Sb.Append("  |  ");
                 s_Sb.Append(typeStr);
             }
 
             if (slot != EquipmentSlot.None)
             {
-                if (s_Sb.Length > 0) s_Sb.Append("  ");
+                if (s_Sb.Length > 0) s_Sb.Append("  |  ");
                 s_Sb.Append(slot);
             }
 
             if (isTwoHanded)
             {
-                if (s_Sb.Length > 0) s_Sb.Append("   ");
+                if (s_Sb.Length > 0) s_Sb.Append("  |  ");
                 s_Sb.Append("Two-Handed");
             }
 
@@ -202,6 +262,8 @@ public sealed class ItemTooltipUI : MonoBehaviour
         _currentOwner = owner;
         ApplyReadabilitySettings();
 
+        CaptureDefaultTextColorsIfNeeded();
+
         if (instance == null || registry == null)
         {
             Show(owner, null, "(Invalid Item)", 0, EquipmentSlot.None);
@@ -213,12 +275,29 @@ public sealed class ItemTooltipUI : MonoBehaviour
         try { registry.TryGetItem(instance.baseItemId, out baseItem); } catch { baseItem = null; }
         try { registry.TryGetRarity(instance.rarityId, out rarity); } catch { rarity = null; }
 
+        try
+        {
+            Sprite icon = baseItem != null ? baseItem.icon : null;
+            ApplyIcon(icon);
+        }
+        catch { }
+
         string title = baseItem != null
             ? (string.IsNullOrWhiteSpace(baseItem.displayName) ? baseItem.id : baseItem.displayName)
             : (string.IsNullOrWhiteSpace(instance.baseItemId) ? "(Unknown Item)" : instance.baseItemId);
 
         if (titleText != null)
+        {
             titleText.text = title;
+            try
+            {
+                titleText.color = Abyssbound.Loot.RarityColorMap.GetColorOrDefault(instance.rarityId, _titleDefaultColor);
+            }
+            catch
+            {
+                titleText.color = _titleDefaultColor;
+            }
+        }
 
         string rarityLine = rarity != null
             ? (string.IsNullOrWhiteSpace(rarity.displayName) ? rarity.id : rarity.displayName)
@@ -248,17 +327,22 @@ public sealed class ItemTooltipUI : MonoBehaviour
             s_Sb.Clear();
 
             if (!string.IsNullOrWhiteSpace(rarityLine))
-                s_Sb.Append(rarityLine);
+            {
+                // Only tint the rarity token; keep slot/extra text default for readability.
+                var rarityColor = Abyssbound.Loot.RarityColorMap.GetColorOrDefault(instance.rarityId, _subDefaultColor);
+                var hex = Abyssbound.Loot.RarityColorMap.ToHtmlRgb(rarityColor);
+                s_Sb.Append("<color=#").Append(hex).Append('>').Append(rarityLine).Append("</color>");
+            }
 
             if (!string.IsNullOrWhiteSpace(slot))
             {
-                if (s_Sb.Length > 0) s_Sb.Append("   ");
+                if (s_Sb.Length > 0) s_Sb.Append("  |  ");
                 s_Sb.Append(slot);
             }
 
             if (isTwoHanded)
             {
-                if (s_Sb.Length > 0) s_Sb.Append("   ");
+                if (s_Sb.Length > 0) s_Sb.Append("  |  ");
                 s_Sb.Append("Two-Handed");
             }
 
@@ -267,7 +351,84 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
         if (statsText != null)
         {
-            statsText.text = BuildLootStats(instance, registry);
+            string body = BuildLootStats(instance, registry);
+
+            // Always show item level for Loot V2 instances.
+            int ilvl = 1;
+            try { ilvl = (instance != null && instance.itemLevel > 0) ? instance.itemLevel : 1; } catch { ilvl = 1; }
+            string ilvlLine = $"iLvl: {ilvl}";
+            if (!string.IsNullOrWhiteSpace(body))
+                body = body + "\n" + ilvlLine;
+            else
+                body = ilvlLine;
+
+            // Set info + bonuses
+            try
+            {
+                var set = baseItem != null ? baseItem.set : null;
+                if (set != null)
+                {
+                    var tracker = Abyssbound.Loot.EquippedSetTracker.GetOrCreate();
+                    int equipped = tracker != null ? tracker.GetEquippedSetCount(set) : 0;
+                    int total = tracker != null ? tracker.GetTotalSetPieces(set) : (set.pieces != null ? set.pieces.Count : 0);
+
+                    string setName = string.IsNullOrWhiteSpace(set.displayName) ? set.setId : set.displayName;
+                    if (string.IsNullOrWhiteSpace(setName)) setName = set.name;
+
+                    if (!string.IsNullOrWhiteSpace(body))
+                        body += "\n\n";
+
+                    body += $"{setName} ({equipped}/{total})";
+
+                    if (set.pieces != null)
+                    {
+                        for (int i = 0; i < set.pieces.Count; i++)
+                        {
+                            var piece = set.pieces[i];
+                            if (piece == null) continue;
+
+                            string pieceName = !string.IsNullOrWhiteSpace(piece.displayName) ? piece.displayName : piece.id;
+                            if (string.IsNullOrWhiteSpace(pieceName)) pieceName = piece.name;
+
+                            bool isEquipped = tracker != null && tracker.IsBaseItemEquipped(piece.id);
+                            body += "\n" + (isEquipped ? "[X] " : "[ ] ") + pieceName;
+                        }
+                    }
+
+                    // Tier bonuses (Phase 2)
+                    if (set.bonuses != null && set.bonuses.Count > 0)
+                    {
+                        body += "\n\nSet Bonuses";
+
+                        // Display in ascending requiredPieces order.
+                        var tiers = set.bonuses;
+                        var ordered = new List<Abyssbound.Loot.ItemSetDefinitionSO.SetBonusTier>(tiers.Count);
+                        for (int i = 0; i < tiers.Count; i++) if (tiers[i] != null) ordered.Add(tiers[i]);
+                        ordered.Sort((a, b) => a.requiredPieces.CompareTo(b.requiredPieces));
+
+                        for (int i = 0; i < ordered.Count; i++)
+                        {
+                            var tier = ordered[i];
+                            int req = tier.requiredPieces;
+                            if (req <= 0) continue;
+
+                            bool active = equipped >= req;
+                            string status = active ? "ACTIVE" : "LOCKED";
+                            string desc = !string.IsNullOrWhiteSpace(tier.description)
+                                ? tier.description
+                                : Abyssbound.Loot.SetBonusRuntime.FormatMods(tier.modifiers);
+
+                            if (string.IsNullOrWhiteSpace(desc))
+                                desc = "(No bonus)";
+
+                            body += $"\n{status} {req}pc: {desc}";
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            statsText.text = body;
             statsText.gameObject.SetActive(!string.IsNullOrEmpty(statsText.text));
         }
 
@@ -287,6 +448,23 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
         if (panel != null)
             panel.gameObject.SetActive(false);
+
+        try { ApplyIcon(null); } catch { }
+    }
+
+    private void ApplyIcon(Sprite sprite)
+    {
+        if (iconImage == null)
+            return;
+
+        bool has = sprite != null;
+        iconImage.sprite = sprite;
+        iconImage.enabled = has;
+        if (iconImage.gameObject.activeSelf != has)
+            iconImage.gameObject.SetActive(has);
+        iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
+        iconImage.color = Color.white;
     }
 
     private static string ResolveName(ItemDefinition def, string fallbackItemId)
@@ -328,7 +506,7 @@ public sealed class ItemTooltipUI : MonoBehaviour
             try
             {
                 if (def.MaxHealthBonus != 0)
-                    s_Sb.Append("Health ").Append(def.MaxHealthBonus > 0 ? "+" : "").Append(def.MaxHealthBonus).Append('\n');
+                    s_Sb.Append("Max Health ").Append(def.MaxHealthBonus > 0 ? "+" : "").Append(def.MaxHealthBonus).Append('\n');
             }
             catch { }
         }
@@ -363,40 +541,36 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
         s_Sb.Clear();
 
-        var mods = instance.GetAllStatMods(registry);
-        if (mods == null || mods.Count == 0)
-            return string.Empty;
-
-        for (int i = 0; i < mods.Count; i++)
+        // Base stats first
+        if (!string.IsNullOrWhiteSpace(instance.baseItemId) && registry.TryGetItem(instance.baseItemId, out var baseItem) && baseItem != null)
         {
-            var m = mods[i];
-            string label = m.stat.ToString();
-            float v = m.value;
-
-            // Simple readable labels for common stats.
-            switch (m.stat)
+            try
             {
-                case Abyssbound.Loot.StatType.MeleeDamage: label = "Melee Damage"; break;
-                case Abyssbound.Loot.StatType.RangedDamage: label = "Ranged Damage"; break;
-                case Abyssbound.Loot.StatType.MagicDamage: label = "Magic Damage"; break;
-                case Abyssbound.Loot.StatType.MaxHealth: label = "Health"; break;
-                case Abyssbound.Loot.StatType.Defense: label = "Defense"; break;
-                case Abyssbound.Loot.StatType.AttackSpeed: label = "Attack Speed"; break;
-                case Abyssbound.Loot.StatType.MoveSpeed: label = "Move Speed"; break;
-                case Abyssbound.Loot.StatType.DefenseSkill: label = "Defense Skill"; break;
-                case Abyssbound.Loot.StatType.RangedSkill: label = "Ranged Skill"; break;
-                case Abyssbound.Loot.StatType.MagicSkill: label = "Magic Skill"; break;
-                case Abyssbound.Loot.StatType.MeleeSkill: label = "Melee Skill"; break;
+                if (baseItem.baseStats != null)
+                {
+                    float scalar = Mathf.Max(0f, instance.baseScalar);
+                    for (int i = 0; i < baseItem.baseStats.Count; i++)
+                    {
+                        var m = baseItem.baseStats[i];
+                        AppendStatLine(m.stat, m.value * scalar, m.percent);
+                    }
+                }
             }
+            catch { }
+        }
 
-            if (m.percent)
+        // Affixes second
+        if (instance.affixes != null && instance.affixes.Count > 0)
+        {
+            bool wroteBase = s_Sb.Length > 0;
+            if (wroteBase) s_Sb.Append('\n');
+
+            for (int i = 0; i < instance.affixes.Count; i++)
             {
-                // Stored only for now; display as percent.
-                s_Sb.Append(label).Append(' ').Append(v >= 0 ? "+" : "").Append(v.ToString("0.##")).Append('%').Append('\n');
-            }
-            else
-            {
-                s_Sb.Append(label).Append(' ').Append(v >= 0 ? "+" : "").Append(v.ToString("0.##")).Append('\n');
+                var roll = instance.affixes[i];
+                if (string.IsNullOrWhiteSpace(roll.affixId)) continue;
+                if (!registry.TryGetAffix(roll.affixId, out var affixDef) || affixDef == null) continue;
+                AppendStatLine(affixDef.stat, roll.value, affixDef.percent);
             }
         }
 
@@ -404,6 +578,31 @@ public sealed class ItemTooltipUI : MonoBehaviour
             s_Sb.Length -= 1;
 
         return s_Sb.ToString();
+    }
+
+    private static void AppendStatLine(Abyssbound.Loot.StatType stat, float value, bool percent)
+    {
+        string label = stat.ToString();
+
+        switch (stat)
+        {
+            case Abyssbound.Loot.StatType.MeleeDamage: label = "Melee Damage"; break;
+            case Abyssbound.Loot.StatType.RangedDamage: label = "Ranged Damage"; break;
+            case Abyssbound.Loot.StatType.MagicDamage: label = "Magic Damage"; break;
+            case Abyssbound.Loot.StatType.MaxHealth: label = "Max Health"; break;
+            case Abyssbound.Loot.StatType.Defense: label = "Defense"; break;
+            case Abyssbound.Loot.StatType.AttackSpeed: label = "Attack Speed"; break;
+            case Abyssbound.Loot.StatType.MoveSpeed: label = "Move Speed"; break;
+            case Abyssbound.Loot.StatType.DefenseSkill: label = "Defense Skill"; break;
+            case Abyssbound.Loot.StatType.RangedSkill: label = "Ranged Skill"; break;
+            case Abyssbound.Loot.StatType.MagicSkill: label = "Magic Skill"; break;
+            case Abyssbound.Loot.StatType.MeleeSkill: label = "Melee Skill"; break;
+        }
+
+        if (percent)
+            s_Sb.Append(label).Append(' ').Append(value >= 0 ? "+" : "").Append(value.ToString("0.##")).Append('%').Append('\n');
+        else
+            s_Sb.Append(label).Append(' ').Append(value >= 0 ? "+" : "").Append(value.ToString("0.##")).Append('\n');
     }
 
     private static string FormatSlotName(EquipmentSlot slot)
@@ -449,7 +648,7 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
     private void BuildRuntimeVisualTree()
     {
-        // Minimal layout: Panel(Image) -> (VerticalLayoutGroup) -> Title/Sub/Stats
+        // Minimal layout: Panel(Image) -> (VerticalLayoutGroup) -> (Icon optional) -> Title/Sub/Stats
         var rt = transform as RectTransform;
         if (rt == null)
             return;
@@ -487,6 +686,25 @@ public sealed class ItemTooltipUI : MonoBehaviour
         var le = gameObject.GetComponent<LayoutElement>();
         if (le == null) le = gameObject.AddComponent<LayoutElement>();
         le.preferredWidth = preferredMaxWidth > 0f ? preferredMaxWidth : -1f;
+
+        // Optional icon (only shown when an icon exists)
+        try
+        {
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(transform, worldPositionStays: false);
+            iconImage = iconGo.AddComponent<Image>();
+            iconImage.raycastTarget = false;
+            iconImage.preserveAspect = true;
+            iconImage.enabled = false;
+            iconGo.SetActive(false);
+
+            var iconLe = iconGo.AddComponent<LayoutElement>();
+            iconLe.preferredWidth = 48f;
+            iconLe.preferredHeight = 48f;
+            iconLe.minWidth = 48f;
+            iconLe.minHeight = 48f;
+        }
+        catch { iconImage = null; }
 
         titleText = CreateText("Title", fontSize: Mathf.RoundToInt(titleFontSize), bold: true);
         subText = CreateText("Sub", fontSize: Mathf.RoundToInt(subFontSize), bold: false);
