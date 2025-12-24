@@ -4,7 +4,7 @@ using UnityEditor.Callbacks;
 
 public static class PlaytestMerchantShopUIEditor
 {
-    [MenuItem("Tools/Playtest Merchant Shop UI (Selected)")]
+    [MenuItem("Tools/Abyssbound/QA/Playtest Merchant Shop UI (Selected)")]
     public static void PlaytestSelected()
     {
         var go = Selection.activeGameObject;
@@ -45,7 +45,7 @@ public static class PlaytestMerchantShopUIEditor
     {
         try
         {
-            Abyss.Shop.MerchantShopUI ui;
+            Abyss.Shop.MerchantShopUI ui = null;
 #if UNITY_2022_2_OR_NEWER
             ui = Object.FindFirstObjectByType<Abyss.Shop.MerchantShopUI>();
 #else
@@ -53,7 +53,7 @@ public static class PlaytestMerchantShopUIEditor
 #endif
             if (ui == null)
             {
-                Debug.LogWarning("No MerchantShopUI instance found in scene. Run Tools->Build Merchant Shop UI (Editor) first.");
+                Debug.LogWarning("No MerchantShopUI instance found in scene. Run Tools/Abyssbound/Content/UI/Build Merchant Shop UI (Editor) first.");
                 return;
             }
             ui.Open(shop, shop.MerchantName, 0);

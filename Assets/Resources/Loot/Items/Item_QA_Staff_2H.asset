@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
   id: QA_Staff_2H
   displayName: Staff
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 2e60dd0f847a4b6488bf4257deeeaf04, type: 3}
   slot: 7
   occupiesSlots: 0700000006000000
   baseStats:

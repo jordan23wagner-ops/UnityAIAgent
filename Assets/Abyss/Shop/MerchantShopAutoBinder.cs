@@ -146,6 +146,12 @@ namespace Abyss.Shop
         [MenuItem("Tools/Abyss/Fix Town Merchants (Add MerchantShop + Assign Inventories)")]
         private static void FixTownMerchantsEditor()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             int merchantsFound = 0;
             int shopsAdded = 0;
             int collidersAdded = 0;
@@ -217,8 +223,11 @@ namespace Abyss.Shop
                 }
             }
 
-            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-            EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            if (!Application.isPlaying)
+            {
+                EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+                EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            }
             AssetDatabase.SaveAssets();
 
             Debug.Log($"[FixTownMerchants] MerchantsFound={merchantsFound} ShopsAdded={shopsAdded} CollidersAdded={collidersAdded} InventoriesAssigned={inventoriesAssigned}");

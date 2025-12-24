@@ -55,6 +55,12 @@ namespace Abyss.Dev
             }
 
             Instance = this;
+
+            // Unity warns if DontDestroyOnLoad is called on a non-root object.
+            // DevCheats is safe to detach; it is a standalone QA helper.
+            if (transform.parent != null)
+                transform.SetParent(null, worldPositionStays: true);
+
             DontDestroyOnLoad(gameObject);
 
 #if UNITY_2022_2_OR_NEWER

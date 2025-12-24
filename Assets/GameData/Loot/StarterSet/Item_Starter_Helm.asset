@@ -10,16 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dc01b352bf6f52843b73129bd35d2e83, type: 3}
-  m_Name: Item_Test2H_TrainingLongbow
+  m_Name: Item_Starter_Helm
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
-  id: Test2H_TrainingLongbow
-  displayName: Training Longbow
-  icon: {fileID: 0}
-  slot: 7
-  occupiesSlots: 0700000006000000
+  id: Starter_Helm
+  displayName: Abyssal Initiate Helm
+  icon: {fileID: 21300000, guid: 00b1bba8465cdde478d45602a972fdb9, type: 3}
+  slot: 1
+  occupiesSlots: 
   baseStats:
-  - stat: 1
+  - stat: 3
     value: 1
     percent: 0
-  allowedAffixTags: 02000000
+  allowedAffixTags: 
+  set: {fileID: 11400000, guid: 4cc6f7fb824361a42ae5990a1057814d, type: 2}
   setId: 

@@ -8,12 +8,18 @@ namespace Abyss.EditorTools
 {
     public static class TownInteractionRestorer
     {
-        private const string MenuFix = "Tools/Abyss/Town/Fix Merchant Interactions (After Move)";
-        private const string MenuValidate = "Tools/Abyss/Town/Validate Merchant Interactions";
+        private const string MenuFix = "Tools/Abyssbound/Dev/Town/Fix Merchant Interactions (After Move)";
+        private const string MenuValidate = "Tools/Abyssbound/Dev/Town/Validate Merchant Interactions";
 
         [MenuItem(MenuFix)]
         public static void FixMerchantInteractions()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
@@ -133,7 +139,8 @@ namespace Abyss.EditorTools
                 }
             }
 
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
 
             Debug.Log(
                 $"[TownInteractionRestorer] Done. edgevilleRebuild={(fixedByEdgeville == 1)} shops={shops} " +
@@ -216,7 +223,7 @@ namespace Abyss.EditorTools
                 $"missingWorldRaycasters={(missingWorldRaycasters == 1)} " +
                 $"missingClickTarget={missingClickTarget} missingClickCollider={missingClickCollider} disabledClickCollider={disabledClickCollider} " +
                 $"missingHighlighter={missingHighlighter} ignoreRaycastLayerTargets={ignoreRaycastLayerTargets}\n" +
-                "If any are missing, run: Tools/Abyss/Town/Fix Merchant Interactions (After Move)"
+                "If any are missing, run: Tools/Abyssbound/Dev/Town/Fix Merchant Interactions (After Move)"
             );
         }
 

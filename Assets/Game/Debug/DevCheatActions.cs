@@ -2,6 +2,10 @@ using System;
 using System.Reflection;
 using UnityEngine;
 using Game.Systems;
+using Abyssbound.Loot;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Abyssbound.DebugTools
 {
@@ -15,11 +19,13 @@ namespace Abyssbound.DebugTools
 
             if (TryGrantInventoryItem(itemId, 1, out var details))
             {
-                Debug.Log("[DevCheats] Granted AbyssalSigil x1");
+                if (LootQaSettings.DebugLogsEnabled)
+                    Debug.Log("[DevCheats] Granted AbyssalSigil x1");
                 return;
             }
 
-            Debug.LogWarning($"[DevCheats] Could not grant AbyssalSigil. Tried: {details}");
+            if (LootQaSettings.DebugLogsEnabled)
+                Debug.LogWarning($"[DevCheats] Could not grant AbyssalSigil. Tried: {details}");
         }
 
         public static void AddTestSword()
@@ -28,11 +34,42 @@ namespace Abyssbound.DebugTools
 
             if (TryGrantInventoryItem(itemId, 1, out var details))
             {
-                Debug.Log("[DevCheats] Granted Test_Rare_Sword x1");
+                if (LootQaSettings.DebugLogsEnabled)
+                    Debug.Log("[DevCheats] Granted Test_Rare_Sword x1");
                 return;
             }
 
-            Debug.LogWarning($"[DevCheats] Could not grant Test_Rare_Sword. Tried: {details}");
+            if (LootQaSettings.DebugLogsEnabled)
+                Debug.LogWarning($"[DevCheats] Could not grant Test_Rare_Sword. Tried: {details}");
+        }
+
+        public static void SpawnSelectedItemMagicPlus()
+        {
+            int ilvl = LootQaSettings.ItemLevel;
+
+#if UNITY_EDITOR
+            var selected = LootQaSelectedItemSettingsSO.GetSelectedItemOrNull();
+            if (selected == null)
+            {
+                Debug.LogWarning("[DevCheats] F7 Magic+ spawn aborted: no QA selected item configured. Use Tools/Abyssbound/QA/Selected Item/Set Selected From Project Selection (or set a Default).");
+                return;
+            }
+
+            int spawned = LootQaSpawnHelper.SpawnSelectedItemForRarityIds(
+                selected,
+                LootQaSpawnHelper.MagicPlusRarityIds,
+                ilvl,
+                perItemLogs: true,
+                logPrefix: "[DevCheats]"
+            );
+
+            if (spawned <= 0)
+                Debug.LogWarning("[DevCheats] F7 Magic+ spawn aborted: selection is not a supported ItemDefinition asset.");
+#else
+            // In non-editor builds there is no Project selection; keep this cheat inert.
+            // (Use the Editor QA menu instead.)
+            _ = ilvl;
+#endif
         }
 
         private static PlayerInventory FindPlayerInventory()

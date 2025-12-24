@@ -10,11 +10,17 @@ namespace Abyss.EditorTools
 {
     public static class TownLegacyRootCleaner
     {
-        private const string MenuDeleteSelected = "Tools/Abyss/Town/Safely Delete Selected Root";
+        private const string MenuDeleteSelected = "Tools/Abyssbound/Dev/Town/Safely Delete Selected Root";
 
         [MenuItem(MenuDeleteSelected)]
         public static void SafelyDeleteSelectedRoot()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var root = Selection.activeGameObject;
             if (root == null)
             {
@@ -170,7 +176,8 @@ namespace Abyss.EditorTools
             }
 
             Undo.DestroyObjectImmediate(root);
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
             Debug.Log($"[TownLegacyRootCleaner] Deleted '{root.name}' via Undo.");
         }
 

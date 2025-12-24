@@ -24,6 +24,10 @@ public class DropOnDeathBinder : MonoBehaviour
         if (dropOnDeath == null)
             return;
 
+        // ZoneLootTable is authoritative when assigned; do not bind legacy DropTable.
+        if (dropOnDeath.zoneLootTable != null)
+            return;
+
         var loots = GetComponents<EnemyLoot>();
         EnemyLoot loot = null;
         if (loots != null)
@@ -32,6 +36,7 @@ public class DropOnDeathBinder : MonoBehaviour
             {
                 if (loots[i] != null && loots[i].DropTable != null)
                 {
+                    if (!loots[i].enabled) continue;
                     loot = loots[i];
                     break;
                 }
@@ -42,6 +47,9 @@ public class DropOnDeathBinder : MonoBehaviour
 
         if (loot == null)
             loot = GetComponentInParent<EnemyLoot>();
+
+        if (loot != null && !loot.enabled)
+            loot = null;
 
         if (loot == null)
             return;

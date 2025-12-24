@@ -14,7 +14,7 @@ namespace Abyssbound.EditorTools
         private const string SceneRootName = "__SCENE";
         private const string SystemsRootName = "_Systems";
 
-        private const string MenuBase = "Abyssbound/Tools/Organize Scene Hierarchy";
+            private const string MenuBase = "Tools/Abyssbound/Maintenance/Legacy/Organize Scene Hierarchy";
 
         [MenuItem(MenuBase)]
         public static void OrganizeDryRun()
@@ -30,9 +30,9 @@ namespace Abyssbound.EditorTools
 
         private static void Organize(bool apply)
         {
-            if (EditorApplication.isPlaying)
+            if (Application.isPlaying)
             {
-                Debug.LogWarning("[SceneOrganizer] Refusing to organize while in Play Mode.");
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
                 return;
             }
 
@@ -131,7 +131,8 @@ namespace Abyssbound.EditorTools
             }
 
             Undo.CollapseUndoOperations(group);
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
         }
 
         private static string GetZoneRootName(Scene scene)

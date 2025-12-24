@@ -125,7 +125,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5546506586676718003}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fc4673ae3d4080444956d7abcf64e816, type: 3}
   m_Name: 
@@ -145,9 +145,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 10
   currentHealth: 10
-  onDied:
+  OnDied:
     m_PersistentCalls:
       m_Calls: []
+  despawnDelaySeconds: 0.35
+  debugLogs: 0
 --- !u!114 &8766219910278094702
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -160,8 +162,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 41dcef74acb7aa2459f931869ca3576b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dropTable: {fileID: 11400000, guid: 1209e7a0f6b52ec4fb887b7caa7a1b74, type: 2}
+  dropTable: {fileID: 0}
+  zoneLootTable: {fileID: 11400000, guid: 1e8a14a5b0eca404489a4abc8b966589, type: 2}
   tier: 1
+  grantGold: 1
+  goldMin: 0
+  goldMax: 0
+  spawnWorldPickups: 0
+  pickupPrefab: {fileID: 0}
+  pickupScatterRadius: 0.35
+  affixPool: {fileID: 0}
+  affixRules: {fileID: 0}
   playerInventory: {fileID: 0}
   logNoDrop: 1
 --- !u!114 &8766219910278094703

@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,7 +13,7 @@ namespace Abyss.Items.Editor
         // New enum integer meanings:
         // 0 Common, 1 Uncommon, 2 Magic, 3 Rare, 4 Epic, 5 Legendary, 6 Set, 7 Radiant
 
-        [MenuItem("Tools/Abyss/Items/Migrate Item Rarities (Add Magic Tier)...")]
+        [MenuItem("Tools/Abyssbound/Maintenance/Items/Migrate Item Rarities (Add Magic Tier)...")]
         private static void MigrateItemRarities_AddMagicTier()
         {
             const string title = "Migrate Item Rarities";
@@ -55,9 +56,12 @@ namespace Abyss.Items.Editor
             if (changed > 0)
                 AssetDatabase.SaveAssets();
 
-            Debug.Log($"[ItemRarityMigration] Migrated {changed} ItemDefinition asset(s).", null);
-            foreach (var p in changedPaths)
-                Debug.Log($"[ItemRarityMigration] Updated: {p}");
+            const int maxList = 25;
+            string list = changedPaths.Count > 0
+                ? "\n" + string.Join("\n", changedPaths.Take(maxList).Select(p => "- " + p)) + (changedPaths.Count > maxList ? $"\n- ... ({changedPaths.Count - maxList} more)" : string.Empty)
+                : string.Empty;
+
+            Debug.Log($"[ItemRarityMigration] Migrated {changed} ItemDefinition asset(s)." + list, null);
 
             EditorUtility.DisplayDialog(title, $"Done. Migrated {changed} asset(s).\n\nSee Console for details.", "OK");
         }

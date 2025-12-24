@@ -270,7 +270,7 @@ namespace Abyss.Shop
                             if (!_warnedMissingRowIconOnce && captured.icon != null && !row.CanShowIcon)
                             {
                                 _warnedMissingRowIconOnce = true;
-                                Debug.LogWarning("[MerchantShopUI] Row prefab has no Icon Image reference; item icons will be hidden. Rebuild UI via Tools->Build Merchant Shop UI (Editor) or wire iconImage on MerchantShopRowUI.");
+                                Debug.LogWarning("[MerchantShopUI] Row prefab has no Icon Image reference; item icons will be hidden. Rebuild UI via Tools/Abyssbound/Content/UI/Build Merchant Shop UI (Editor) or wire iconImage on MerchantShopRowUI.");
                             }
 
                             if (firstRow == null)
@@ -472,7 +472,7 @@ namespace Abyss.Shop
             else if (!_warnedMissingDetailVisualsOnce && icon != null)
             {
                 _warnedMissingDetailVisualsOnce = true;
-                Debug.LogWarning("[MerchantShopUI] Details panel has no Icon Image reference; item icon will be hidden. Rebuild UI via Tools->Build Merchant Shop UI (Editor) or wire detailIconImage.");
+                Debug.LogWarning("[MerchantShopUI] Details panel has no Icon Image reference; item icon will be hidden. Rebuild UI via Tools/Abyssbound/Content/UI/Build Merchant Shop UI (Editor) or wire detailIconImage.");
             }
 
             if (detailRarityText != null)
@@ -482,7 +482,7 @@ namespace Abyss.Shop
             else if (!_warnedMissingDetailVisualsOnce)
             {
                 _warnedMissingDetailVisualsOnce = true;
-                Debug.LogWarning("[MerchantShopUI] Details panel has no Rarity Text reference; rarity label will be hidden. Rebuild UI via Tools->Build Merchant Shop UI (Editor) or wire detailRarityText.");
+                Debug.LogWarning("[MerchantShopUI] Details panel has no Rarity Text reference; rarity label will be hidden. Rebuild UI via Tools/Abyssbound/Content/UI/Build Merchant Shop UI (Editor) or wire detailRarityText.");
             }
         }
 

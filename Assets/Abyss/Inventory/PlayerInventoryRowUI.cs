@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 using Abyss.Items;
+using Abyssbound.Loot;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
 
@@ -48,6 +49,8 @@ namespace Abyss.Inventory
 
         private bool _hasItem;
         private int _boundCount;
+
+        private Color _rarityBorderRgb = Color.white;
 
         // [INV] Debug context (set by PlayerInventoryUI during RefreshList)
         private int _debugSlotIndex = -1;
@@ -209,6 +212,8 @@ namespace Abyss.Inventory
 
             if (nameText != null)
                 _baseNameColor = nameText.color;
+
+            _rarityBorderRgb = Color.white;
         }
 
         private void OnEnable()
@@ -325,6 +330,30 @@ namespace Abyss.Inventory
             }
             catch { }
 
+            // Default: keep the existing white border visuals.
+            _rarityBorderRgb = Color.white;
+            try
+            {
+                if (_hasItem)
+                {
+                    if (resolvedDef != null)
+                    {
+                        var c = RarityColorMap.GetColorOrDefault(rarity, Color.white);
+                        _rarityBorderRgb = new Color(c.r, c.g, c.b, 1f);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(fallbackItemId))
+                    {
+                        var reg = LootRegistryRuntime.GetOrCreate();
+                        if (reg != null && reg.TryGetRolledInstance(fallbackItemId, out var inst) && inst != null)
+                        {
+                            var c = RarityColorMap.GetColorOrDefault(inst.rarityId, Color.white);
+                            _rarityBorderRgb = new Color(c.r, c.g, c.b, 1f);
+                        }
+                    }
+                }
+            }
+            catch { _rarityBorderRgb = Color.white; }
+
             if (icon == null && resolvedDef == null && !string.IsNullOrWhiteSpace(fallbackItemId))
             {
                 try
@@ -382,6 +411,7 @@ namespace Abyss.Inventory
 
             _boundCount = 0;
             _hasItem = false;
+            _rarityBorderRgb = Color.white;
 
             // Clear tooltip binding for empty slots.
             try
@@ -639,7 +669,7 @@ namespace Abyss.Inventory
             }
 
             rarity = ItemRarityVisuals.Normalize(rarity);
-            var rarityColor = InventoryRarityColors.GetColor(rarity);
+            var rarityColor = RarityColorMap.GetColorOrDefault(rarity, Color.white);
 
             if (rarityStrip != null)
             {
@@ -1222,9 +1252,13 @@ namespace Abyss.Inventory
                     ConfigureRight(borderRight.rectTransform, thickness);
                 }
 
-                Color borderColor = GridBorderNormalColor;
-                if (isSelected) borderColor = GridSelectedBorderColor;
-                else if (isHovered) borderColor = GridHoverBorderColor;
+                float a = GridBorderNormalColor.a;
+                if (isSelected) a = GridSelectedBorderColor.a;
+                else if (isHovered) a = GridHoverBorderColor.a;
+
+                // Keep existing interaction alphas, but tint hue by rarity for occupied slots.
+                var rgb = isEmpty ? Color.white : _rarityBorderRgb;
+                Color borderColor = new Color(rgb.r, rgb.g, rgb.b, a);
 
                 if (borderTop != null) borderTop.color = borderColor;
                 if (borderBottom != null) borderBottom.color = borderColor;

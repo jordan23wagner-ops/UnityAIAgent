@@ -10,9 +10,15 @@ using System.Collections.Generic;
 
 public static class BuildMerchantShopUIEditor
 {
-    [MenuItem("Tools/Build Merchant Shop UI (Editor)")]
+    [MenuItem("Tools/Abyssbound/Content/UI/Build Merchant Shop UI (Editor)")]
     public static void BuildMerchantShopUI()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         EnsureEventSystemExists();
 
         // Best-effort upgrade: if a MerchantShopUI already exists in the active scene, wire/upgrade it in-place
@@ -576,7 +582,8 @@ public static class BuildMerchantShopUIEditor
         // Default the root to inactive
         root.SetActive(false);
 
-        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        if (!Application.isPlaying)
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         AssetDatabase.Refresh();
 
         Debug.Log("Built MerchantShop UI hierarchy and prefab.");

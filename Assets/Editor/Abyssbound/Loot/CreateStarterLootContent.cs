@@ -11,7 +11,7 @@ public static class CreateStarterLootContent
     private const string Root = "Assets/Resources/Loot";
     private const string BootstrapPath = "Assets/Resources/Loot/Bootstrap.asset";
 
-    [MenuItem("Tools/Abyssbound/Loot/Create Starter Loot Content")]
+    [MenuItem("Tools/Abyssbound/Content/Create Starter Loot Content")]
     public static void Create()
     {
         EnsureFolder("Assets/Resources");
@@ -94,7 +94,7 @@ public static class CreateStarterLootContent
             if (a != null && !string.IsNullOrWhiteSpace(a.id))
                 existingAffixIds.Add(a.id);
 
-        void AddAffix(string id, string name, StatType stat, float min, float max, int weight, params AffixTag[] tags)
+        void AddAffix(string id, string name, StatType stat, float min, float max, int weight, bool percent, List<AffixDefinitionSO.AffixTier> tiers, params AffixTag[] tags)
         {
             var path = $"{Root}/Affixes/Affix_{id}.asset";
             var so = CreateOrLoad<AffixDefinitionSO>(path);
@@ -104,7 +104,8 @@ public static class CreateStarterLootContent
             so.stat = stat;
             so.minRoll = min;
             so.maxRoll = max;
-            so.percent = false;
+            so.tiers = tiers ?? new List<AffixDefinitionSO.AffixTier>();
+            so.percent = percent;
             so.tags = new List<AffixTag>(tags);
             so.allowedSlots = new List<EquipmentSlot>();
             EditorUtility.SetDirty(so);
@@ -118,16 +119,28 @@ public static class CreateStarterLootContent
 
         // Recommended default weights (baseline 100):
         // Damage 100, Defense/MaxHealth 90, Skills 60, AttackSpeed 35, MoveSpeed 25.
-        AddAffix("Power","of Power",StatType.MeleeDamage,1,4,100,AffixTag.WeaponMelee);
-        AddAffix("Precision","of Precision",StatType.RangedDamage,1,4,100,AffixTag.WeaponRanged);
-        AddAffix("Sorcery","of Sorcery",StatType.MagicDamage,1,4,100,AffixTag.WeaponMagic);
-        AddAffix("Fortitude","of Fortitude",StatType.MaxHealth,5,20,90,AffixTag.Armor,AffixTag.Jewelry);
-        AddAffix("Bulwark","of Bulwark",StatType.Defense,1,4,90,AffixTag.Armor);
-        AddAffix("Swiftness","of Swiftness",StatType.MoveSpeed,0.1f,0.35f,25,AffixTag.Armor,AffixTag.Jewelry);
-        AddAffix("Fury","of Fury",StatType.AttackSpeed,0.1f,0.35f,35,AffixTag.WeaponMelee,AffixTag.WeaponRanged,AffixTag.WeaponMagic);
-        AddAffix("Strength","of Strength",StatType.Strength,1,3,60,AffixTag.Any);
-        AddAffix("AttackSkill","of the Duelist",StatType.Attack,1,3,60,AffixTag.WeaponMelee);
-        AddAffix("MagicSkill","of the Arcanist",StatType.MagicSkill,1,3,60,AffixTag.WeaponMagic);
+        // Tiering: 3 tiers (1-5, 6-12, 13-20) with modest early game scaling.
+        List<AffixDefinitionSO.AffixTier> T(float a1, float b1, float a2, float b2, float a3, float b3) => new()
+        {
+            new AffixDefinitionSO.AffixTier{ minItemLevel = 1, maxItemLevel = 5,  minRoll = a1, maxRoll = b1 },
+            new AffixDefinitionSO.AffixTier{ minItemLevel = 6, maxItemLevel = 12, minRoll = a2, maxRoll = b2 },
+            new AffixDefinitionSO.AffixTier{ minItemLevel = 13, maxItemLevel = 20, minRoll = a3, maxRoll = b3 },
+        };
+
+        AddAffix("Power","of Power",StatType.MeleeDamage,1,4,100,false, T(1,3, 2,5, 3,7), AffixTag.WeaponMelee);
+        AddAffix("Precision","of Precision",StatType.RangedDamage,1,4,100,false, T(1,3, 2,5, 3,7), AffixTag.WeaponRanged);
+        AddAffix("Sorcery","of Sorcery",StatType.MagicDamage,1,4,100,false, T(1,3, 2,5, 3,7), AffixTag.WeaponMagic);
+
+        AddAffix("Fortitude","of Fortitude",StatType.MaxHealth,5,20,90,false, T(5,10, 10,20, 18,35), AffixTag.Armor, AffixTag.Jewelry);
+        AddAffix("Bulwark","of Bulwark",StatType.Defense,1,4,90,false, T(1,2, 2,4, 3,6), AffixTag.Armor);
+
+        // Speed rolls are expressed as percent points (e.g., 2 means 2%).
+        AddAffix("Swiftness","of Swiftness",StatType.MoveSpeed,1,4,25,true, T(1,2, 2,3, 3,4), AffixTag.Armor, AffixTag.Jewelry);
+        AddAffix("Fury","of Fury",StatType.AttackSpeed,1,4,35,true, T(1,2, 2,3, 3,4), AffixTag.WeaponMelee, AffixTag.WeaponRanged, AffixTag.WeaponMagic);
+
+        AddAffix("Strength","of Strength",StatType.Strength,1,3,60,false, T(1,1, 1,2, 2,3), AffixTag.Any);
+        AddAffix("AttackSkill","of the Duelist",StatType.Attack,1,3,60,false, T(1,1, 1,2, 2,3), AffixTag.WeaponMelee);
+        AddAffix("MagicSkill","of the Arcanist",StatType.MagicSkill,1,3,60,false, T(1,1, 1,2, 2,3), AffixTag.WeaponMagic);
 
         EditorUtility.SetDirty(affixReg);
 

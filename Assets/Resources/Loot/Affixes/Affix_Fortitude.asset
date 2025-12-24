@@ -16,6 +16,20 @@ MonoBehaviour:
   displayName: of Fortitude
   tags: 0400000005000000
   allowedSlots: 
+  weight: 90
+  tiers:
+  - minItemLevel: 1
+    maxItemLevel: 5
+    minRoll: 5
+    maxRoll: 10
+  - minItemLevel: 6
+    maxItemLevel: 12
+    minRoll: 10
+    maxRoll: 20
+  - minItemLevel: 13
+    maxItemLevel: 20
+    minRoll: 18
+    maxRoll: 35
   stat: 4
   minRoll: 5
   maxRoll: 20

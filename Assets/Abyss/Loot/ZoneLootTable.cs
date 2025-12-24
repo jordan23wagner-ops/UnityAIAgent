@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Abyss.Items;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Abyss.Loot
 {
@@ -35,8 +36,8 @@ namespace Abyss.Loot
         public List<ItemDefinition> bossUniquesPool = new();
 
         [Header("Rarity Chances (per roll)")]
-        [Tooltip("Baseline odds for fodder enemies (see master plan).")]
-        public RarityChances fodderChances = new RarityChances
+        [Tooltip("Baseline odds for trash mobs (see master plan).")]
+        [FormerlySerializedAs("fodderChances")] public RarityChances trashChances = new RarityChances
         {
             common = 0.05f,
             uncommon = 0.03f,
@@ -88,14 +89,14 @@ namespace Abyss.Loot
         };
 
         [Header("Roll Counts")]
-        [Min(0)] public int zoneRollsFodder = 1;
+        [FormerlySerializedAs("zoneRollsFodder")] [Min(0)] public int zoneRollsTrash = 1;
         [Min(0)] public int zoneRollsNormal = 1;
         [Min(0)] public int zoneRollsElite = 1;
         [Min(0)] public int zoneRollsMiniBoss = 2;
 
         [Header("Materials Rolls (optional)")]
         public bool rollMaterials = true;
-        [Min(0)] public int materialsRollsFodder = 0;
+        [FormerlySerializedAs("materialsRollsFodder")] [Min(0)] public int materialsRollsTrash = 0;
         [Min(0)] public int materialsRollsNormal = 0;
         [Min(0)] public int materialsRollsElite = 1;
         [Min(0)] public int materialsRollsMiniBoss = 2;
@@ -123,7 +124,7 @@ namespace Abyss.Loot
         {
             return tier switch
             {
-                EnemyTier.Fodder => fodderChances,
+                EnemyTier.Trash => trashChances,
                 EnemyTier.Normal => normalChances,
                 EnemyTier.Elite => eliteChances,
                 EnemyTier.MiniBoss => miniBossChances,
@@ -135,7 +136,7 @@ namespace Abyss.Loot
         {
             return tier switch
             {
-                EnemyTier.Fodder => zoneRollsFodder,
+                EnemyTier.Trash => zoneRollsTrash,
                 EnemyTier.Normal => zoneRollsNormal,
                 EnemyTier.Elite => zoneRollsElite,
                 EnemyTier.MiniBoss => zoneRollsMiniBoss,
@@ -149,7 +150,7 @@ namespace Abyss.Loot
 
             return tier switch
             {
-                EnemyTier.Fodder => materialsRollsFodder,
+                EnemyTier.Trash => materialsRollsTrash,
                 EnemyTier.Normal => materialsRollsNormal,
                 EnemyTier.Elite => materialsRollsElite,
                 EnemyTier.MiniBoss => materialsRollsMiniBoss,

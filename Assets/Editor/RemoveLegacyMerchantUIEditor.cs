@@ -6,9 +6,15 @@ using UnityEditor.SceneManagement;
 
 public static class RemoveLegacyMerchantUIEditor
 {
-    [MenuItem("Tools/Remove Legacy Merchant UIs")] 
+    [MenuItem("Tools/Abyssbound/Legacy/Remove Legacy Merchant UIs")] 
     public static void RemoveLegacyMerchantUIs()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
         var roots = scene.GetRootGameObjects();
         var candidates = new List<GameObject>();
@@ -50,7 +56,8 @@ public static class RemoveLegacyMerchantUIEditor
 
         if (removed > 0)
         {
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
         }
 
         EditorUtility.DisplayDialog("Remove Legacy Merchant UIs", $"Removed {removed} objects.", "OK");

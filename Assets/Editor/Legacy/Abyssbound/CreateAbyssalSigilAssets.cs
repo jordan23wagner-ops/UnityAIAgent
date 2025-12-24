@@ -4,7 +4,7 @@ using Abyss.Legacy;
 
 public static class CreateAbyssalSigilAssets
 {
-    [MenuItem("Abyssbound/Loot/Create Abyssal Sigil Sample Assets", priority = 0)]
+    [MenuItem("Tools/Abyssbound/Content/Loot/Create Abyssal Sigil Sample Assets", priority = 0)]
     public static void Create()
     {
         EnsureFolder("Assets", "Game");

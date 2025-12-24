@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
   id: QA_Longbow_2H
   displayName: Longbow
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 61971f9d66813644fa921e08750bacef, type: 3}
   slot: 7
   occupiesSlots: 0700000006000000
   baseStats:

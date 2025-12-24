@@ -149,7 +149,7 @@ public class BossEncounterController : MonoBehaviour
     private static bool HasAnyOfType(DropTable table, ItemType type)
     {
         if (table == null) return false;
-        return HasAnyInList(table.fodderDrops, type) || HasAnyInList(table.normalDrops, type) || HasAnyInList(table.eliteDrops, type) || HasAnyInList(table.miniBossDrops, type);
+        return HasAnyInList(table.trashDrops, type) || HasAnyInList(table.normalDrops, type) || HasAnyInList(table.eliteDrops, type) || HasAnyInList(table.miniBossDrops, type);
     }
 
     private static bool HasAnyInList(System.Collections.Generic.List<DropEntry> list, ItemType type)
@@ -167,7 +167,7 @@ public class BossEncounterController : MonoBehaviour
     private static bool HasAnyRarityAtLeast(DropTable table, ItemRarity minRarity)
     {
         if (table == null) return false;
-        return HasAnyRarityInList(table.fodderDrops, minRarity) || HasAnyRarityInList(table.normalDrops, minRarity) || HasAnyRarityInList(table.eliteDrops, minRarity) || HasAnyRarityInList(table.miniBossDrops, minRarity);
+        return HasAnyRarityInList(table.trashDrops, minRarity) || HasAnyRarityInList(table.normalDrops, minRarity) || HasAnyRarityInList(table.eliteDrops, minRarity) || HasAnyRarityInList(table.miniBossDrops, minRarity);
     }
 
     private static bool HasAnyRarityInList(System.Collections.Generic.List<DropEntry> list, ItemRarity minRarity)

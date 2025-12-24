@@ -12,7 +12,7 @@ namespace Abyssbound.EditorTools
     {
         private const string Root = "Assets/Abyssbound";
 
-        [MenuItem("Abyssbound/Tools/Create Abyssbound Folder Structure")]
+            [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Create Abyssbound Folder Structure")]
         public static void CreateFolderStructure()
         {
             EnsureFolder(Root);
@@ -37,7 +37,7 @@ namespace Abyssbound.EditorTools
             Debug.Log("[ProjectStructureTools] Ensured folder structure under Assets/Abyssbound");
         }
 
-        [MenuItem("Abyssbound/Tools/Move Known Assets Into Structure (Safe)")]
+        [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Move Known Assets Into Structure (Safe)")]
         public static void MoveKnownAssetsSafe()
         {
             CreateFolderStructure();

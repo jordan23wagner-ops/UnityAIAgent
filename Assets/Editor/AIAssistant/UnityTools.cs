@@ -145,7 +145,7 @@ namespace AIAssistant
             EnsureChild(zone, "_ENCOUNTERS", mode, created);
             EnsureChild(zone, "_ACTORS", mode, created);
 
-            if (mode == ExecutionMode.Apply)
+            if (mode == ExecutionMode.Apply && !Application.isPlaying)
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
 
             AddLog(result, opName, created.Count > 0 ? $"Created: [{string.Join(", ", created)}]" : "No changes.");
@@ -523,7 +523,7 @@ namespace AIAssistant
                 }
             }
 
-            if (apply && anyChanged)
+            if (apply && anyChanged && !Application.isPlaying)
             {
                 var scene = EditorSceneManager.GetActiveScene();
                 if (scene.IsValid())
@@ -1403,7 +1403,7 @@ namespace AIAssistant
         {
             return new Dictionary<string, List<DropEntry>>
             {
-                {"Fodder", table != null ? table.fodderDrops : null},
+                {"Trash", table != null ? table.trashDrops : null},
                 {"Normal", table != null ? table.normalDrops : null},
                 {"Elite", table != null ? table.eliteDrops : null},
                 {"MiniBoss", table != null ? table.miniBossDrops : null}

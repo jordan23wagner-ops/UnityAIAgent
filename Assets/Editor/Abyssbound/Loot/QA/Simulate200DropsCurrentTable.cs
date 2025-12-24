@@ -12,12 +12,12 @@ public static class Simulate200DropsCurrentTable
     private const int RollCount = 200;
     private const string DefaultTableResourcesPath = "Loot/Tables/Zone1_Trash";
 
-    [MenuItem("Tools/Abyssbound/Loot/QA/Simulate 200 Drops (Current Table)")]
+    [MenuItem("Tools/Abyssbound/QA/Simulate 200 Drops (Loot V2 Current Table)")]
     public static void Simulate()
     {
         if (!Application.isPlaying)
         {
-            Debug.LogWarning("[Loot QA] Enter Play Mode, then run: Tools/Abyssbound/Loot/QA/Simulate 200 Drops (Current Table)");
+            Debug.LogWarning("[Loot QA] Enter Play Mode, then run: Tools/Abyssbound/QA/Simulate 200 Drops (Loot V2 Current Table)");
             return;
         }
 
@@ -37,9 +37,11 @@ public static class Simulate200DropsCurrentTable
         int withAttackSpeed = 0;
         int withMoveSpeed = 0;
 
+        int itemLevel = LootQaSettings.ItemLevel;
+
         for (int i = 0; i < RollCount; i++)
         {
-            var inst = LootRollerV2.RollItem(table, itemLevel: 1, seed: null);
+            var inst = LootRollerV2.RollItem(table, itemLevel: itemLevel, seed: null);
             if (inst == null) continue;
 
             var rarityId = string.IsNullOrWhiteSpace(inst.rarityId) ? "(None)" : inst.rarityId;
@@ -70,7 +72,7 @@ public static class Simulate200DropsCurrentTable
         }
 
         var sb = new StringBuilder(1024);
-        sb.AppendLine($"[Loot QA] Simulated {RollCount} drops from '{(string.IsNullOrWhiteSpace(table.id) ? table.name : table.id)}'");
+        sb.AppendLine($"[Loot QA] Simulated {RollCount} drops from '{(string.IsNullOrWhiteSpace(table.id) ? table.name : table.id)}' @ itemLevel {itemLevel}");
 
         sb.AppendLine("Rarity counts:");
         foreach (var kv in rarityCounts.OrderByDescending(k => k.Value))

@@ -8,9 +8,15 @@ using UnityEngine.SceneManagement;
 
 public static class CleanMerchantShopStockEditor
 {
-    [MenuItem("Tools/Abyss/Clean MerchantShop Minimal Stock")]
+    [MenuItem("Tools/Abyssbound/Dev/Shops/Clean MerchantShop Minimal Stock")]
     public static void CleanMinimalStock()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         int cleaned = 0;
         var touchedScenes = new HashSet<Scene>();
 
@@ -32,8 +38,11 @@ public static class CleanMerchantShopStockEditor
         foreach (var scene in touchedScenes)
         {
             if (!scene.IsValid() || !scene.isLoaded) continue;
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
+            if (!Application.isPlaying)
+            {
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+            }
         }
 
         AssetDatabase.SaveAssets();

@@ -9,7 +9,7 @@ namespace Abyss.Loot.Editor
 {
     public static class ZoneLootTableTools
     {
-        [MenuItem("Tools/Abyss/Loot/Create Zone1 Loot Table (from ItemDefinitions)...")]
+        [MenuItem("Tools/Abyssbound/Content/Create Zone1 Loot Table (from ItemDefinitions)...")]
         private static void CreateZone1LootTable()
         {
             string path = EditorUtility.SaveFilePanelInProject(
@@ -38,14 +38,14 @@ namespace Abyss.Loot.Editor
             table.materialsPool = all.Where(i => i.itemType == Abyss.Items.ItemType.Skilling || i.itemType == Abyss.Items.ItemType.Workshop).ToList();
             table.zonePool = all.Where(i => i.itemType != Abyss.Items.ItemType.Skilling && i.itemType != Abyss.Items.ItemType.Workshop).ToList();
 
-            // Safe defaults for Zone1: match master plan fodder odds already baked in.
-            table.zoneRollsFodder = 1;
+            // Safe defaults for Zone1: trash mobs roll once.
+            table.zoneRollsTrash = 1;
             table.zoneRollsNormal = 1;
             table.zoneRollsElite = 1;
             table.zoneRollsMiniBoss = 2;
 
             table.rollMaterials = true;
-            table.materialsRollsFodder = 0;
+            table.materialsRollsTrash = 0;
             table.materialsRollsNormal = 0;
             table.materialsRollsElite = 1;
             table.materialsRollsMiniBoss = 2;

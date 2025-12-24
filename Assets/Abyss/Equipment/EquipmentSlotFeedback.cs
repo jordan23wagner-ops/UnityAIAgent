@@ -27,6 +27,8 @@ namespace Abyss.Equipment
         private Color _hoverOutlineColor = new Color(1f, 1f, 1f, 0.65f);
         private Color _selectedOutlineColor = new Color(1f, 1f, 1f, 0.95f);
 
+        private Color _rarityOutlineRgb = Color.white;
+
         private float _iconAlphaEmpty = 0.30f;
         private float _iconAlphaEquipped = 1f;
 
@@ -38,6 +40,12 @@ namespace Abyss.Equipment
             labelText = targetLabel;
 
             CaptureBaseIfNeeded();
+            RenderState();
+        }
+
+        public void SetRarityOutlineRgb(Color rgb)
+        {
+            _rarityOutlineRgb = new Color(rgb.r, rgb.g, rgb.b, 1f);
             RenderState();
         }
 
@@ -121,20 +129,23 @@ namespace Abyss.Equipment
                 outline.useGraphicAlpha = false;
                 outline.enabled = true;
 
+                // Only tint borders when the slot is occupied.
+                var rgb = hasItem ? _rarityOutlineRgb : Color.white;
+
                 if (_selected)
                 {
                     outline.effectDistance = new Vector2(2f, -2f);
-                    outline.effectColor = _selectedOutlineColor;
+                    outline.effectColor = new Color(rgb.r, rgb.g, rgb.b, _selectedOutlineColor.a);
                 }
                 else if (_hovered)
                 {
                     outline.effectDistance = new Vector2(1f, -1f);
-                    outline.effectColor = _hoverOutlineColor;
+                    outline.effectColor = new Color(rgb.r, rgb.g, rgb.b, _hoverOutlineColor.a);
                 }
                 else
                 {
                     outline.effectDistance = new Vector2(1f, -1f);
-                    outline.effectColor = new Color(1f, 1f, 1f, 0.15f);
+                    outline.effectColor = new Color(rgb.r, rgb.g, rgb.b, 0.15f);
                 }
             }
 

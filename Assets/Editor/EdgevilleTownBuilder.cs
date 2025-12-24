@@ -16,14 +16,14 @@ namespace Abyss.EditorTools
 
         private static readonly Vector3 DefaultTownAnchor = new Vector3(-7f, 0f, -170f);
 
-        private const string MenuBuild = "Tools/Abyss/Town/Build Edgeville Hub (One Click)";
-        private const string MenuRebuild = "Tools/Abyss/Town/Rebuild Door Markers + ClickTargets (Safe)";
-        private const string MenuRemove = "Tools/Abyss/Town/Remove Edgeville Hub";
-        private const string MenuPrintMap = "Tools/Abyss/Town/Print Building ↔ Merchant Map";
-        private const string MenuSnapToDefault = "Tools/Abyss/Town/Snap Hub To Default Anchor (-7,0,-170)";
-        private const string MenuSetupWorkshopInteractables = "Tools/Abyss/Town/Workshop/Setup Skilling Interactables (Forge/Smith/Bonfire)";
-        private const string MenuTogglePeek = "Tools/Abyss/Town/Settings/Enable Highlights + Roof Peek";
-        private const string MenuPeekSelfTest = "Tools/Abyss/Town/Debug/Peek+Highlight Self Test";
+        private const string MenuBuild = "Tools/Abyssbound/Dev/Town/Build Edgeville Hub (One Click)";
+        private const string MenuRebuild = "Tools/Abyssbound/Dev/Town/Rebuild Door Markers + ClickTargets (Safe)";
+        private const string MenuRemove = "Tools/Abyssbound/Dev/Town/Remove Edgeville Hub";
+        private const string MenuPrintMap = "Tools/Abyssbound/Dev/Town/Print Building ↔ Merchant Map";
+        private const string MenuSnapToDefault = "Tools/Abyssbound/Dev/Town/Snap Hub To Default Anchor (-7,0,-170)";
+        private const string MenuSetupWorkshopInteractables = "Tools/Abyssbound/Dev/Town/Workshop/Setup Skilling Interactables (Forge/Smith/Bonfire)";
+        private const string MenuTogglePeek = "Tools/Abyssbound/Dev/Town/Settings/Enable Highlights + Roof Peek";
+        private const string MenuPeekSelfTest = "Tools/Abyssbound/Dev/Town/Debug/Peek+Highlight Self Test";
 
         private const string PrefPeekEnabled = "Abyss.EdgevilleTownBuilder.PeekEnabled";
 
@@ -89,6 +89,12 @@ namespace Abyss.EditorTools
         [MenuItem(MenuBuild)]
         public static void BuildEdgevilleHubOneClick()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
@@ -221,7 +227,8 @@ namespace Abyss.EditorTools
             _ = fencesParent;
             _ = decorParent;
 
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
             Selection.activeGameObject = root;
 
             summary.AppendLine($"- Town anchor: {anchor} (fixed)");
@@ -238,6 +245,12 @@ namespace Abyss.EditorTools
         [MenuItem(MenuRebuild)]
         public static void RebuildDoorsAndClickTargetsSafe()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
@@ -338,7 +351,8 @@ namespace Abyss.EditorTools
 
             AppendBuildingMerchantMap(summary);
 
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
             Selection.activeGameObject = root;
 
             if (LayerMask.NameToLayer("Interactable") < 0)
@@ -350,6 +364,12 @@ namespace Abyss.EditorTools
         [MenuItem(MenuSetupWorkshopInteractables)]
         public static void SetupWorkshopSkillingInteractablesMenu()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var root = FindInSceneByExactName(RootName);
             if (root == null)
             {
@@ -436,6 +456,12 @@ namespace Abyss.EditorTools
         [MenuItem(MenuSnapToDefault)]
         public static void SnapHubToDefaultAnchor()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
@@ -452,7 +478,8 @@ namespace Abyss.EditorTools
 
             Undo.RecordObject(root.transform, "Snap Edgeville hub to default anchor");
             root.transform.position = DefaultTownAnchor;
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
 
             // Recompute dependent markers so the interaction colliders stay correct.
             RebuildDoorsAndClickTargetsSafe();

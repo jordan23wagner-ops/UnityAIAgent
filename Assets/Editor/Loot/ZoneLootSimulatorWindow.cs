@@ -15,7 +15,7 @@ namespace Abyss.Loot.Editor
     public sealed class ZoneLootSimulatorWindow : EditorWindow
     {
         [SerializeField] private ZoneLootTable table;
-        [SerializeField] private EnemyTier tier = EnemyTier.Fodder;
+        [SerializeField] private EnemyTier tier = EnemyTier.Trash;
         [SerializeField] private bool applyBossOverrides;
         [SerializeField] private int iterations = 100000;
         [SerializeField] private int seed = 12345;
@@ -25,7 +25,7 @@ namespace Abyss.Loot.Editor
         private Vector2 _scroll;
         private string _report;
 
-        [MenuItem("Tools/Abyss/Loot/Simulate Zone Loot Rates...")]
+        [MenuItem("Tools/Abyssbound/QA/Simulate Zone Loot Rates (Window)...")]
         private static void Open()
         {
             var w = GetWindow<ZoneLootSimulatorWindow>("Zone Loot Simulator");

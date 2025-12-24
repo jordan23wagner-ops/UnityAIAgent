@@ -7,9 +7,15 @@ namespace Abyss.Dev.Editor
 {
     public static class DevCheatsSetup
     {
-        [MenuItem("Tools/Abyss/Dev/Create DevCheats In Scene")]
+        [MenuItem("Tools/Abyssbound/Dev/Create DevCheats In Scene")]
         private static void CreateDevCheatsInScene()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var existing = Object.FindFirstObjectByType<DevCheats>(FindObjectsInactive.Include);
             if (existing != null)
             {

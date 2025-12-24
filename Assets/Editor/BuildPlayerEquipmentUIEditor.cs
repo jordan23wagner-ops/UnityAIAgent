@@ -10,9 +10,15 @@ namespace Abyss.Equipment.EditorTools
     {
         private const string SilhouetteIconFolder = "Assets/Abyss/Equipment/Icons/";
 
-        [MenuItem("Tools/Build Player Equipment UI (Editor)")]
+        [MenuItem("Tools/Abyssbound/Content/UI/Build Player Equipment UI (Editor)")]
         public static void Build()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             DestroySceneObjectsByName("PlayerEquipmentUICanvas");
             DestroySceneObjectsByName("PlayerEquipmentUIRoot");
             DestroySceneObjectsByName("PlayerEquipmentUI");
@@ -245,7 +251,8 @@ namespace Abyss.Equipment.EditorTools
             // Default inactive
             root.SetActive(false);
 
-            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             Debug.Log($"[BuildPlayerEquipmentUIEditor] Built Player Equipment UI. connectorInset={inset:0.000} slotSize={slotSize:0.#}");
         }
 

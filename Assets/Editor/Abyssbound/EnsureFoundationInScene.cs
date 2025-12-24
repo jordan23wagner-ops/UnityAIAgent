@@ -10,9 +10,15 @@ namespace Abyssbound.EditorTools
         private const string DefaultBootstrapperName = "_GameBootstrapper";
         private const string DefaultPlayerPrefabPath = "Assets/Prefabs/Player/Player.prefab";
 
-        [MenuItem("Abyssbound/Foundation/Ensure Bootstrapper In Scene")]
+            [MenuItem("Tools/Abyssbound/Dev/Ensure Bootstrapper In Scene")]
         public static void EnsureBootstrapper()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var scene = EditorSceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
@@ -47,7 +53,8 @@ namespace Abyssbound.EditorTools
                 Debug.LogWarning($"[Foundation] Could not load Player prefab at '{DefaultPlayerPrefabPath}'. Bootstrapper will only bind to an existing scene Player.");
             }
 
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
             Selection.activeGameObject = existing;
             EditorGUIUtility.PingObject(existing);
         }

@@ -10,7 +10,7 @@ namespace Abyssbound.EditorTools
         private const string GateFolder = "Assets/Game/Gates";
         private const string GateAssetPath = "Assets/Game/Gates/Zone1BossGate.asset";
 
-        [MenuItem("Abyssbound/Gates/Create Zone1 Boss Gate Definition")]
+        [MenuItem("Tools/Abyssbound/Content/Gates/Create Zone1 Boss Gate Definition")]
         public static void CreateOrSelectZone1BossGateDefinition()
         {
             EnsureFolderExists("Assets/Game");

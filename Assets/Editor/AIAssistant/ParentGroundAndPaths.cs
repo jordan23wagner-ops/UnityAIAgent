@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class ParentGroundAndPaths : EditorWindow
 {
-    [MenuItem("Tools/Parent Ground and Paths")] 
+    [MenuItem("Tools/Abyssbound/Scene/Parent Ground and Paths")] 
     public static void ShowWindow()
     {
         GetWindow<ParentGroundAndPaths>("Parent Ground and Paths");
@@ -19,6 +19,12 @@ public class ParentGroundAndPaths : EditorWindow
 
     private void ParentObjects()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         var zone1Env = GameObject.Find("Zone1_Env");
         var zone1Paths = GameObject.Find("Zone1_Paths");
         if (zone1Env == null || zone1Paths == null)

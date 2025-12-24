@@ -7,7 +7,9 @@ namespace Abyssbound.Loot
 {
     public static class LootRollerV2
     {
-        public static ItemInstance RollItem(LootTableSO table, int itemLevel = 1, int? seed = null)
+        private const string Zone1PoolRoot = "Loot/AffixPools";
+
+        public static ItemInstance RollItem(LootTableSO table, int itemLevel = 1, int? seed = null, string itemLevelSource = null, bool logCreation = false)
         {
             if (table == null) return null;
 
@@ -26,9 +28,57 @@ namespace Abyssbound.Loot
 
             float scalar = RollRange(rarity.scalarMin, rarity.scalarMax, rng);
 
-            int minAff = Mathf.Max(0, rarity.affixMin);
-            int maxAff = Mathf.Max(minAff, rarity.affixMax);
-            int affixCount = RollIntRange(minAff, maxAff, rng);
+            int affixCount = GetDeterministicAffixCountOrFallback(rarity, rng);
+
+            var inst = new ItemInstance
+            {
+                baseItemId = baseItem.id,
+                rarityId = rarity.id,
+                itemLevel = Mathf.Max(1, itemLevel),
+                baseScalar = scalar,
+            };
+
+            if (logCreation)
+            {
+                var name = string.IsNullOrWhiteSpace(baseItem.displayName) ? baseItem.id : baseItem.displayName;
+                var src = string.IsNullOrWhiteSpace(itemLevelSource) ? "Default" : itemLevelSource;
+                Debug.Log($"[Loot] Created {name} ilvl={inst.itemLevel} source={src}");
+            }
+
+            if (affixCount <= 0)
+                return inst;
+
+            var pool = BuildEligibleAffixPool(baseItem, table, registry);
+            if (pool.Count == 0)
+                return inst;
+
+            var usedStats = new HashSet<StatType>();
+
+            for (int i = 0; i < affixCount; i++)
+            {
+                var affix = RollWeightedAffix(pool, usedStats, rng);
+                if (affix == null) break;
+                if (!usedStats.Add(affix.stat)) continue;
+
+                var (min, max) = GetTieredRollRange(affix, inst.itemLevel);
+                float value = RollRange(min, max, rng);
+                inst.affixes.Add(new AffixRoll { affixId = affix.id, value = value });
+            }
+
+            return inst;
+        }
+
+        public static ItemInstance RollItem(ItemDefinitionSO baseItem, RarityDefinitionSO rarity, int itemLevel = 1, int? seed = null)
+        {
+            if (baseItem == null || rarity == null) return null;
+
+            var rng = seed.HasValue ? new System.Random(seed.Value) : null;
+
+            var registry = LootRegistryRuntime.GetOrCreate();
+            registry.BuildIfNeeded();
+
+            float scalar = RollRange(rarity.scalarMin, rarity.scalarMax, rng);
+            int affixCount = GetDeterministicAffixCountOrFallback(rarity, rng);
 
             var inst = new ItemInstance
             {
@@ -41,20 +91,20 @@ namespace Abyssbound.Loot
             if (affixCount <= 0)
                 return inst;
 
-            var pool = BuildEligibleAffixPool(baseItem, table, registry);
+            // No table context here, so fall back to registry-wide affixes (still filtered by slot/tags).
+            var pool = BuildEligibleAffixPool(baseItem, table: null, registry);
             if (pool.Count == 0)
                 return inst;
 
-            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
+            var usedStats = new HashSet<StatType>();
             for (int i = 0; i < affixCount; i++)
             {
-                var affix = RollWeighted(pool, a => a, a => a != null ? Mathf.Max(0f, a.weight) : 0f, rng, used);
+                var affix = RollWeightedAffix(pool, usedStats, rng);
                 if (affix == null) break;
-                if (string.IsNullOrWhiteSpace(affix.id)) continue;
-                if (!used.Add(affix.id)) continue;
+                if (!usedStats.Add(affix.stat)) continue;
 
-                float value = RollRange(affix.minRoll, affix.maxRoll, rng);
+                var (min, max) = GetTieredRollRange(affix, inst.itemLevel);
+                float value = RollRange(min, max, rng);
                 inst.affixes.Add(new AffixRoll { affixId = affix.id, value = value });
             }
 
@@ -66,8 +116,14 @@ namespace Abyssbound.Loot
             var pool = new List<AffixDefinitionSO>(64);
 
             List<AffixDefinitionSO> source = null;
+
+            // Highest priority: explicit per-table override list.
             if (table != null && table.affixPoolOverride != null && table.affixPoolOverride.Count > 0)
                 source = table.affixPoolOverride;
+
+            // Next: zone pools (currently only Zone1).
+            if (source == null)
+                source = TryGetZoneAffixPool(baseItem, table);
 
             if (source != null)
             {
@@ -81,6 +137,93 @@ namespace Abyssbound.Loot
             }
 
             return pool;
+        }
+
+        private static List<AffixDefinitionSO> TryGetZoneAffixPool(ItemDefinitionSO baseItem, LootTableSO table)
+        {
+            if (baseItem == null || table == null) return null;
+
+            // Simple zone detection from table id/name.
+            string tableId = string.IsNullOrWhiteSpace(table.id) ? table.name : table.id;
+            if (string.IsNullOrWhiteSpace(tableId)) return null;
+
+            bool isZone1 = tableId.StartsWith("Zone1", StringComparison.OrdinalIgnoreCase);
+            if (!isZone1) return null;
+
+            string poolName = null;
+            var tags = baseItem.allowedAffixTags;
+
+            if (HasTag(tags, AffixTag.WeaponMelee)) poolName = "Zone1_WeaponAffixes_Melee";
+            else if (HasTag(tags, AffixTag.WeaponRanged)) poolName = "Zone1_WeaponAffixes_Ranged";
+            else if (HasTag(tags, AffixTag.WeaponMagic)) poolName = "Zone1_WeaponAffixes_Magic";
+            else if (HasTag(tags, AffixTag.Armor)) poolName = "Zone1_ArmorAffixes";
+            else if (HasTag(tags, AffixTag.Jewelry)) poolName = "Zone1_JewelryAffixes";
+
+            if (string.IsNullOrWhiteSpace(poolName)) return null;
+
+            AffixPoolSO pool = null;
+            try { pool = Resources.Load<AffixPoolSO>($"{Zone1PoolRoot}/{poolName}"); } catch { pool = null; }
+            if (pool == null || pool.affixes == null || pool.affixes.Count == 0) return null;
+            return pool.affixes;
+        }
+
+        private static bool HasTag(List<AffixTag> tags, AffixTag tag)
+        {
+            if (tags == null || tags.Count == 0) return false;
+            for (int i = 0; i < tags.Count; i++)
+                if (tags[i] == tag) return true;
+            return false;
+        }
+
+        private static int GetDeterministicAffixCountOrFallback(RarityDefinitionSO rarity, System.Random rng)
+        {
+            if (rarity == null) return 0;
+            string id = rarity.id ?? string.Empty;
+
+            // Deterministic mapping (no guessing):
+            // Common: 0, Uncommon: 0, Magic: 1, Rare: 2, Epic: 3, Legendary: 4
+            if (id.Equals("Common", StringComparison.OrdinalIgnoreCase)) return 0;
+            if (id.Equals("Uncommon", StringComparison.OrdinalIgnoreCase)) return 0;
+            if (id.Equals("Magic", StringComparison.OrdinalIgnoreCase)) return 1;
+            if (id.Equals("Rare", StringComparison.OrdinalIgnoreCase)) return 2;
+            if (id.Equals("Epic", StringComparison.OrdinalIgnoreCase)) return 3;
+            if (id.Equals("Legendary", StringComparison.OrdinalIgnoreCase)) return 4;
+
+            // For other rarities (Set/Unique/Mythic/Radiant placeholders), fall back to the existing authored values.
+            int minAff = Mathf.Max(0, rarity.affixMin);
+            int maxAff = Mathf.Max(minAff, rarity.affixMax);
+            return RollIntRange(minAff, maxAff, rng);
+        }
+
+        private static AffixDefinitionSO RollWeightedAffix(List<AffixDefinitionSO> pool, HashSet<StatType> usedStats, System.Random rng)
+        {
+            if (pool == null || pool.Count == 0) return null;
+
+            float total = 0f;
+            for (int i = 0; i < pool.Count; i++)
+            {
+                var a = pool[i];
+                if (a == null) continue;
+                if (a.weight <= 0) continue;
+                if (usedStats != null && usedStats.Contains(a.stat)) continue;
+                total += Mathf.Max(0f, a.weight);
+            }
+            if (total <= 0f) return null;
+
+            float r = Next01(rng) * total;
+            for (int i = 0; i < pool.Count; i++)
+            {
+                var a = pool[i];
+                if (a == null) continue;
+                if (a.weight <= 0) continue;
+                if (usedStats != null && usedStats.Contains(a.stat)) continue;
+
+                r -= Mathf.Max(0f, a.weight);
+                if (r <= 0f)
+                    return a;
+            }
+
+            return null;
         }
 
         private static void TryAddIfEligible(ItemDefinitionSO baseItem, AffixDefinitionSO affix, List<AffixDefinitionSO> pool)
@@ -138,6 +281,51 @@ namespace Abyssbound.Loot
             float min = Mathf.Min(a, b);
             float max = Mathf.Max(a, b);
             return Mathf.Lerp(min, max, Next01(rng));
+        }
+
+        private static (float min, float max) GetTieredRollRange(AffixDefinitionSO affix, int itemLevel)
+        {
+            if (affix == null)
+                return (0f, 0f);
+
+            int lvl = Mathf.Max(1, itemLevel);
+
+            if (affix.tiers == null || affix.tiers.Count == 0)
+                return (affix.minRoll, affix.maxRoll);
+
+            bool found = false;
+            AffixDefinitionSO.AffixTier best = default;
+            int bestWidth = int.MaxValue;
+
+            for (int i = 0; i < affix.tiers.Count; i++)
+            {
+                var t = affix.tiers[i];
+
+                int minLvl = Mathf.Max(1, t.minItemLevel);
+                int maxLvl = Mathf.Max(1, t.maxItemLevel);
+                if (maxLvl < minLvl)
+                {
+                    var tmp = minLvl;
+                    minLvl = maxLvl;
+                    maxLvl = tmp;
+                }
+
+                if (lvl < minLvl || lvl > maxLvl)
+                    continue;
+
+                int width = maxLvl - minLvl;
+                if (!found || width < bestWidth || (width == bestWidth && minLvl > best.minItemLevel))
+                {
+                    best = t;
+                    bestWidth = width;
+                    found = true;
+                }
+            }
+
+            if (!found)
+                return (affix.minRoll, affix.maxRoll);
+
+            return (best.minRoll, best.maxRoll);
         }
 
         private static int RollIntRange(int min, int max, System.Random rng)

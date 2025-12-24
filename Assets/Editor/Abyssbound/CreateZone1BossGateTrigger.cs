@@ -8,9 +8,15 @@ namespace Abyssbound.EditorTools
     {
         private const string GateAssetPath = "Assets/Game/Gates/Zone1BossGate.asset";
 
-        [MenuItem("Abyssbound/Gates/Create Zone1 Boss Gate Trigger (Scene)")]
+        [MenuItem("Tools/Abyssbound/Dev/Gates/Create Zone1 Boss Gate Trigger (Scene)")]
         public static void CreateTrigger()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var existing = GameObject.Find("Zone1_BossGate_Trigger");
             if (existing != null)
             {

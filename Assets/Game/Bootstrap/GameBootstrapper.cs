@@ -8,6 +8,7 @@ using UnityEngine.UI;
 using Game.Systems;
 
 using Abyssbound.DebugTools;
+using Abyssbound.Loot;
 
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -398,7 +399,8 @@ public class GameBootstrapper : MonoBehaviour
 
         if (!_devCheatsStartupLogged)
         {
-            Debug.Log("[DevCheats] Active: F6 Spawn Sigil, F7 Add Test Sword", cheats);
+            if (LootQaSettings.DebugLogsEnabled)
+                Debug.Log("[DevCheats] Active: F6 Spawn Sigil, F7 Spawn Selected Magic+ Items", cheats);
             _devCheatsStartupLogged = true;
         }
     }

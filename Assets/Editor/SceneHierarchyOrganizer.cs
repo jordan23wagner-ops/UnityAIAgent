@@ -10,8 +10,8 @@ namespace Abyss.EditorTools
 {
     public static class SceneHierarchyOrganizer
     {
-        private const string MenuPrint = "Tools/Abyss/Scene/Print Root Summary";
-        private const string MenuOrganize = "Tools/Abyss/Scene/Organize Hierarchy (Safe)";
+        private const string MenuPrint = "Tools/Abyssbound/Maintenance/Scene/Print Root Summary";
+        private const string MenuOrganize = "Tools/Abyssbound/Maintenance/Scene/Organize Hierarchy (Safe)";
 
         private const string RootName = "Scene_Root";
         private const string WorldRootName = "World";
@@ -52,6 +52,12 @@ namespace Abyss.EditorTools
         [MenuItem(MenuOrganize)]
         public static void OrganizeHierarchySafe()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
@@ -95,7 +101,8 @@ namespace Abyss.EditorTools
                 moved++;
             }
 
-            EditorSceneManager.MarkSceneDirty(scene);
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(scene);
             Debug.Log($"[SceneHierarchyOrganizer] Organized hierarchy. movedRoots={moved}");
         }
 

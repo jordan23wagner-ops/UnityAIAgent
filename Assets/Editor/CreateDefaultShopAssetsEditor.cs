@@ -14,9 +14,15 @@ using AbyssItemRarity = Abyss.Items.ItemRarity;
 
 public static class CreateDefaultShopAssetsEditor
 {
-    [MenuItem("Tools/Abyss/Create Default Shop Assets")]
+    [MenuItem("Tools/Abyssbound/Content/Shops/Create Default Shop Assets")]
     public static void CreateDefaults()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         EnsureFolder("Assets/Abyss/Items");
         EnsureFolder("Assets/Abyss/Items/Definitions");
         EnsureFolder("Assets/Abyss/Shops");
@@ -112,7 +118,8 @@ public static class CreateDefaultShopAssetsEditor
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        if (!Application.isPlaying)
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
         Debug.Log($"[CreateDefaultShopAssets] Completed. ShopsFound={shops.Length} Assigned={assigned}");
     }
@@ -179,6 +186,18 @@ public static class CreateDefaultShopAssetsEditor
 
         if (def.baseValue <= 0)
             def.baseValue = baseValue;
+
+        // Ensure the Training Bow shows a damage stat line in the legacy tooltip.
+        // Only fill when unset to avoid clobbering intentional tweaks.
+        if (string.Equals(id, "weapon_training_bow", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (def.DamageBonus == 0)
+                    def.DamageBonus = 2;
+            }
+            catch { }
+        }
 
         // The equip flow keys off equipmentSlot != None.
         if (equipSlot != EquipmentSlot.None && def.equipmentSlot == EquipmentSlot.None)

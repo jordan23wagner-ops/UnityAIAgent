@@ -7,17 +7,21 @@ using AbyssItemRarity = Abyss.Items.ItemRarity;
 
 public static class AssignTestRaritiesEditor
 {
-    [MenuItem("Abyss/Items/Assign Test Rarities (Non-destructive)")]
+    [MenuItem("Tools/Abyssbound/QA/Items/Assign Test Rarities (Non-destructive)")]
     public static void AssignTestRarities()
     {
         var guids = AssetDatabase.FindAssets("t:ItemDefinition");
         int changed = 0;
+        int scanned = 0;
+        const int maxList = 25;
+        var changedNames = new System.Collections.Generic.List<string>(maxList);
 
         foreach (var guid in guids)
         {
             var path = AssetDatabase.GUIDToAssetPath(guid);
             var def = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
             if (def == null) continue;
+            scanned++;
 
             var desired = TryGetDesiredRarity(def);
             if (!desired.HasValue) continue;
@@ -30,13 +34,15 @@ public static class AssignTestRaritiesEditor
             EditorUtility.SetDirty(def);
             changed++;
 
-            Debug.Log($"[AssignTestRarities] {def.name} (itemId='{def.itemId}', displayName='{def.displayName}') => {def.rarity}");
+            if (changedNames.Count < maxList)
+                changedNames.Add(def.name);
         }
 
         if (changed > 0)
             AssetDatabase.SaveAssets();
 
-        Debug.Log($"[AssignTestRarities] Updated {changed} ItemDefinition asset(s). (Bronze Sword/Common, Training Bow/Uncommon, Apprentice Staff/Rare)");
+        var details = changedNames.Count > 0 ? $" Changed (up to {maxList}): {string.Join(", ", changedNames)}" : string.Empty;
+        Debug.Log($"[AssignTestRarities] Scanned {scanned} ItemDefinition asset(s). Updated {changed}. (Bronze Sword/Common, Training Bow/Uncommon, Apprentice Staff/Rare){details}");
     }
 
     private static AbyssItemRarity? TryGetDesiredRarity(ItemDefinition def)

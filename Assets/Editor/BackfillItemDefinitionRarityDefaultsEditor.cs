@@ -4,7 +4,7 @@ using UnityEngine;
 
 public static class BackfillItemDefinitionRarityDefaultsEditor
 {
-    [MenuItem("Abyss/Items/Backfill ItemDefinition Rarity Defaults")]
+    [MenuItem("Tools/Abyssbound/Maintenance/Items/Backfill ItemDefinition Rarity Defaults")]
     public static void BackfillItemDefinitionRarityDefaults()
     {
         var guids = AssetDatabase.FindAssets("t:ItemDefinition");

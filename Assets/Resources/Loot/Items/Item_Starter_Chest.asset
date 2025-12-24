@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
   id: Starter_Chest
   displayName: Worn Chestpiece
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: ab37f3144a05c7642a8dbadf291c1596, type: 3}
   slot: 2
   occupiesSlots: 
   baseStats:

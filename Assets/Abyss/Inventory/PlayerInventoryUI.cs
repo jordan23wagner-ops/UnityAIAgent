@@ -1146,9 +1146,26 @@ namespace Abyss.Inventory
 
             EnsureInventory();
             int count = _inventory != null ? _inventory.Count(_selectedItemId) : _selectedCount;
+            string detailsId = _selectedItemId;
             var def = ResolveItemDefinition(_selectedItemId);
 
-            detailsUI.Set(def, _selectedItemId, count);
+            // Rolled loot instances (ri_...) use Loot V2 details (includes iLvl + set display).
+            if (!string.IsNullOrWhiteSpace(_selectedItemId) && _selectedItemId.StartsWith("ri_", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                    if (reg != null && reg.TryGetRolledInstance(_selectedItemId, out var inst) && inst != null)
+                    {
+                        detailsUI.SetLootInstance(inst, reg, count);
+                        RefreshEquipButtonState(null);
+                        return;
+                    }
+                }
+                catch { }
+            }
+
+            detailsUI.Set(def, detailsId, count);
             RefreshEquipButtonState(def);
         }
 

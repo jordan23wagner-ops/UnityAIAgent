@@ -19,5 +19,6 @@ MonoBehaviour:
   rarity: 1
   itemType: 0
   baseValue: 90
-  equipmentSlot: 0
-  weaponHandedness: 0
+  equipmentSlot: 7
+  weaponHandedness: 2
+  DamageBonus: 2

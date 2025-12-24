@@ -99,7 +99,7 @@ public class DropOnDeath : MonoBehaviour
 
         if (drops == null || drops.Count == 0)
         {
-            if (logNoDrop) Debug.Log($"[DropOnDeath] No drops for '{name}' (tier: {tier}).");
+            if (logNoDrop) Debug.Log($"[DropOnDeath] No drops for '{name}' (tier: {tier.ToDisplayString()}).");
             return;
         }
 
@@ -109,7 +109,7 @@ public class DropOnDeath : MonoBehaviour
             playerInventory.Add(item.itemId, 1);
         }
 
-        Debug.Log($"[DropOnDeath] '{name}' dropped {drops.Count} item(s) (tier: {tier}).");
+        Debug.Log($"[DropOnDeath] '{name}' dropped {drops.Count} item(s) (tier: {tier.ToDisplayString()}).");
     }
 
     private void TryGrantGold()
@@ -133,7 +133,7 @@ public class DropOnDeath : MonoBehaviour
     {
         if (drops == null || drops.Count == 0)
         {
-            if (logNoDrop) Debug.Log($"[DropOnDeath] No drops for '{name}' (tier: {tier}).");
+            if (logNoDrop) Debug.Log($"[DropOnDeath] No drops for '{name}' (tier: {tier.ToDisplayString()}).");
             return;
         }
 
@@ -146,16 +146,16 @@ public class DropOnDeath : MonoBehaviour
         }
 
         if (granted > 0)
-            Debug.Log($"[DropOnDeath] '{name}' dropped {granted} item(s) (tier: {tier}).");
+            Debug.Log($"[DropOnDeath] '{name}' dropped {granted} item(s) (tier: {tier.ToDisplayString()}).");
         else if (logNoDrop)
-            Debug.Log($"[DropOnDeath] No valid drops for '{name}' (tier: {tier}).");
+            Debug.Log($"[DropOnDeath] No valid drops for '{name}' (tier: {tier.ToDisplayString()}).");
     }
 
     private void SpawnPickups(System.Collections.Generic.List<Abyss.Items.ItemDefinition> drops)
     {
         if (drops == null || drops.Count == 0)
         {
-            if (logNoDrop) Debug.Log($"[DropOnDeath] No drops for '{name}' (tier: {tier}).");
+            if (logNoDrop) Debug.Log($"[DropOnDeath] No drops for '{name}' (tier: {tier.ToDisplayString()}).");
             return;
         }
 
@@ -200,8 +200,8 @@ public class DropOnDeath : MonoBehaviour
         }
 
         if (spawned > 0)
-            Debug.Log($"[DropOnDeath] '{name}' spawned {spawned} pickup(s) (tier: {tier}).");
+            Debug.Log($"[DropOnDeath] '{name}' spawned {spawned} pickup(s) (tier: {tier.ToDisplayString()}).");
         else if (logNoDrop)
-            Debug.Log($"[DropOnDeath] No valid drops for '{name}' (tier: {tier}).");
+            Debug.Log($"[DropOnDeath] No valid drops for '{name}' (tier: {tier.ToDisplayString()}).");
     }
 }

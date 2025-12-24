@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dc01b352bf6f52843b73129bd35d2e83, type: 3}
-  m_Name: Item_Test2H_TrainingGreatsword
+  m_Name: Item_Test2H_TrainingLongbow
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
-  id: Test2H_TrainingGreatsword
-  displayName: Training Greatsword
-  icon: {fileID: 0}
+  id: Test2H_TrainingLongbow
+  displayName: Training Longbow
+  icon: {fileID: 21300000, guid: 61971f9d66813644fa921e08750bacef, type: 3}
   slot: 7
   occupiesSlots: 0700000006000000
   baseStats:
-  - stat: 0
+  - stat: 1
     value: 1
     percent: 0
-  allowedAffixTags: 01000000
+  allowedAffixTags: 02000000
   setId: 

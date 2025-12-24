@@ -7,7 +7,7 @@ public static class Zone1BossGateTools
 {
     private const string DefaultGateAssetPath = "Assets/Game/Gates/Zone1BossGate.asset";
 
-    [MenuItem("Tools/Gates/Create Zone1 Boss Gate Definition")]
+    [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Definition (Legacy)")]
     public static void CreateZone1BossGateDefinition()
     {
         EnsureFolder("Assets/Game");
@@ -41,9 +41,15 @@ public static class Zone1BossGateTools
         Debug.Log($"[Zone1BossGateTools] Created GateDefinition at {DefaultGateAssetPath}");
     }
 
-    [MenuItem("Tools/Gates/Create Zone1 Boss Gate Placeholder (Scene)")]
+    [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Placeholder (Scene) (Legacy)")]
     public static void CreateZone1BossGatePlaceholder()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         var existing = GameObject.Find("Zone1_BossGate");
         if (existing != null)
         {

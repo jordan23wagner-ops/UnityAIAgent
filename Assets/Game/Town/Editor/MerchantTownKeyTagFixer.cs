@@ -5,9 +5,15 @@ using Game.Town;
 // Editor utility: Fixes missing TownKeyTag on all merchant GameObjects in the current scene and their prefabs.
 public static class MerchantTownKeyTagFixer
 {
-    [MenuItem("Tools/Fix Merchant TownKeyTags in Scene")]
+    [MenuItem("Tools/Abyssbound/Scene/Fix Merchant TownKeyTags in Scene")]
     public static void FixAllMerchantTownKeyTags()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         int fixedCount = 0;
         foreach (var go in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
         {

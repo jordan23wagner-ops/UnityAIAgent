@@ -9,8 +9,8 @@ using UnityEngine.UI;
 
 public static class InventoryUiDoctor
 {
-    private const string DiagnoseMenuPath = "Tools/Abyss/Inventory UI/Diagnose (Play Mode)";
-    private const string AutoFixMenuPath = "Tools/Abyss/Inventory UI/Auto-Fix (Play Mode)";
+    private const string DiagnoseMenuPath = "Tools/Abyssbound/QA/Inventory UI/Diagnose (Play Mode)";
+    private const string AutoFixMenuPath = "Tools/Abyssbound/QA/Inventory UI/Auto-Fix (Play Mode)";
 
     [MenuItem(DiagnoseMenuPath)]
     private static void DiagnoseMenu()

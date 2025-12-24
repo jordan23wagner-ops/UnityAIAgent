@@ -10,9 +10,15 @@ namespace Abyss.Inventory.EditorTools
 {
     public static class BuildPlayerInventoryUIEditor
     {
-        [MenuItem("Tools/Build Player Inventory UI (Editor)")]
+            [MenuItem("Tools/Abyssbound/Content/UI/Build Player Inventory UI (Editor)")]
         public static void Build()
         {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+                return;
+            }
+
             if (TryUpgradeExisting(out var upgradeSummary))
             {
                 Debug.Log(upgradeSummary);
@@ -237,7 +243,8 @@ namespace Abyss.Inventory.EditorTools
             // Default inactive
             root.SetActive(false);
 
-            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             Debug.Log("[BuildPlayerInventoryUIEditor] Built Player Inventory UI.");
         }
 
@@ -422,7 +429,8 @@ namespace Abyss.Inventory.EditorTools
             }
 
             EditorUtility.SetDirty(ui);
-            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            if (!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             return true;
         }
 

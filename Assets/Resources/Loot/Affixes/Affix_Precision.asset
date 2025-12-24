@@ -16,6 +16,20 @@ MonoBehaviour:
   displayName: of Precision
   tags: 02000000
   allowedSlots: 
+  weight: 100
+  tiers:
+  - minItemLevel: 1
+    maxItemLevel: 5
+    minRoll: 1
+    maxRoll: 3
+  - minItemLevel: 6
+    maxItemLevel: 12
+    minRoll: 2
+    maxRoll: 5
+  - minItemLevel: 13
+    maxItemLevel: 20
+    minRoll: 3
+    maxRoll: 7
   stat: 1
   minRoll: 1
   maxRoll: 4

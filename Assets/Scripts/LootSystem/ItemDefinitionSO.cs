@@ -25,6 +25,9 @@ namespace Abyssbound.Loot
         public List<AffixTag> allowedAffixTags = new();
 
         [Header("Set (optional)")]
+        public ItemSetDefinitionSO set;
+
+        // Back-compat for older data / tools. Prefer using the 'set' reference.
         public string setId;
 
         public override string ToString()

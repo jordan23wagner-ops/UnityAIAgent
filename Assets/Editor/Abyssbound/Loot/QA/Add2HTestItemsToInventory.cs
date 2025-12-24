@@ -14,7 +14,7 @@ public static class Add2HTestItemsToInventory
     private const string LongbowId = "Test2H_TrainingLongbow";
     private const string StaffId = "Test2H_TrainingStaff";
 
-    [MenuItem("Tools/Abyssbound/Loot/QA/Add 2H Test Items To Inventory")]
+    [MenuItem("Tools/Abyssbound/QA/Add 2H Test Items To Inventory")]
     public static void AddToInventory()
     {
         if (!EnsureAssetsAndRegistries(out var baseItems, out var error))
@@ -26,7 +26,7 @@ public static class Add2HTestItemsToInventory
 
         if (!Application.isPlaying)
         {
-            Debug.LogWarning("[Loot QA] Enter Play Mode, then run: Tools/Abyssbound/Loot/QA/Add 2H Test Items To Inventory");
+            Debug.LogWarning("[Loot QA] Enter Play Mode, then run: Tools/Abyssbound/QA/Add 2H Test Items To Inventory");
             return;
         }
 

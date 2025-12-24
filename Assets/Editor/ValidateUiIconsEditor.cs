@@ -253,6 +253,12 @@ public static class ValidateUiIconsEditor
     [MenuItem("Tools/UI/Validate Equipment UI Wiring")]
     public static void ValidateEquipmentUiWiring()
     {
+        if (Application.isPlaying)
+        {
+            Debug.LogWarning("Run this in Edit Mode (not Play Mode).");
+            return;
+        }
+
         var results = new List<string>(128);
         int pass = 0;
         int fail = 0;
@@ -426,7 +432,10 @@ public static class ValidateUiIconsEditor
                     so.ApplyModifiedPropertiesWithoutUndo();
                     EditorUtility.SetDirty(ui);
                     if (ui.gameObject != null && ui.gameObject.scene.IsValid())
-                        EditorSceneManager.MarkSceneDirty(ui.gameObject.scene);
+                    {
+                        if (!Application.isPlaying)
+                            EditorSceneManager.MarkSceneDirty(ui.gameObject.scene);
+                    }
                 }
                 catch { }
             }

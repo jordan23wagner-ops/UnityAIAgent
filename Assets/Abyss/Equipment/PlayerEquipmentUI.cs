@@ -6,6 +6,7 @@ using Game.Systems;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Abyssbound.Loot;
 
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -208,8 +209,34 @@ namespace Abyss.Equipment
 
                 if (w.rarityStrip != null)
                 {
-                    bool showStrip = hasItem && def != null;
-                    var c = showStrip ? InventoryRarityColors.GetColor(def.rarity) : Color.white;
+                    bool showStrip = false;
+                    var c = Color.white;
+
+                    if (hasItem)
+                    {
+                        if (def != null)
+                        {
+                            showStrip = true;
+                            var normalized = ItemRarityVisuals.Normalize(def.rarity);
+                            var rc = RarityColorMap.GetColorOrDefault(normalized, Color.white);
+                            c = new Color(rc.r, rc.g, rc.b, 1f);
+                        }
+                        else
+                        {
+                            // Rolled Loot V2 item: color strip by rolled rarity id.
+                            try
+                            {
+                                var reg = LootRegistryRuntime.GetOrCreate();
+                                if (reg != null && reg.TryGetRolledInstance(itemId, out var inst) && inst != null)
+                                {
+                                    showStrip = true;
+                                    var rc = RarityColorMap.GetColorOrDefault(inst.rarityId, Color.white);
+                                    c = new Color(rc.r, rc.g, rc.b, 1f);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
 
                     w.rarityStrip.enabled = showStrip;
                     w.rarityStrip.color = showStrip
@@ -238,6 +265,38 @@ namespace Abyss.Equipment
                 w.button.interactable = true;
 
                 EnsureSlotFeedback(w);
+
+                // Rarity-colored slot borders (outline) for both legacy and rolled loot items.
+                try
+                {
+                    var feedback = w.button.GetComponent<EquipmentSlotFeedback>();
+                    if (feedback != null)
+                    {
+                        var rgb = Color.white;
+
+                        if (hasItem)
+                        {
+                            if (def != null)
+                            {
+                                var normalized = ItemRarityVisuals.Normalize(def.rarity);
+                                var c = RarityColorMap.GetColorOrDefault(normalized, Color.white);
+                                rgb = new Color(c.r, c.g, c.b, 1f);
+                            }
+                            else
+                            {
+                                var reg = LootRegistryRuntime.GetOrCreate();
+                                if (reg != null && reg.TryGetRolledInstance(itemId, out var inst) && inst != null)
+                                {
+                                    var c = RarityColorMap.GetColorOrDefault(inst.rarityId, Color.white);
+                                    rgb = new Color(c.r, c.g, c.b, 1f);
+                                }
+                            }
+                        }
+
+                        feedback.SetRarityOutlineRgb(rgb);
+                    }
+                }
+                catch { }
             }
         }
 
