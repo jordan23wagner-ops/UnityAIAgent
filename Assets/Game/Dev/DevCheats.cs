@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using Abyss.Loot;
+using Abyssbound.Loot;
 using Game.Input;
 using UnityEngine;
 
@@ -21,6 +23,16 @@ namespace Abyss.Dev
         public KeyCode spawnEnemyKey = KeyCode.F2;
         public KeyCode killSpawnedKey = KeyCode.F3;
         public KeyCode selfDamageKey = KeyCode.F4;
+
+        [Header("Spawn (Tier Hotkeys)")]
+        public KeyCode spawnTrashKey = KeyCode.F8;
+        public KeyCode spawnEliteKey = KeyCode.F9;
+        public KeyCode spawnBossKey = KeyCode.F10;
+
+        [Header("Spawn (Tier HP)")]
+        [Min(1)] public int qaTrashHp = 50;
+        [Min(1)] public int qaEliteHp = 125;
+        [Min(1)] public int qaBossHp = 700;
 
         [Header("Spawning")]
         public List<GameObject> enemyPrefabs = new();
@@ -55,6 +67,10 @@ namespace Abyss.Dev
             }
 
             Instance = this;
+
+            // Ensure the lightweight TTK tracker exists for QA.
+            if (GetComponent<TtkQaTracker>() == null)
+                gameObject.AddComponent<TtkQaTracker>();
 
             // Unity warns if DontDestroyOnLoad is called on a non-root object.
             // DevCheats is safe to detach; it is a standalone QA helper.
@@ -94,7 +110,79 @@ namespace Abyss.Dev
 
             if (Input.GetKeyDown(selfDamageKey))
                 SelfDamage(10);
+
+            if (Input.GetKeyDown(spawnTrashKey))
+                SpawnEnemyWithLootV2("Loot/Tables/Zone1_Trash", "QA_Trash");
+
+            if (Input.GetKeyDown(spawnEliteKey))
+                SpawnEnemyWithLootV2("Loot/Tables/Zone1_Elite", "QA_Elite");
+
+            if (Input.GetKeyDown(spawnBossKey))
+                SpawnEnemyWithLootV2("Loot/Tables/Zone1_Boss", "QA_Boss");
 #endif
+        }
+
+        private void SpawnEnemyWithLootV2(string lootTableResourcesPath, string namePrefix)
+        {
+            if (enemyPrefabs == null || enemyPrefabs.Count == 0)
+            {
+                Debug.LogWarning("[DevCheats] No enemyPrefabs configured.");
+                return;
+            }
+
+            var prefab = enemyPrefabs[0];
+            if (prefab == null)
+            {
+                Debug.LogWarning("[DevCheats] enemyPrefabs[0] is null.");
+                return;
+            }
+
+            LootTableSO table = null;
+            try { table = Resources.Load<LootTableSO>(lootTableResourcesPath); } catch { table = null; }
+
+            Transform anchor = FindAnchor();
+            Vector3 basePos = anchor != null ? anchor.position : Vector3.zero;
+            Vector3 forward = anchor != null ? anchor.forward : Vector3.forward;
+            Vector3 pos = basePos + forward.normalized * Mathf.Max(0.5f, spawnDistance);
+
+            var go = Instantiate(prefab, pos, Quaternion.identity);
+            go.name = namePrefix;
+
+            // Force Loot V2 table for QA and prevent double-drops.
+            try
+            {
+                var legacy = go.GetComponentInChildren<DropOnDeath>();
+                if (legacy != null) legacy.enabled = false;
+            }
+            catch { }
+
+            try
+            {
+                var lod = go.GetComponentInChildren<LootDropOnDeath>();
+                if (lod == null)
+                    lod = go.AddComponent<LootDropOnDeath>();
+
+                lod.lootTable = table;
+            }
+            catch { }
+
+            try
+            {
+                var eh = go.GetComponentInChildren<EnemyHealth>(true);
+                if (eh != null)
+                {
+                    int hp = qaTrashHp;
+                    if (lootTableResourcesPath.IndexOf("Elite", StringComparison.OrdinalIgnoreCase) >= 0) hp = qaEliteHp;
+                    else if (lootTableResourcesPath.IndexOf("Boss", StringComparison.OrdinalIgnoreCase) >= 0) hp = qaBossHp;
+                    eh.SetMaxHealthForQa(hp);
+                }
+            }
+            catch { }
+
+            EnsureEnemyMeleeAttack(go);
+            EnsureEnemyAggroChase(go);
+            _spawned.Add(go);
+            _lastSpawnedCount = 1;
         }
 
         private void SpawnEnemies()
@@ -123,7 +211,7 @@ namespace Abyss.Dev
 
             for (int i = 0; i < count; i++)
             {
-                Vector3 jitter = new Vector3(Random.Range(-1.5f, 1.5f), 0f, Random.Range(-1.5f, 1.5f));
+                Vector3 jitter = new Vector3(UnityEngine.Random.Range(-1.5f, 1.5f), 0f, UnityEngine.Random.Range(-1.5f, 1.5f));
                 Vector3 pos = basePos + forward.normalized * Mathf.Max(0.5f, spawnDistance) + jitter;
                 var go = Instantiate(prefab, pos, Quaternion.identity);
                 go.name = prefab.name;
@@ -245,10 +333,19 @@ namespace Abyss.Dev
             const float pad = 10f;
             var rect = new Rect(pad, pad, 520f, 80f);
 
+            string ttk = "TTK: (tracker missing)";
+            try
+            {
+                if (TtkQaTracker.Instance != null)
+                    ttk = TtkQaTracker.Instance.GetOverlayText();
+            }
+            catch { }
+
             string text =
                 $"DevCheats  |  GodMode: {(godMode ? "ON" : "OFF")}\n" +
                 $"LastSpawn: {_lastSpawnedCount}  ActiveSpawned: {_spawned.Count}\n" +
-                $"Keys: {toggleGodModeKey}=GodMode  {spawnEnemyKey}=Spawn  {killSpawnedKey}=Kill  {selfDamageKey}=SelfDamage";
+                $"Keys: {toggleGodModeKey}=GodMode  {spawnEnemyKey}=Spawn  {killSpawnedKey}=Kill  {selfDamageKey}=SelfDamage  {spawnTrashKey}=Trash  {spawnEliteKey}=Elite  {spawnBossKey}=Boss\n" +
+                ttk;
 
             // Measure height so the background fits the content.
             float h = s_LabelStyle != null ? s_LabelStyle.CalcHeight(new GUIContent(text), rect.width) : rect.height;

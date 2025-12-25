@@ -34,6 +34,12 @@ public class EnemyHealth : MonoBehaviour
     public int MaxHealth => Mathf.Max(1, maxHealth);
     public int CurrentHealth => Mathf.Clamp(currentHealth, 0, MaxHealth);
 
+    public void SetMaxHealthForQa(int newMaxHealth)
+    {
+        maxHealth = Mathf.Max(1, newMaxHealth);
+        ResetHealth();
+    }
+
     // New (required) code-first events.
     public event Action<EnemyHealth, float> OnDamaged;
     public event Action<EnemyHealth> OnDeath;
@@ -204,7 +210,7 @@ public class EnemyHealth : MonoBehaviour
             dropOnDeath = GetComponentInParent<DropOnDeath>();
         }
 
-        if (dropOnDeath != null)
+        if (dropOnDeath != null && dropOnDeath.enabled)
         {
             dropOnDeath.OnDeath();
         }

@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: of Fury
   tags: 010000000200000003000000
   allowedSlots: 
-  weight: 35
+  weight: 2
   tiers:
   - minItemLevel: 1
     maxItemLevel: 5

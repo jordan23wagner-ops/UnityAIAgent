@@ -28,15 +28,15 @@ MonoBehaviour:
     weight: 1
   rarities:
   - rarity: {fileID: 11400000, guid: 1b3aaf7d1f37a3e42b08a39e6a29a50e, type: 2}
-    weight: 55
+    weight: 45
   - rarity: {fileID: 11400000, guid: a0d813125eed27e49aedb7a4016ffdae, type: 2}
     weight: 30
   - rarity: {fileID: 11400000, guid: 81cbfbfcd09894447bddba6e76069734, type: 2}
-    weight: 12
+    weight: 20
   - rarity: {fileID: 11400000, guid: a8ab8b780e6bf0349ae042147e837be9, type: 2}
-    weight: 2.5
+    weight: 5
   - rarity: {fileID: 11400000, guid: 2477ae5c6ca2f33418fa22718c8a2577, type: 2}
-    weight: 0.5
+    weight: 0
   - rarity: {fileID: 11400000, guid: 00e7e77cc42a4dc4498c8adf74ad9cb2, type: 2}
     weight: 0
   affixPoolOverride: []

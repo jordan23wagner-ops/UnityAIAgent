@@ -45,7 +45,7 @@ public class SimplePlayerCombat : MonoBehaviour
                 return;
 
             _nextAttackTime = Time.time + Mathf.Max(0.05f, attackCooldownSeconds);
-            if (attackedTarget != null)
+            if (debugLogs && attackedTarget != null)
                 Debug.Log($"[Combat] You attacked {attackedTarget.name}", this);
             return;
         }
@@ -83,6 +83,8 @@ public class SimplePlayerCombat : MonoBehaviour
         if (DevCheats.GodModeEnabled)
             dealt = 999999;
 #endif
+        if (TtkQaTracker.Instance != null)
+            TtkQaTracker.Instance.NotifyPlayerHit(best);
         best.TakeDamage(dealt, hitPos);
     }
 
@@ -114,6 +116,8 @@ public class SimplePlayerCombat : MonoBehaviour
         if (DevCheats.GodModeEnabled)
             dealt = 999999;
     #endif
+        if (TtkQaTracker.Instance != null)
+            TtkQaTracker.Instance.NotifyPlayerHit(selectedTarget);
         selectedTarget.TakeDamage(dealt, hitPos);
         return true;
     }

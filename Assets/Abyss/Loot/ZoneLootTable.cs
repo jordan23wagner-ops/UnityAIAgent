@@ -105,6 +105,13 @@ namespace Abyss.Loot
         [Tooltip("If enabled, bosses can roll uniques and enforce guaranteed minimum gear rarity.")]
         public bool enableBossOverrides = true;
 
+        [Header("Item Level (QA / Loot V2 bridge)")]
+        [Tooltip("Intended item level range for this zone table. Not used by ZoneLootRoller runtime; used by editor QA tooling.")]
+        [Min(1)] public int minItemLevel = 1;
+
+        [Tooltip("Intended item level range for this zone table. Not used by ZoneLootRoller runtime; used by editor QA tooling.")]
+        [Min(1)] public int maxItemLevel = 1;
+
         [Tooltip("When a boss dies, additional zone-wide rolls.")]
         [Min(0)] public int bossZoneRolls = 3;
 

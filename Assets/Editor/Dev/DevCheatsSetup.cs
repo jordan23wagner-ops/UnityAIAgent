@@ -36,7 +36,7 @@ namespace Abyss.Dev.Editor
 
             Selection.activeObject = go;
             EditorGUIUtility.PingObject(go);
-            Debug.Log("[DevCheatsSetup] Created DevCheats. Hotkeys: F1 GodMode, F2 Spawn, F3 KillSpawned.");
+            Debug.Log("[DevCheatsSetup] Created DevCheats. Hotkeys: F1 GodMode, F2 Spawn, F3 KillSpawned, F8 Trash, F9 Elite, F10 Boss.");
         }
     }
 }

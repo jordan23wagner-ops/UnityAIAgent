@@ -25,7 +25,7 @@ namespace Abyss.Loot.Editor
         private Vector2 _scroll;
         private string _report;
 
-        [MenuItem("Tools/Abyssbound/QA/Simulate Zone Loot Rates (Window)...")]
+        [MenuItem("Tools/Abyssbound/Legacy/QA/Simulate Zone Loot Rates (Window)...")]
         private static void Open()
         {
             var w = GetWindow<ZoneLootSimulatorWindow>("Zone Loot Simulator");
@@ -130,7 +130,7 @@ namespace Abyss.Loot.Editor
             }
 
             string report = sb.ToString();
-            Debug.Log("[ZoneLootSimulator]" + "\n" + report);
+            Debug.Log("[LEGACY ZoneLootSimulator]" + "\n" + report);
             return report;
         }
     }

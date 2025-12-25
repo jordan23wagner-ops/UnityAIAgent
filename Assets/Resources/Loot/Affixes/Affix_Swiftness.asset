@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: of Swiftness
   tags: 0400000005000000
   allowedSlots: 
-  weight: 25
+  weight: 1
   tiers:
   - minItemLevel: 1
     maxItemLevel: 5

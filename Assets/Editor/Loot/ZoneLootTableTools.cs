@@ -9,7 +9,7 @@ namespace Abyss.Loot.Editor
 {
     public static class ZoneLootTableTools
     {
-        [MenuItem("Tools/Abyssbound/Content/Create Zone1 Loot Table (from ItemDefinitions)...")]
+        [MenuItem("Tools/Abyssbound/Legacy/Content/Create Zone1 Loot Table (from ItemDefinitions)...")]
         private static void CreateZone1LootTable()
         {
             string path = EditorUtility.SaveFilePanelInProject(

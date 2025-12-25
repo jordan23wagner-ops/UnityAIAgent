@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: of Sorcery
   tags: 03000000
   allowedSlots: 
-  weight: 100
+  weight: 10
   tiers:
   - minItemLevel: 1
     maxItemLevel: 5

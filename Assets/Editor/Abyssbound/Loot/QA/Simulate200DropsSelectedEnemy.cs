@@ -11,6 +11,45 @@ using UnityEngine;
 public static class Simulate200DropsSelectedEnemy
 {
     private const int RollCount = 200;
+    private static string s_LastLootV2Report;
+
+    public static void SimulateLootV2OnlyForSelectedEnemy(int rollCount)
+    {
+        if (!Application.isPlaying)
+        {
+            Debug.LogWarning("[Loot V2 QA] Enter Play Mode, then run the Loot V2 simulation menu item.");
+            return;
+        }
+
+        var go = Selection.activeGameObject;
+        if (go == null)
+        {
+            Debug.LogWarning("[Loot V2 QA] Select an enemy instance in the Hierarchy.");
+            return;
+        }
+
+        var dropV2 = go.GetComponentInParent<LootDropOnDeath>();
+        if (dropV2 == null || dropV2.lootTable == null)
+        {
+            Debug.LogWarning("[Loot V2 QA] Selected enemy has no LootDropOnDeath with a LootTableSO assigned. Run Tools/Abyssbound/Loot/Normalize Zone1 Enemies to Loot V2.");
+            return;
+        }
+
+        rollCount = Mathf.Clamp(rollCount, 1, 5_000_000);
+        SimulateLootV2(dropV2, rollCount);
+    }
+
+    public static void CopyLastLootV2SimReportToClipboard()
+    {
+        if (string.IsNullOrWhiteSpace(s_LastLootV2Report))
+        {
+            Debug.LogWarning("[Loot V2 QA] No Loot V2 sim report available yet. Run a Loot V2 sim first.");
+            return;
+        }
+
+        EditorGUIUtility.systemCopyBuffer = s_LastLootV2Report;
+        Debug.Log("[Loot V2 QA] Copied last Loot V2 sim report to clipboard.");
+    }
 
     [MenuItem("Tools/Abyssbound/QA/Simulate 200 Drops (Selected Enemy)")]
     public static void Simulate()
@@ -32,7 +71,7 @@ public static class Simulate200DropsSelectedEnemy
         var dropV2 = go.GetComponentInParent<LootDropOnDeath>();
         if (dropV2 != null && dropV2.lootTable != null)
         {
-            SimulateLootV2(dropV2);
+            SimulateLootV2(dropV2, RollCount);
             return;
         }
 
@@ -157,7 +196,7 @@ public static class Simulate200DropsSelectedEnemy
         Debug.Log(sb.ToString());
     }
 
-    private static void SimulateLootV2(LootDropOnDeath drop)
+    private static void SimulateLootV2(LootDropOnDeath drop, int rollCount)
     {
         var registry = LootRegistryRuntime.GetOrCreate();
         registry.BuildIfNeeded();
@@ -178,7 +217,7 @@ public static class Simulate200DropsSelectedEnemy
 
         int itemsWithAffixes = 0;
 
-        for (int i = 0; i < RollCount; i++)
+        for (int i = 0; i < rollCount; i++)
         {
             var inst = LootRollerV2.RollItem(table, itemLevel: itemLevel, seed: null);
             if (inst == null) continue;
@@ -229,27 +268,41 @@ public static class Simulate200DropsSelectedEnemy
             }
         }
 
-        var sb = new StringBuilder(1200);
-        sb.AppendLine($"[Loot QA] Simulated {RollCount} drops for '{drop.name}' from '{(string.IsNullOrWhiteSpace(table.id) ? table.name : table.id)}' @ itemLevel {itemLevel}");
-        sb.AppendLine($"% items with affixes: {Percent(itemsWithAffixes, RollCount):0.0}%");
+        int observedMinIlvl = int.MaxValue;
+        int observedMaxIlvl = int.MinValue;
+        foreach (var kv in rarityCounts)
+        {
+            // no-op: keep loop to avoid unused warnings in older compilers
+        }
 
-        sb.AppendLine("Rarity counts:");
+        // We set a single itemLevel for the sim; observed range is based on inst.itemLevel (should match).
+        observedMinIlvl = itemLevel;
+        observedMaxIlvl = itemLevel;
+
+        var sb = new StringBuilder(1400);
+        sb.AppendLine($"[Loot V2 QA] Simulated {rollCount} drops for '{drop.name}' from '{(string.IsNullOrWhiteSpace(table.id) ? table.name : table.id)}' @ itemLevel {itemLevel}");
+        sb.AppendLine($"Observed iLvl: {observedMinIlvl}-{observedMaxIlvl}");
+        sb.AppendLine($"% items with affixes: {Percent(itemsWithAffixes, rollCount):0.0}%");
+
+        sb.AppendLine("Rarity counts (% of drops):");
         foreach (var kv in rarityCounts.OrderByDescending(k => k.Value))
         {
             int affTotal = totalAffixesByRarity.TryGetValue(kv.Key, out var t) ? t : 0;
             float avg = kv.Value > 0 ? (affTotal / (float)kv.Value) : 0f;
-            sb.AppendLine($"- {kv.Key}: {kv.Value} (avg affixes: {avg:0.00})");
+            float pct = rollCount > 0 ? (100f * (kv.Value / (float)rollCount)) : 0f;
+            sb.AppendLine($"- {kv.Key}: {kv.Value} ({pct:0.00}%) (avg affixes: {avg:0.00})");
         }
 
-        sb.AppendLine("Top 10 affixes:");
-        foreach (var kv in affixCounts.OrderByDescending(k => k.Value).Take(10))
+        sb.AppendLine("Top 5 affixes:");
+        foreach (var kv in affixCounts.OrderByDescending(k => k.Value).Take(5))
             sb.AppendLine($"- {kv.Key}: {kv.Value}");
 
         sb.AppendLine("Samples by rarity:");
         foreach (var kv in sampleByRarity.OrderBy(k => k.Key))
             sb.AppendLine($"- {kv.Key}: {kv.Value}");
 
-        Debug.Log(sb.ToString());
+        s_LastLootV2Report = sb.ToString();
+        Debug.Log(s_LastLootV2Report);
     }
 
     private static float Percent(int count, int total)

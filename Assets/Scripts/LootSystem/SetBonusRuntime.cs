@@ -9,7 +9,7 @@ namespace Abyssbound.Loot
         public const string KeyPrefix = "SetBonus";
 
         // QA-only debug. Keep false by default; change to true when diagnosing set evaluation.
-        private const bool DebugEvaluation = false;
+        private static bool DebugEvaluation => false;
         private static readonly Dictionary<string, string> s_lastEvalBySetId = new(StringComparer.OrdinalIgnoreCase);
 
         public static string GetTierKey(ItemSetDefinitionSO set, int requiredPieces)

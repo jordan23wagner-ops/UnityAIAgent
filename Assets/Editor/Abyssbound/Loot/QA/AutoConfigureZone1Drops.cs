@@ -169,6 +169,163 @@ public static class AutoConfigureZone1Drops
         );
     }
 
+    [MenuItem("Tools/Abyssbound/Loot/Normalize Zone1 Enemies (Trash/Elite/Boss) to Loot V2")]
+    public static void NormalizeZone1EnemiesTrashEliteBossToLootV2()
+    {
+        // Loot V2 tables (required)
+        var v2Trash = TryLoadLootV2TableOrNull("Loot/Tables/Zone1_Trash", LootV2TrashPath);
+        var v2Elite = TryLoadLootV2TableOrNull("Loot/Tables/Zone1_Elite", LootV2ElitePath);
+        var v2Boss = TryLoadLootV2TableOrNull("Loot/Tables/Zone1_Boss", LootV2BossPath);
+
+        int prefabsVisited = 0;
+        int enemyPrefabs = 0;
+        int prefabsUpdated = 0;
+
+        int legacyDropDisabled = 0;
+        int lootV2Enabled = 0;
+        int lootV2Assigned = 0;
+
+        var ambiguous = new List<string>(64);
+
+        var prefabGuids = AssetDatabase.FindAssets("t:Prefab");
+        for (int i = 0; i < prefabGuids.Length; i++)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
+            if (string.IsNullOrWhiteSpace(path)) continue;
+
+            // Guardrails: avoid loading known non-enemy / broken-content prefab folders.
+            // Loading malformed prefabs can produce unavoidable Unity console errors even if we catch exceptions.
+            // This tool is intended to normalize gameplay enemies, not UI or broken-content prefabs.
+            string p = path.Replace('\\', '/');
+            if (p.StartsWith("Assets/_Broken/", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (p.IndexOf("/UI/", StringComparison.OrdinalIgnoreCase) >= 0)
+                continue;
+            if (p.StartsWith("Assets/TextMesh Pro/", StringComparison.OrdinalIgnoreCase))
+                continue;
+            prefabsVisited++;
+
+            GameObject root = null;
+            bool changed = false;
+
+            try
+            {
+                root = PrefabUtility.LoadPrefabContents(path);
+                if (root == null) continue;
+
+                if (!LooksLikeEnemyPrefab(root))
+                    continue;
+
+                enemyPrefabs++;
+
+                var dropComponents = root.GetComponentsInChildren<DropOnDeath>(true);
+                if (dropComponents == null || dropComponents.Length == 0)
+                {
+                    ambiguous.Add($"{path} (enemy-like but missing DropOnDeath; tier unknown)");
+                    continue;
+                }
+
+                for (int d = 0; d < dropComponents.Length; d++)
+                {
+                    var drop = dropComponents[d];
+                    if (drop == null) continue;
+
+                    // Disable legacy authoritative dropper.
+                    if (drop.enabled)
+                    {
+                        drop.enabled = false;
+                        legacyDropDisabled++;
+                        changed = true;
+                    }
+
+                    var lootV2 = drop.GetComponent<LootDropOnDeath>();
+                    if (lootV2 == null)
+                    {
+                        lootV2 = drop.gameObject.AddComponent<LootDropOnDeath>();
+                        changed = true;
+                    }
+
+                    if (lootV2 == null)
+                    {
+                        ambiguous.Add($"{path} (failed to add LootDropOnDeath)");
+                        continue;
+                    }
+
+                    if (!lootV2.enabled)
+                    {
+                        lootV2.enabled = true;
+                        lootV2Enabled++;
+                        changed = true;
+                    }
+
+                    var desiredV2 = ResolveLootV2TableForTier(drop.tier, v2Trash, v2Elite, v2Boss);
+                    if (desiredV2 == null)
+                    {
+                        ambiguous.Add($"{path} (missing LootTableSO assets for Zone1 tables; cannot assign for tier={drop.tier})");
+                        continue;
+                    }
+
+                    if (lootV2.lootTable != desiredV2)
+                    {
+                        lootV2.lootTable = desiredV2;
+                        lootV2Assigned++;
+                        changed = true;
+                    }
+                }
+
+                if (changed)
+                {
+                    PrefabUtility.SaveAsPrefabAsset(root, path);
+                    prefabsUpdated++;
+                }
+            }
+            catch (Exception ex)
+            {
+                ambiguous.Add($"{path} (error: {ex.Message})");
+            }
+            finally
+            {
+                if (root != null)
+                    PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        AssetDatabase.SaveAssets();
+
+        var sb = new System.Text.StringBuilder(2048);
+        sb.AppendLine("[Normalize Zone1 (Trash/Elite/Boss) -> Loot V2] Done.");
+        sb.AppendLine($"PrefabsScanned={prefabsVisited} EnemyPrefabs={enemyPrefabs} Modified={prefabsUpdated}");
+        sb.AppendLine($"LegacyDropDisabled={legacyDropDisabled} LootV2Enabled={lootV2Enabled} LootV2Assigned={lootV2Assigned}");
+
+        if (ambiguous.Count > 0)
+        {
+            sb.AppendLine("Ambiguous/Skipped:");
+            int limit = Mathf.Min(50, ambiguous.Count);
+            for (int i = 0; i < limit; i++)
+                sb.AppendLine("- " + ambiguous[i]);
+            if (ambiguous.Count > limit)
+                sb.AppendLine($"- (and {ambiguous.Count - limit} more...)");
+        }
+
+        Debug.Log(sb.ToString());
+    }
+
+    // Back-compat alias (older docs/tools may still reference this path).
+    [MenuItem("Tools/Abyssbound/Loot/Normalize Zone1 Enemies to Loot V2")]
+    public static void NormalizeZone1EnemiesToLootV2_Alias()
+    {
+        NormalizeZone1EnemiesTrashEliteBossToLootV2();
+    }
+
+    private static LootTableV2 TryLoadLootV2TableOrNull(string resourcesPath, string assetPath)
+    {
+        LootTableV2 t = null;
+        try { t = Resources.Load<LootTableV2>(resourcesPath); } catch { t = null; }
+        if (t != null) return t;
+        try { t = AssetDatabase.LoadAssetAtPath<LootTableV2>(assetPath); } catch { t = null; }
+        return t;
+    }
+
     private static LootTableV2 ResolveLootV2TableForTier(EnemyTier tier, LootTableV2 trash, LootTableV2 elite, LootTableV2 boss)
     {
         switch (tier)
@@ -176,6 +333,7 @@ public static class AutoConfigureZone1Drops
             case EnemyTier.Elite:
                 return elite != null ? elite : trash;
             case EnemyTier.MiniBoss:
+                // Treat MiniBoss as "Boss" for Zone1 Loot V2 assignment.
                 return boss != null ? boss : elite != null ? elite : trash;
             default:
                 return trash;

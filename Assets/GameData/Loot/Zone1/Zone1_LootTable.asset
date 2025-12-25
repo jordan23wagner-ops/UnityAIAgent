@@ -27,52 +27,54 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 285513224c2859643ad8ad17d3398e30, type: 2}
   - {fileID: 11400000, guid: 0a28efb9cf63cd148b67954b7e4eb3f6, type: 2}
   bossUniquesPool: []
-  fodderChances:
-    common: 0.78
-    uncommon: 0.18
-    magic: 0.035
-    rare: 0.005
+  trashChances:
+    common: 0.55
+    uncommon: 0.25
+    magic: 0.15
+    rare: 0.05
     epic: 0
     legendary: 0
     set: 0
     radiant: 0
   normalChances:
-    common: 0.78
-    uncommon: 0.18
-    magic: 0.035
-    rare: 0.005
+    common: 0.55
+    uncommon: 0.25
+    magic: 0.15
+    rare: 0.05
     epic: 0
     legendary: 0
     set: 0
     radiant: 0
   eliteChances:
     common: 0.55
-    uncommon: 0.3
-    magic: 0.12
-    rare: 0.025
-    epic: 0.005
+    uncommon: 0.25
+    magic: 0.15
+    rare: 0.05
+    epic: 0
     legendary: 0
     set: 0
     radiant: 0
   miniBossChances:
-    common: 0.35
-    uncommon: 0.35
-    magic: 0.2
-    rare: 0.08
-    epic: 0.018
-    legendary: 0.002
+    common: 0.55
+    uncommon: 0.25
+    magic: 0.15
+    rare: 0.05
+    epic: 0
+    legendary: 0
     set: 0
     radiant: 0
-  zoneRollsFodder: 1
+  zoneRollsTrash: 1
   zoneRollsNormal: 1
   zoneRollsElite: 1
   zoneRollsMiniBoss: 2
   rollMaterials: 1
-  materialsRollsFodder: 0
+  materialsRollsTrash: 0
   materialsRollsNormal: 0
   materialsRollsElite: 1
   materialsRollsMiniBoss: 2
   enableBossOverrides: 1
+  minItemLevel: 1
+  maxItemLevel: 5
   bossZoneRolls: 3
   bossMaterialsRolls: 3
   bossUniqueRolls: 1

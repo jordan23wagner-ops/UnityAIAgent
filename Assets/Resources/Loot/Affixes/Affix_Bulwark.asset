@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: of Bulwark
   tags: 04000000
   allowedSlots: 
-  weight: 90
+  weight: 10
   tiers:
   - minItemLevel: 1
     maxItemLevel: 5
