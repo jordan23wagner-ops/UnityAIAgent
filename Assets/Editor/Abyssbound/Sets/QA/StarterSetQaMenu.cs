@@ -18,7 +18,7 @@ public static class StarterSetQaMenu
 
     private const string IconHelmPath = "Assets/Abyss/Equipment/Icons/sil_helm.png";
     private const string IconChestPath = "Assets/Abyss/Equipment/Icons/sil_chest.png";
-    private const string IconLegsPath = "Assets/Abyss/Equipment/Icons/sil_boots.png"; // closest available placeholder
+    private const string IconLegsPath = "Assets/Abyss/Equipment/Icons/sil_legs.png";
 
     private const string SetId = "AbyssalInitiate";
     private const string SetDisplayName = "Abyssal Initiate";

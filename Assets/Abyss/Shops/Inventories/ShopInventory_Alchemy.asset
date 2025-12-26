@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27dae50ab50144d4d824768ef5bf3a4d, type: 3}
+  m_Name: ShopInventory_Alchemy
+  m_EditorClassIdentifier: Assembly-CSharp::Abyss.Shop.ShopInventory
+  entries:
+  - item: {fileID: 11400000, guid: 7fcb6f840e41cbc41860a9b0876a03ab, type: 2}
+    price: 5
+  - item: {fileID: 11400000, guid: b16c0624fb25c0f459ac4458d4954e20, type: 2}
+    price: 5
+  - item: {fileID: 11400000, guid: a1bc77a1f00f15a4a91d436d8728c406, type: 2}
+    price: 5
+  - item: {fileID: 11400000, guid: bcd0cd4876b2504419977f8564d8aaec, type: 2}
+    price: 5
+  - item: {fileID: 11400000, guid: 39def7aa55ab40f4bbc59ad141581ee0, type: 2}
+    price: 5
+  - item: {fileID: 11400000, guid: a5e6a0cff73fac64eaab230e64c3b5de, type: 2}
+    price: 5
+  - item: {fileID: 11400000, guid: afc40b1a4af660040bc95e2b3d1449db, type: 2}
+    price: 10
+  - item: {fileID: 11400000, guid: dce2eefc98c2e9242b89c09a143f4209, type: 2}
+    price: 10
+  - item: {fileID: 11400000, guid: 8e401d8c369a29c4b949cdbf10f338de, type: 2}
+    price: 10
+  - item: {fileID: 11400000, guid: 82bc350d250a7dc4687f72f94f4f07cf, type: 2}
+    price: 10
+  - item: {fileID: 11400000, guid: e669cdf1b6a52494a857b1a6face3350, type: 2}
+    price: 10
+  - item: {fileID: 11400000, guid: c671e3d08270137429e91d173dbcc107, type: 2}
+    price: 1

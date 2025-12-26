@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc01b352bf6f52843b73129bd35d2e83, type: 3}
+  m_Name: T1_Boots_Basic
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
+  id: t1_boots_basic
+  displayName: T1 Boots (Basic)
+  icon: {fileID: 21300000, guid: 061ce2abcde0bcb408e07238c0042597, type: 3}
+  slot: 14
+  occupiesSlots: 
+  baseStats:
+  - stat: 3
+    value: 1
+    percent: 0
+  allowedAffixTags: 04000000
+  set: {fileID: 0}
+  setId: 

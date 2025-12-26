@@ -15,7 +15,7 @@ MonoBehaviour:
   itemId: armor_basic_helm
   displayName: Basic Helm
   description: Simple starter head protection.
-  icon: {fileID: 21300000, guid: 8a961a68efc41b546adda34d29d9d471, type: 3}
+  icon: {fileID: 21300000, guid: 00b1bba8465cdde478d45602a972fdb9, type: 3}
   rarity: 0
   itemType: 4
   baseValue: 35

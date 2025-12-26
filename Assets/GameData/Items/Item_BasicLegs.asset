@@ -15,7 +15,7 @@ MonoBehaviour:
   itemId: armor_basic_legs
   displayName: Basic Legs
   description: Simple starter leg protection.
-  icon: {fileID: 21300000, guid: 8a961a68efc41b546adda34d29d9d471, type: 3}
+  icon: {fileID: 21300000, guid: 4816c84c5bf7d3d499ab2bf46db1d699, type: 3}
   rarity: 0
   itemType: 4
   baseValue: 50

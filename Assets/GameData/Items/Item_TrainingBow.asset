@@ -15,10 +15,12 @@ MonoBehaviour:
   itemId: weapon_training_bow
   displayName: Training Bow
   description: A basic starter bow.
-  icon: {fileID: 21300000, guid: 3f633ac3d1d214547b3669d43c38fa54, type: 3}
+  icon: {fileID: 21300000, guid: c3a5409294314da4493016f00ed87b69, type: 3}
   rarity: 1
   itemType: 0
   baseValue: 90
   equipmentSlot: 7
   weaponHandedness: 2
   DamageBonus: 2
+  MaxHealthBonus: 0
+  DamageReductionFlat: 0

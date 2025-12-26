@@ -14,17 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.LootTableSO
   id: Zone1_Trash
   items:
-  - item: {fileID: 11400000, guid: 34805b2b6f1b9934689551adbd51de23, type: 2}
-    weight: 1
   - item: {fileID: 11400000, guid: a6e705ac6c5f019468913160fb881ece, type: 2}
     weight: 1
-  - item: {fileID: 11400000, guid: 05c5588e390c89a4f9955f4d896651f5, type: 2}
-    weight: 0.5
-  - item: {fileID: 11400000, guid: 359bb969922c1844c9b1e68b5c1ec27d, type: 2}
-    weight: 0.5
-  - item: {fileID: 11400000, guid: 4969868816ae2174189444be380efd50, type: 2}
-    weight: 0.5
   - item: {fileID: 11400000, guid: 000f6586b44c35c4a982910c4b4c33c1, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 34805b2b6f1b9934689551adbd51de23, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 864fbc25f768343499cae77def6041c9, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 18bae47b4d99e124f996924242c49a7e, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 468649bfd2a5c8e4585718e4de47eefc, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: f28f578a566645f40a1f495a306bf9d1, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 4523b3dd9df577a4c9092b78d3a9db42, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 5b68c7be8675f12478532e6311ff26cf, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: b7d3141b6fb16f74f9b5ee385ddecd8c, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: ee7046bb05ac7974e8623f3919aa9cfe, type: 2}
     weight: 1
   rarities:
   - rarity: {fileID: 11400000, guid: 1b3aaf7d1f37a3e42b08a39e6a29a50e, type: 2}

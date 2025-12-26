@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
   id: Starter_Legs
   displayName: Abyssal Initiate Legs
-  icon: {fileID: 21300000, guid: 061ce2abcde0bcb408e07238c0042597, type: 3}
+  icon: {fileID: 21300000, guid: 4816c84c5bf7d3d499ab2bf46db1d699, type: 3}
   slot: 3
   occupiesSlots: 
   baseStats:

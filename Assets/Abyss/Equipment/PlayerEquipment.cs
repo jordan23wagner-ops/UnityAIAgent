@@ -220,7 +220,7 @@ namespace Abyss.Equipment
             var def = resolve != null ? resolve(itemId) : null;
 
             // Unequip conflicts first (returns items to inventory).
-            if (!TryResolveTargetSlotsForItemId(itemId, def, out var primarySlot, out var secondarySlot, out var resolveReason))
+            if (!TryResolveTargetSlotsForItemId(itemId, def, out var primarySlot, out var secondarySlot, out var lootBaseItem, out var resolveReason))
             {
                 message = string.IsNullOrWhiteSpace(resolveReason) ? "That item is not equippable." : resolveReason;
                 return false;
@@ -277,6 +277,10 @@ namespace Abyss.Equipment
             if (secondarySlot.HasValue)
                 Set(secondarySlot.Value, itemId);
 
+#if UNITY_EDITOR
+            EditorLogEquipIconSources(itemId, def, lootBaseItem, primarySlot);
+#endif
+
             RaiseChanged();
             return true;
         }
@@ -286,10 +290,12 @@ namespace Abyss.Equipment
             ItemDefinition legacyDef,
             out EquipmentSlot primary,
             out EquipmentSlot? secondary,
+            out LootItemDefinitionSO lootBaseItem,
             out string reason)
         {
             primary = EquipmentSlot.None;
             secondary = null;
+            lootBaseItem = null;
             reason = string.Empty;
 
             // Legacy items (Abyss.Items.ItemDefinition)
@@ -346,6 +352,8 @@ namespace Abyss.Equipment
                 return false;
             }
 
+            lootBaseItem = baseItem;
+
             // Lowest-risk representation: the same rolledId occupies both slots for 2H.
             bool occupiesLeft = false;
             bool occupiesRight = false;
@@ -401,6 +409,45 @@ namespace Abyss.Equipment
             // Convention: offhand items should be authored with slot=LeftHand.
             return true;
         }
+
+#if UNITY_EDITOR
+        private static void EditorLogEquipIconSources(
+            string equippedItemId,
+            ItemDefinition legacyDef,
+            LootItemDefinitionSO lootBaseItem,
+            EquipmentSlot equippedSlot)
+        {
+            // Keep console output short; one line per successful equip.
+            try
+            {
+                string displayName = "";
+                Sprite icon = null;
+                UnityEngine.Object baseAsset = null;
+
+                if (lootBaseItem != null)
+                {
+                    displayName = string.IsNullOrWhiteSpace(lootBaseItem.displayName) ? lootBaseItem.id : lootBaseItem.displayName;
+                    icon = lootBaseItem.icon;
+                    baseAsset = lootBaseItem;
+                }
+                else if (legacyDef != null)
+                {
+                    displayName = string.IsNullOrWhiteSpace(legacyDef.displayName) ? legacyDef.itemId : legacyDef.displayName;
+                    icon = legacyDef.icon;
+                }
+
+                var iconName = icon != null ? icon.name : "<null>";
+                var iconPath = icon != null ? UnityEditor.AssetDatabase.GetAssetPath(icon) : "";
+                var baseSoPath = baseAsset != null ? UnityEditor.AssetDatabase.GetAssetPath(baseAsset) : "";
+
+                Debug.Log($"[EquipIconSrc] dn='{displayName}' slot={equippedSlot} icon='{iconName}' iconPath='{iconPath}' baseSO='{baseSoPath}'");
+            }
+            catch
+            {
+                // Don't break equip flow.
+            }
+        }
+#endif
 
         public bool TryUnequipToInventory(PlayerInventory inventory, Func<string, ItemDefinition> resolve, EquipmentSlot slot)
         {

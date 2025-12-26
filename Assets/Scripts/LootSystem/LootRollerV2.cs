@@ -9,7 +9,34 @@ namespace Abyssbound.Loot
     {
         private const string Zone1PoolRoot = "Loot/AffixPools";
 
-        public static ItemInstance RollItem(LootTableSO table, int itemLevel = 1, int? seed = null, string itemLevelSource = null, bool logCreation = false)
+        public static ItemInstance RollItemWithZoneTuning(
+            LootTableSO table,
+            ZoneLootTuningSO tuning,
+            Abyssbound.Loot.SetDrops.LootTier tier,
+            int? seed = null,
+            string itemLevelSource = null,
+            bool logCreation = false)
+        {
+            if (table == null) return null;
+            if (tuning == null)
+                return RollItem(table, itemLevel: 1, seed: seed, itemLevelSource: itemLevelSource, logCreation: logCreation);
+
+            var rng = seed.HasValue ? new System.Random(seed.Value) : null;
+
+            var ilvlRange = tuning.GetItemLevelRange(tier);
+            int ilvl = RollIntRange(ilvlRange.ClampMin(), ilvlRange.ClampMax(), rng);
+            string src = string.IsNullOrWhiteSpace(itemLevelSource) ? "ZoneTuning" : itemLevelSource;
+
+            return RollItem(table, itemLevel: ilvl, seed: seed, itemLevelSource: src, logCreation: logCreation, rarityWeightsOverride: tuning.GetRarityWeights(tier));
+        }
+
+        public static ItemInstance RollItem(
+            LootTableSO table,
+            int itemLevel = 1,
+            int? seed = null,
+            string itemLevelSource = null,
+            bool logCreation = false,
+            ZoneLootTuningSO.TierRarityWeights? rarityWeightsOverride = null)
         {
             if (table == null) return null;
 
@@ -22,7 +49,21 @@ namespace Abyssbound.Loot
             if (baseItem == null || string.IsNullOrWhiteSpace(baseItem.id))
                 return null;
 
-            var rarity = RollWeighted(table.rarities, e => e.rarity, e => e.weight, rng);
+            RarityDefinitionSO rarity;
+            if (rarityWeightsOverride.HasValue)
+            {
+                var weights = rarityWeightsOverride.Value;
+                rarity = RollWeighted(table.rarities, e => e.rarity, e => weights.GetWeight(e != null && e.rarity != null ? e.rarity.id : null), rng);
+                if (rarity == null)
+                {
+                    // Fallback: keep drops working even if the table is missing expected rarity ids.
+                    rarity = RollWeighted(table.rarities, e => e.rarity, e => e.weight, rng);
+                }
+            }
+            else
+            {
+                rarity = RollWeighted(table.rarities, e => e.rarity, e => e.weight, rng);
+            }
             if (rarity == null || string.IsNullOrWhiteSpace(rarity.id))
                 return null;
 

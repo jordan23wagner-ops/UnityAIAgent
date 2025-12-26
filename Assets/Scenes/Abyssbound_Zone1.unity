@@ -6708,6 +6708,12 @@ MonoBehaviour:
   spawnEnemyKey: 283
   killSpawnedKey: 284
   selfDamageKey: 285
+  spawnTrashKey: 289
+  spawnEliteKey: 290
+  spawnBossKey: 291
+  qaTrashHp: 50
+  qaEliteHp: 125
+  qaBossHp: 700
   enemyPrefabs:
   - {fileID: 5546506586676718003, guid: 025a313d9df960c4bb82557addfe9762, type: 3}
   spawnTier: 0

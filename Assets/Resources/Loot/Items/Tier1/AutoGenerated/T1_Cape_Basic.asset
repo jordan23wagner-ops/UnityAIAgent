@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc01b352bf6f52843b73129bd35d2e83, type: 3}
+  m_Name: T1_Cape_Basic
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
+  id: t1_cape_basic
+  displayName: T1 Cape (Basic)
+  icon: {fileID: 21300000, guid: 7d896cd5376eb93429613b1036ed54b4, type: 3}
+  slot: 12
+  occupiesSlots: 
+  baseStats:
+  - stat: 4
+    value: 2
+    percent: 0
+  allowedAffixTags: 04000000
+  set: {fileID: 0}
+  setId: 

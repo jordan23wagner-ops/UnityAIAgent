@@ -22,4 +22,5 @@ MonoBehaviour:
     value: 4
     percent: 0
   allowedAffixTags: 03000000
+  set: {fileID: 0}
   setId: 

@@ -15,9 +15,12 @@ MonoBehaviour:
   itemId: weapon_apprentice_staff
   displayName: Apprentice Staff
   description: A basic starter staff.
-  icon: {fileID: 21300000, guid: 3f633ac3d1d214547b3669d43c38fa54, type: 3}
+  icon: {fileID: 21300000, guid: 2e60dd0f847a4b6488bf4257deeeaf04, type: 3}
   rarity: 3
   itemType: 0
   baseValue: 100
-  equipmentSlot: 0
-  weaponHandedness: 0
+  equipmentSlot: 7
+  weaponHandedness: 2
+  DamageBonus: 0
+  MaxHealthBonus: 0
+  DamageReductionFlat: 0

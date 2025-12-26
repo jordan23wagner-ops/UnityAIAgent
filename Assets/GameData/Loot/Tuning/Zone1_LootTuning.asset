@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f5b1b1e75d742f6b702a7a9c2c4a6f1, type: 3}
+  m_Name: Zone1_LootTuning
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ZoneLootTuningSO
+  zoneId: Zone1
+  trashRarityWeights:
+    common: 68
+    uncommon: 20
+    magic: 10
+    rare: 1.8
+    epic: 0.2
+    legendary: 0.02
+  eliteRarityWeights:
+    common: 45
+    uncommon: 25
+    magic: 20
+    rare: 8
+    epic: 1.8
+    legendary: 0.2
+  bossRarityWeights:
+    common: 20
+    uncommon: 20
+    magic: 35
+    rare: 18
+    epic: 6
+    legendary: 1
+  trashItemLevel:
+    min: 1
+    max: 5
+  eliteItemLevel:
+    min: 4
+    max: 8
+  bossItemLevel:
+    min: 8
+    max: 12

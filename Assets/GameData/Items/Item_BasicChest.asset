@@ -15,7 +15,7 @@ MonoBehaviour:
   itemId: armor_basic_chest
   displayName: Basic Chest
   description: Simple starter body protection.
-  icon: {fileID: 21300000, guid: 8a961a68efc41b546adda34d29d9d471, type: 3}
+  icon: {fileID: 21300000, guid: ab37f3144a05c7642a8dbadf291c1596, type: 3}
   rarity: 0
   itemType: 4
   baseValue: 60
