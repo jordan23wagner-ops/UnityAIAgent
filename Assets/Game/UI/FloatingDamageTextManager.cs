@@ -34,12 +34,38 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
     [SerializeField] private float defaultLifetimeSeconds = 0.9f;
     [SerializeField] private float defaultRiseSpeed = 1.0f;
 
-    [Header("Spawn")]
-    [SerializeField] private float spawnRadiusXZ = 0.20f;
+    [Header("Head Anchor")]
+    [SerializeField] private float headPadding = 0.30f;
+    [SerializeField] private float defaultHeadOffset = 1.25f;
+
+    [Header("Offsets")]
+    [SerializeField] private float damageHorizontalOffset = 0.60f;
+    [SerializeField] private float xpRightOffset = 0.60f;
+
+    [Header("Motion")]
+    [SerializeField] private float driftUpSpeed = 1.0f;
+    [SerializeField] private float driftSideSpeed = 0.35f;
+
+    [Header("Level Up Text")]
+    [SerializeField] private float levelUpExtraHeight = 2.0f;
+    [SerializeField] private float levelUpJitterXZ = 0.03f;
+    [SerializeField] private float levelUpSideDriftSpeed = 0.05f;
+    [SerializeField] private float levelUpCooldownSeconds = 0.75f;
+
+    [Header("Anti-Overlap")]
+    [SerializeField] private float spawnRadiusXZ = 0.08f;
+
+    // Legacy field (kept for compatibility with existing serialized scenes/prefabs)
+    // Used as a minimum head offset for very small bounds.
     [SerializeField] private float verticalOffset = 1.25f;
+
+    [Header("XP Text")]
+    [SerializeField] private Color xpGainColor = new Color(0.2f, 1.0f, 0.2f, 1f);
+    [SerializeField] private Color xpLevelUpColor = new Color(0.35f, 1.0f, 0.35f, 1f);
 
     private SimplePool<FloatingDamageText> _pool;
     private readonly HashSet<EnemyHealth> _tracked = new HashSet<EnemyHealth>();
+    private readonly Dictionary<string, float> _lastLevelUpSpawnBySkill = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
 
     public static FloatingDamageTextManager EnsureExists()
     {
@@ -82,6 +108,36 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
     public static void Spawn(int amount, Vector3 worldPos)
     {
         EnsureExists().SpawnInternal(amount, worldPos);
+    }
+
+    public static void SpawnText(string text, Vector3 worldPos)
+    {
+        EnsureExists().SpawnInternalText(text, worldPos);
+    }
+
+    public static void ShowXpGain(Vector3 worldPos, int amount, string skillName)
+    {
+        EnsureExists().ShowXpGainInternal(worldPos, amount, skillName);
+    }
+
+    public static void ShowSkillXpGain(EnemyHealth enemy, int amount, string skillName)
+    {
+        EnsureExists().ShowSkillXpGainInternal(enemy, amount, skillName);
+    }
+
+    public static void ShowSkillXpGain(Vector3 worldPos, int amount, string skillName)
+    {
+        EnsureExists().ShowSkillXpGainInternal(worldPos, amount, skillName);
+    }
+
+    public static void ShowXpGainCombined(EnemyHealth enemy, int attackXp, int styleXp, string styleSkillName)
+    {
+        EnsureExists().ShowXpGainCombinedInternal(enemy, attackXp, styleXp, styleSkillName);
+    }
+
+    public static void ShowLevelUp(Vector3 worldPos, string skillName, int newLevel)
+    {
+        EnsureExists().ShowLevelUpInternal(worldPos, skillName, newLevel);
     }
 
     private void Awake()
@@ -184,16 +240,13 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
 
         int display = Mathf.Max(0, Mathf.RoundToInt(amount));
 
-        // Spawn near enemy center (renderer bounds center if possible).
-        var r = enemy.GetComponentInChildren<Renderer>();
-        var center = r != null ? r.bounds.center : enemy.transform.position;
+        var anchor = ComputeHeadAnchor(enemy.transform, enemy.transform.position);
+        var camRight = TryGetCameraRight();
+        var finalPos = anchor + (-camRight * Mathf.Max(0f, damageHorizontalOffset));
+        finalPos += GetJitterXZ();
 
-        center += Vector3.up * verticalOffset;
-
-        float radius = Mathf.Max(0f, spawnRadiusXZ);
-        center += new Vector3(UnityEngine.Random.Range(-radius, radius), 0f, UnityEngine.Random.Range(-radius, radius));
-
-        SpawnInternal(display, center);
+        var vel = (Vector3.up * driftUpSpeed) + (-camRight * driftSideSpeed);
+        SpawnInternalText(display.ToString(), finalPos, baseColorOverride: null, velocityOverride: vel);
     }
 
     private void OnEnemyDeath(EnemyHealth enemy)
@@ -205,6 +258,25 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
     private void SpawnInternal(int amount, Vector3 worldPos)
     {
         if (amount <= 0)
+            return;
+
+        // Legacy entry-point used by older callsites: treat as damage.
+        var camRight = TryGetCameraRight();
+        var vel = (Vector3.up * driftUpSpeed) + (-camRight * driftSideSpeed);
+        SpawnInternalText(amount.ToString(), worldPos, baseColorOverride: null, velocityOverride: vel);
+    }
+
+    private void SpawnInternalText(string textValue, Vector3 worldPos)
+    {
+        // Legacy entry-point used by older callsites: treat as damage/miss.
+        var camRight = TryGetCameraRight();
+        var vel = (Vector3.up * driftUpSpeed) + (-camRight * driftSideSpeed);
+        SpawnInternalText(textValue, worldPos, baseColorOverride: null, velocityOverride: vel);
+    }
+
+    private void SpawnInternalText(string textValue, Vector3 worldPos, Color? baseColorOverride, Vector3? velocityOverride)
+    {
+        if (string.IsNullOrWhiteSpace(textValue))
             return;
 
         var text = _pool.Get();
@@ -238,7 +310,20 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
         }
 
         text.gameObject.SetActive(true);
-        text.Init(amount);
+
+        // Pool safety: always reset back to the default style before optionally applying an override.
+        try { text.ResetToDefaultColor(); } catch { }
+        if (baseColorOverride.HasValue)
+        {
+            try { text.SetBaseColor(baseColorOverride.Value); } catch { }
+        }
+
+        try { text.ResetVelocityToDefault(); } catch { }
+        if (velocityOverride.HasValue)
+        {
+            try { text.SetVelocity(velocityOverride.Value); } catch { }
+        }
+        text.Init(textValue);
 
         // Force render-safe TMP defaults at spawn time (prevents "blue T" gizmo-only objects).
         if (tmp != null)
@@ -246,7 +331,7 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
             try
             {
                 tmp.enabled = true;
-                tmp.text = amount.ToString();
+                tmp.text = textValue;
 
                 tmp.alpha = 1f;
                 tmp.textWrappingMode = TextWrappingModes.NoWrap;
@@ -319,7 +404,270 @@ public sealed class FloatingDamageTextManager : MonoBehaviour
         }
 
         if (debugLogs)
-            Debug.Log($"[DMG] Spawn {amount} at {worldPos}", text);
+            Debug.Log($"[DMG] Spawn '{textValue}' at {worldPos}", text);
+    }
+
+    private void ShowXpGainInternal(Vector3 worldPos, int amount, string skillName)
+    {
+        if (!Abyssbound.Stats.XpFloatingTextFlags.ShowXpFloatingText)
+            return;
+
+        if (amount <= 0)
+            return;
+
+        var basePos = worldPos + (Vector3.up * Mathf.Max(0f, defaultHeadOffset));
+        var right = TryGetCameraRight();
+        var xpPos = basePos + (right * Mathf.Max(0f, xpRightOffset));
+        xpPos += GetJitterXZ();
+
+        var vel = (Vector3.up * driftUpSpeed) + (right * driftSideSpeed);
+
+        // Legacy helper: short format.
+        SpawnInternalText($"+{amount} XP", xpPos, xpGainColor, vel);
+    }
+
+    private void ShowXpGainInternal(EnemyHealth enemy, int amount, string skillName)
+    {
+        if (enemy == null)
+            return;
+
+        var anchor = ComputeHeadAnchor(enemy.transform, enemy.transform.position);
+        var right = TryGetCameraRight();
+        var xpPos = anchor + (right * Mathf.Max(0f, xpRightOffset));
+        xpPos += GetJitterXZ();
+
+        var vel = (Vector3.up * driftUpSpeed) + (right * driftSideSpeed);
+        SpawnInternalText($"+{amount} XP", xpPos, xpGainColor, vel);
+    }
+
+    private void ShowSkillXpGainInternal(EnemyHealth enemy, int amount, string skillName)
+    {
+        if (!Abyssbound.Stats.XpFloatingTextFlags.ShowXpFloatingText)
+            return;
+
+        if (enemy == null)
+            return;
+
+        if (amount <= 0)
+            return;
+
+        string label = string.IsNullOrWhiteSpace(skillName) ? "XP" : skillName.Trim() + " XP";
+
+        var anchor = ComputeHeadAnchor(enemy.transform, enemy.transform.position);
+        var right = TryGetCameraRight();
+        var xpPos = anchor + (right * Mathf.Max(0f, xpRightOffset));
+        xpPos += GetJitterXZ();
+
+        var vel = (Vector3.up * driftUpSpeed) + (right * driftSideSpeed);
+        SpawnInternalText($"+{amount} {label}", xpPos, xpGainColor, vel);
+    }
+
+    private void ShowSkillXpGainInternal(Vector3 worldPos, int amount, string skillName)
+    {
+        if (!Abyssbound.Stats.XpFloatingTextFlags.ShowXpFloatingText)
+            return;
+
+        if (amount <= 0)
+            return;
+
+        string label = string.IsNullOrWhiteSpace(skillName) ? "XP" : skillName.Trim() + " XP";
+
+        var basePos = worldPos + (Vector3.up * Mathf.Max(0f, defaultHeadOffset));
+        var right = TryGetCameraRight();
+        var xpPos = basePos + (right * Mathf.Max(0f, xpRightOffset));
+        xpPos += GetJitterXZ();
+
+        var vel = (Vector3.up * driftUpSpeed) + (right * driftSideSpeed);
+        SpawnInternalText($"+{amount} {label}", xpPos, xpGainColor, vel);
+    }
+
+    private void ShowXpGainCombinedInternal(EnemyHealth enemy, int attackXp, int styleXp, string styleSkillName)
+    {
+        if (!Abyssbound.Stats.XpFloatingTextFlags.ShowXpFloatingText)
+            return;
+
+        if (enemy == null)
+            return;
+
+        if (attackXp <= 0 && styleXp <= 0)
+            return;
+
+        string styleLabel = string.IsNullOrWhiteSpace(styleSkillName) ? "XP" : styleSkillName.Trim() + " XP";
+        string text;
+
+        if (attackXp > 0 && styleXp > 0)
+            text = $"+{attackXp} Attack XP  |  +{styleXp} {styleLabel}";
+        else if (attackXp > 0)
+            text = $"+{attackXp} Attack XP";
+        else
+            text = $"+{styleXp} {styleLabel}";
+
+        var anchor = ComputeHeadAnchor(enemy.transform, enemy.transform.position);
+        var right = TryGetCameraRight();
+        var xpPos = anchor + (right * Mathf.Max(0f, xpRightOffset));
+        xpPos += GetJitterXZ();
+
+        var vel = (Vector3.up * driftUpSpeed) + (right * driftSideSpeed);
+        SpawnInternalText(text, xpPos, xpGainColor, vel);
+    }
+
+    private void ShowLevelUpInternal(Vector3 worldPos, string skillName, int newLevel)
+    {
+        if (!Abyssbound.Stats.XpFloatingTextFlags.ShowXpFloatingText)
+            return;
+
+        if (newLevel <= 0)
+            return;
+
+        // Anti-spam: per-skill cooldown.
+        string key = string.IsNullOrWhiteSpace(skillName) ? "(skill)" : skillName.Trim();
+        float now = Time.time;
+        float cd = Mathf.Max(0f, levelUpCooldownSeconds);
+        if (cd > 0.0001f)
+        {
+            if (_lastLevelUpSpawnBySkill.TryGetValue(key, out var lastTime))
+            {
+                if (now - lastTime < cd)
+                    return;
+            }
+            _lastLevelUpSpawnBySkill[key] = now;
+        }
+
+        string label = string.IsNullOrWhiteSpace(skillName) ? "" : skillName.Trim();
+        string msg = string.IsNullOrEmpty(label)
+            ? $"Level {newLevel}!"
+            : $"{label} Level {newLevel}!";
+
+        // Distinct level-up spawn path: above the head anchor, higher than damage/XP.
+        var target = TryGetPlayerTransform();
+        var anchor = ComputeHeadAnchor(target, worldPos);
+        var pos = anchor + Vector3.up * Mathf.Max(0f, levelUpExtraHeight);
+
+        // Optional minimal jitter (smaller than combat jitter).
+        float j = Mathf.Max(0f, levelUpJitterXZ);
+        if (j > 0.0001f)
+        {
+            float x = UnityEngine.Random.Range(-j, j);
+            float z = UnityEngine.Random.Range(-j, j);
+            pos += new Vector3(x, 0f, z);
+        }
+
+        // Drift mostly upward so it exits cleanly.
+        var right = TryGetCameraRight();
+        var vel = (Vector3.up * driftUpSpeed) + (right * Mathf.Clamp(levelUpSideDriftSpeed, -0.25f, 0.25f));
+
+        SpawnInternalText(msg, pos, xpLevelUpColor, vel);
+    }
+
+    private static Transform TryGetPlayerTransform()
+    {
+        try
+        {
+            var byTag = GameObject.FindWithTag("Player");
+            if (byTag != null)
+                return byTag.transform;
+        }
+        catch { }
+
+        try
+        {
+            var byHealth = FindFirstObjectByType<PlayerHealth>();
+            if (byHealth != null)
+                return byHealth.transform;
+        }
+        catch { }
+
+        return null;
+    }
+
+    private static Vector3 TryGetCameraRight()
+    {
+        try
+        {
+            var cam = Camera.main;
+            if (cam != null)
+                return cam.transform.right;
+        }
+        catch { }
+
+        return Vector3.right;
+    }
+
+    private Vector3 ComputeHeadAnchor(Transform target, Vector3 fallbackWorldPos)
+    {
+        if (target == null)
+            return fallbackWorldPos + Vector3.up * Mathf.Max(0f, Mathf.Max(defaultHeadOffset, verticalOffset));
+
+        if (TryGetBounds(target, out var b))
+        {
+            float pad = Mathf.Max(0f, headPadding);
+            // Use verticalOffset as a minimum head height so very small bounds still get readable text.
+            float y = Mathf.Max(b.extents.y + pad, Mathf.Max(0f, verticalOffset));
+            return b.center + Vector3.up * y;
+        }
+
+        return target.position + Vector3.up * Mathf.Max(0f, Mathf.Max(defaultHeadOffset, verticalOffset));
+    }
+
+    private static bool TryGetBounds(Transform target, out Bounds bounds)
+    {
+        bounds = default;
+        if (target == null)
+            return false;
+
+        try
+        {
+            var c = target.GetComponentInChildren<Collider>();
+            if (c != null)
+            {
+                bounds = c.bounds;
+                return true;
+            }
+        }
+        catch { }
+
+        try
+        {
+            var r = target.GetComponentInChildren<Renderer>();
+            if (r != null)
+            {
+                bounds = r.bounds;
+                return true;
+            }
+        }
+        catch { }
+
+        return false;
+    }
+
+    private Vector3 GetJitterXZ()
+    {
+        float j = Mathf.Max(0f, spawnRadiusXZ);
+        if (j <= 0.0001f)
+            return Vector3.zero;
+
+        float x = UnityEngine.Random.Range(-j, j);
+        float z = UnityEngine.Random.Range(-j, j);
+        return new Vector3(x, 0f, z);
+    }
+
+    public static void ShowXpGain(EnemyHealth enemy, int amount, string skillName)
+    {
+        EnsureExists().ShowXpGainInternal(enemy, amount, skillName);
+    }
+
+    public static void ShowMiss(EnemyHealth enemy)
+    {
+        if (enemy == null)
+            return;
+
+        var mgr = EnsureExists();
+        var anchor = mgr.ComputeHeadAnchor(enemy.transform, enemy.transform.position);
+        var camRight = TryGetCameraRight();
+        var pos = anchor + (-camRight * Mathf.Max(0f, mgr.damageHorizontalOffset));
+        pos += mgr.GetJitterXZ();
+        var vel = (Vector3.up * mgr.driftUpSpeed) + (-camRight * mgr.driftSideSpeed);
+        mgr.SpawnInternalText("Miss", pos, baseColorOverride: null, velocityOverride: vel);
     }
 
     private static Vector3 TryGetPlayerPosition()

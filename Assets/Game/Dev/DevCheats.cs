@@ -185,6 +185,12 @@ namespace Abyss.Dev
             _lastSpawnedCount = 1;
         }
 
+        public void SpawnDamageTestEnemy()
+        {
+            // Uses the same spawn path as the existing tier hotkeys.
+            SpawnEnemyWithLootV2("Loot/Tables/Zone1_Trash", "QA_DamageTest");
+        }
+
         private void SpawnEnemies()
         {
             if (enemyPrefabs == null || enemyPrefabs.Count == 0)

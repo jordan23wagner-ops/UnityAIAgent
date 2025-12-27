@@ -8,6 +8,19 @@ public class PlayerInventory : MonoBehaviour
 {
     private readonly Dictionary<string, int> _items = new();
 
+    // Authoritative inventory slot capacity.
+    // NOTE: Inventory is stack-based; "slots" means number of distinct keys in _items.
+    private const int BaseInventorySlots = 10;
+
+    // Bag upgrades (T1–T5) increase capacity up to 24 total.
+    // These IDs are intentionally plain strings so content can be authored as legacy ItemDefinition assets.
+    // If your project uses different IDs, update these constants.
+    private static readonly string[] s_BagTier1Ids = { "bag_t1", "bag_tier_1", "bag1", "Bag T1", "T1 Bag" };
+    private static readonly string[] s_BagTier2Ids = { "bag_t2", "bag_tier_2", "bag2", "Bag T2", "T2 Bag" };
+    private static readonly string[] s_BagTier3Ids = { "bag_t3", "bag_tier_3", "bag3", "Bag T3", "T3 Bag" };
+    private static readonly string[] s_BagTier4Ids = { "bag_t4", "bag_tier_4", "bag4", "Bag T4", "T4 Bag" };
+    private static readonly string[] s_BagTier5Ids = { "bag_t5", "bag_tier_5", "bag5", "Bag T5", "T5 Bag" };
+
     // Legacy item definition lookup cache.
     private static Dictionary<string, ItemDefinition> s_LegacyDefById;
 
@@ -17,6 +30,66 @@ public class PlayerInventory : MonoBehaviour
     public int GetStackCount()
     {
         return _items != null ? _items.Count : 0;
+    }
+
+    public int GetMaxInventorySlots()
+    {
+        int max = BaseInventorySlots;
+
+        // Highest tier wins.
+        if (HasAny(s_BagTier5Ids)) return 24;
+        if (HasAny(s_BagTier4Ids)) return 22;
+        if (HasAny(s_BagTier3Ids)) return 20;
+        if (HasAny(s_BagTier2Ids)) return 18;
+        if (HasAny(s_BagTier1Ids)) return 16;
+
+        return max;
+    }
+
+    public int GetFreeInventorySlots()
+    {
+        return Mathf.Max(0, GetMaxInventorySlots() - GetStackCount());
+    }
+
+    public bool WouldExceedMaxSlotsWithAdditionalStacks(int additionalStacks)
+    {
+        additionalStacks = Mathf.Max(0, additionalStacks);
+        return (GetStackCount() + additionalStacks) > GetMaxInventorySlots();
+    }
+
+    // Conservative estimate of whether adding an item would consume a new slot.
+    // This intentionally mirrors the inventory's non-stackable policy for rolled instances.
+    public int EstimateAdditionalStacksForAdd(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return 0;
+
+        // Rolled instances never stack; each copy is a new key.
+        if (itemId.StartsWith("ri_", StringComparison.OrdinalIgnoreCase))
+            return Mathf.Max(1, amount);
+
+        // Stackable by default: only consumes a new slot if it doesn't already exist.
+        return _items != null && _items.ContainsKey(itemId) ? 0 : 1;
+    }
+
+    public bool HasRoomForAdd(string itemId, int amount)
+    {
+        int addStacks = EstimateAdditionalStacksForAdd(itemId, amount);
+        return !WouldExceedMaxSlotsWithAdditionalStacks(addStacks);
+    }
+
+    private bool HasAny(IReadOnlyList<string> ids)
+    {
+        if (ids == null || ids.Count == 0)
+            return false;
+
+        for (int i = 0; i < ids.Count; i++)
+        {
+            var id = ids[i];
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            if (Has(id, 1)) return true;
+        }
+        return false;
     }
 
     public void Add(string itemId, int amount = 1)

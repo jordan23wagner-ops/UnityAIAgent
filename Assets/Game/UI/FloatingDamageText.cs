@@ -15,6 +15,7 @@ public class FloatingDamageText : MonoBehaviour
     // TMP (optional, reflection-based)
     private TMP_Text _tmpDirect;
     private Color _tmpDirectBaseColor;
+    private Color _defaultBaseColor;
 
     private Component _tmpText;
     private PropertyInfo _tmpTextProp;
@@ -30,14 +31,68 @@ public class FloatingDamageText : MonoBehaviour
 
     private static bool _loggedAwake;
 
+    private Vector3 _defaultVelocity;
+    private Vector3 _velocity;
+
     internal bool DebugForceVisible;
 
     internal Action<FloatingDamageText> Finished;
+
+    public void SetBaseColor(Color baseColor)
+    {
+        baseColor.a = 1f;
+
+        if (_tmpDirect != null)
+        {
+            _tmpDirectBaseColor = baseColor;
+            try
+            {
+                var c = _tmpDirect.color;
+                c = baseColor;
+                c.a = 1f;
+                _tmpDirect.color = c;
+            }
+            catch { }
+            return;
+        }
+
+        if (_tmpText != null && _tmpColorProp != null)
+        {
+            _tmpBaseColor = baseColor;
+            try { _tmpColorProp.SetValue(_tmpText, baseColor); } catch { }
+            return;
+        }
+
+        if (_textMesh != null)
+        {
+            _meshBaseColor = baseColor;
+            _textMesh.color = baseColor;
+        }
+    }
+
+    public void ResetToDefaultColor()
+    {
+        SetBaseColor(_defaultBaseColor);
+    }
 
     public void SetDefaults(float lifetime, float rise)
     {
         lifetimeSeconds = Mathf.Max(0.05f, lifetime);
         riseSpeed = rise;
+
+        // Default motion is straight up, matching legacy behavior.
+        _defaultVelocity = Vector3.up * riseSpeed;
+        _velocity = _defaultVelocity;
+    }
+
+    public void SetVelocity(Vector3 worldVelocity)
+    {
+        _velocity = worldVelocity;
+    }
+
+    public void ResetVelocityToDefault()
+    {
+        _velocity = _defaultVelocity;
     }
 
     private void Awake()
@@ -60,12 +115,14 @@ public class FloatingDamageText : MonoBehaviour
             // TMP: keep a sane default (may be overridden by debugForceVisible on enable).
             TrySetTmpDirectVisuals();
             _tmpDirectBaseColor = new Color(1f, 0.2f, 0.2f, 1f);
+            _defaultBaseColor = _tmpDirectBaseColor;
         }
         else if (_tmpText != null)
         {
             // TMP: keep a sane default (may be overridden by debugForceVisible on enable).
             TrySetTmpVisuals();
             _tmpBaseColor = Color.red;
+            _defaultBaseColor = _tmpBaseColor;
         }
         else
         {
@@ -81,6 +138,7 @@ public class FloatingDamageText : MonoBehaviour
             _textMesh.color = Color.red;
 
             _meshBaseColor = _textMesh.color;
+            _defaultBaseColor = _meshBaseColor;
         }
 
         // Common: neutral rotation to avoid inherited weirdness.
@@ -112,11 +170,19 @@ public class FloatingDamageText : MonoBehaviour
 
         // Reset alpha on reuse.
         SetAlpha(1f);
+
+        // Pool safety: ensure motion resets unless overridden after enable.
+        _velocity = _defaultVelocity;
     }
 
     public void Init(int amount)
     {
-        string s = IntStringCache.Get(amount);
+        Init(IntStringCache.Get(amount));
+    }
+
+    public void Init(string text)
+    {
+        string s = string.IsNullOrEmpty(text) ? string.Empty : text;
 
         if (_tmpDirect != null)
         {
@@ -142,7 +208,7 @@ public class FloatingDamageText : MonoBehaviour
         float dt = Time.deltaTime;
         _time += dt;
 
-        transform.position += Vector3.up * (riseSpeed * dt);
+        transform.position += _velocity * dt;
 
         float t01 = lifetimeSeconds <= 0.01f ? 1f : Mathf.Clamp01(_time / lifetimeSeconds);
         SetAlpha(1f - t01);

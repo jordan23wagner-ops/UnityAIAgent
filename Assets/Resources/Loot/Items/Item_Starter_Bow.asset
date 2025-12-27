@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
   id: Starter_Bow
   displayName: Simple Bow
-  icon: {fileID: 21300000, guid: c3a5409294314da4493016f00ed87b69, type: 3}
+  icon: {fileID: 21300000, guid: b16c0f4a9a8d4e2b9c5b7a7f7e3c1a2b, type: 3}
   slot: 7
   occupiesSlots: 
   baseStats:

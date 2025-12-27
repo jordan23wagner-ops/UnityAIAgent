@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Abyss.Equipment;
 using Abyss.Items;
 using UnityEngine;
+using Abyssbound.Stats;
 
 using AbyssItemType = Abyss.Items.ItemType;
 
@@ -16,15 +17,22 @@ public sealed class PlayerCombatStats : MonoBehaviour
 
     public int EquipmentDamageBonus { get; private set; }
 
-    public int DamageFinal => Mathf.Max(1, BaseDamage + EquipmentDamageBonus);
+    public int StrengthMeleeDamageBonus { get; private set; }
+
+    private int _damageFinal;
+
+    public int DamageFinal => Mathf.Max(1, _damageFinal > 0 ? _damageFinal : (BaseDamage + EquipmentDamageBonus));
 
     private PlayerEquipment _equipment;
+
+    private PlayerStatsRuntime _stats;
 
     private static Dictionary<string, ItemDefinition> s_DefById;
 
     private void OnEnable()
     {
         EnsureEquipment();
+        EnsureStatsRuntime();
         Recompute();
     }
 
@@ -55,6 +63,22 @@ public sealed class PlayerCombatStats : MonoBehaviour
         }
     }
 
+    private void EnsureStatsRuntime()
+    {
+        if (_stats != null)
+            return;
+
+        try { _stats = GetComponent<PlayerStatsRuntime>(); }
+        catch { _stats = null; }
+
+        if (_stats == null)
+        {
+            // Keep integration compile-safe without scene edits.
+            try { _stats = gameObject.AddComponent<PlayerStatsRuntime>(); }
+            catch { _stats = null; }
+        }
+    }
+
     private void OnEquipmentChanged()
     {
         Recompute();
@@ -64,90 +88,35 @@ public sealed class PlayerCombatStats : MonoBehaviour
     {
         EnsureEquipment();
 
-        int bonus = 0;
+        EnsureStatsRuntime();
 
-        if (_equipment != null)
+        int equipBonus = 0;
+        int strBonus = 0;
+        int final = Mathf.Max(1, BaseDamage);
+        if (_stats != null)
         {
-            // Simplest consistent rule:
-            // - Sum DamageBonus across both hands.
-            // - If a two-handed item is represented by the same itemId in both hands, count it once.
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try { _stats.RebuildNow(); }
+            catch { }
 
-            AccumulateSlot(EquipmentSlot.RightHand, seen, ref bonus);
-            AccumulateSlot(EquipmentSlot.LeftHand, seen, ref bonus);
-        }
-
-        // Set bonuses (Loot V2) - data-driven tiers from ItemSetDefinitionSO.
-        try
-        {
-            Abyssbound.Loot.SetBonusRuntime.AccumulateActiveSetBonusesForDamage(ref bonus);
-        }
-        catch { }
-
-        EquipmentDamageBonus = bonus;
-        Debug.Log($"[STATS] Base={BaseDamage} EquipBonus={EquipmentDamageBonus} Final={DamageFinal}", this);
-    }
-
-    private void AccumulateSlot(EquipmentSlot slot, HashSet<string> seen, ref int bonus)
-    {
-        if (_equipment == null)
-            return;
-
-        string itemId = null;
-        try { itemId = _equipment.Get(slot); } catch { itemId = null; }
-
-        if (string.IsNullOrWhiteSpace(itemId))
-            return;
-
-        if (seen != null && !seen.Add(itemId))
-            return;
-
-        // Rolled loot instance support (inventory/equipment stores the rolled instance id).
-        try
-        {
-            var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
-            if (reg != null && reg.TryGetRolledInstance(itemId, out var inst) && inst != null)
+            try
             {
-                var mods = inst.GetAllStatMods(reg);
-                if (mods != null)
-                {
-                    for (int i = 0; i < mods.Count; i++)
-                    {
-                        var m = mods[i];
-                        if (m.percent) continue; // percent not applied yet
-
-                        switch (m.stat)
-                        {
-                            case Abyssbound.Loot.StatType.MeleeDamage:
-                            case Abyssbound.Loot.StatType.RangedDamage:
-                            case Abyssbound.Loot.StatType.MagicDamage:
-                                bonus += Mathf.Max(0, Mathf.RoundToInt(m.value));
-                                break;
-                        }
-                    }
-                }
-
-                return;
+                equipBonus = _stats.Derived.equipmentDamageBonus;
+                strBonus = _stats.Derived.strengthMeleeDamageBonus;
+                final = _stats.Derived.damageFinal;
+            }
+            catch
+            {
+                equipBonus = 0;
+                strBonus = 0;
+                final = Mathf.Max(1, BaseDamage);
             }
         }
-        catch { }
 
-        var def = ResolveItemDefinition(itemId);
-        if (def == null)
-            return;
+        EquipmentDamageBonus = Mathf.Max(0, equipBonus);
+        StrengthMeleeDamageBonus = Mathf.Max(0, strBonus);
+        _damageFinal = Mathf.Max(1, final);
 
-        try
-        {
-            if (def.itemType != AbyssItemType.Weapon)
-                return;
-        }
-        catch { }
-
-        try
-        {
-            bonus += Mathf.Max(0, def.DamageBonus);
-        }
-        catch { }
+        Debug.Log($"[STATS] Base={BaseDamage} EquipBonus={EquipmentDamageBonus} StrBonus={StrengthMeleeDamageBonus} Final={DamageFinal}", this);
     }
 
     private static ItemDefinition ResolveItemDefinition(string itemId)

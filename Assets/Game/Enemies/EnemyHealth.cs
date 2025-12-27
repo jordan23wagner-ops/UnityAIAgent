@@ -86,6 +86,20 @@ public class EnemyHealth : MonoBehaviour
         if (isDead || currentHealth <= 0)
             ResetHealth();
 
+        // Accuracy system fallback: ensure enemies have a minimal defence profile without requiring prefab edits.
+        if (Application.isPlaying)
+        {
+            try
+            {
+                if (GetComponent<EnemyCombatProfile>() == null)
+                    gameObject.AddComponent<EnemyCombatProfile>();
+            }
+            catch
+            {
+                // Non-fatal; resolver will fall back to EnemyDefence=1 with a single warning.
+            }
+        }
+
         // Hard failsafe: ensure combat feedback systems exist even if bootstrap didn't run.
         if (Application.isPlaying)
         {

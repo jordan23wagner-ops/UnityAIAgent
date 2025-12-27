@@ -87,7 +87,8 @@ public class ClickToMoveController : MonoBehaviour
         {
             if (enemyHealth != null)
             {
-                if (_combatLoop != null) _combatLoop.SetTarget(enemyHealth, attackStopDistance);
+                // Use dynamic stop distance from combat (weapon-type aware).
+                if (_combatLoop != null) _combatLoop.SetTarget(enemyHealth, stopDistance: 0f);
                 return;
             }
 

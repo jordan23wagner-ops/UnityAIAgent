@@ -1724,11 +1724,17 @@ namespace Abyssbound.EditorTools
             hay = hay.ToLowerInvariant();
 
             // Ranged/bow
-            if (hay.Contains("bow") || hay.Contains("ranged"))
+            if (hay.Contains("bow") || hay.Contains("crossbow") || hay.Contains("xbow") || hay.Contains("ranged"))
                 return WeaponKind.Bow;
 
             // Magic/staff
-            if (hay.Contains("staff") || hay.Contains("wand") || hay.Contains("magic"))
+            if (
+                hay.Contains("staff") || hay.Contains("stave") || hay.Contains("wand") || hay.Contains("rod") || hay.Contains("scepter") ||
+                hay.Contains("tome") || hay.Contains("spellbook") || hay.Contains("book") || hay.Contains("grimoire") || hay.Contains("rune") ||
+                hay.Contains("magic") || hay.Contains("arcane") || hay.Contains("spell") || hay.Contains("mage") || hay.Contains("wizard") ||
+                // If something is literally named an "orb" but is a weapon (RightHand), prefer the staff silhouette over the generic orb.
+                hay.Contains("orb")
+            )
                 return WeaponKind.Staff;
 
             // Generic weapon (default for RightHand)

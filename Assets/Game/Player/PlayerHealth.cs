@@ -27,6 +27,8 @@ public class PlayerHealth : MonoBehaviour
 
     public event Action<float> OnHealthChanged;
     public event Action<int, int> HealthChanged;
+    public event Action<int> DamageTakenFinal;
+    public event Action<int, EnemyHealth> DamageTakenFinalFromEnemy;
 
     private PlayerEquipment _equipment;
     private static Dictionary<string, ItemDefinition> s_DefById;
@@ -79,6 +81,11 @@ public class PlayerHealth : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
+        TakeDamage(amount, null);
+    }
+
+    public void TakeDamage(int amount, EnemyHealth sourceEnemy)
+    {
         if (IsDead) return;
         if (amount <= 0) return;
 
@@ -94,6 +101,13 @@ public class PlayerHealth : MonoBehaviour
 #endif
 
         currentHealth = Mathf.Max(0, currentHealth - mitigated);
+
+        try { DamageTakenFinal?.Invoke(mitigated); }
+        catch (Exception ex) { Debug.LogError($"[PlayerHealth] DamageTakenFinal event threw: {ex.Message}", this); }
+
+        try { DamageTakenFinalFromEnemy?.Invoke(mitigated, sourceEnemy); }
+        catch (Exception ex) { Debug.LogError($"[PlayerHealth] DamageTakenFinalFromEnemy event threw: {ex.Message}", this); }
+
         RaiseChanged();
     }
 

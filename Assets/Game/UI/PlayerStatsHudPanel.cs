@@ -1,5 +1,6 @@
 using System;
 using Abyss.Equipment;
+using Abyssbound.Stats;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,10 +12,13 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
     [SerializeField] private TMP_Text dmgText;
     [SerializeField] private TMP_Text hpText;
     [SerializeField] private TMP_Text drText;
+    [SerializeField] private TMP_Text primaryStatsText;
 
     [Header("References")]
     [SerializeField] private PlayerCombatStats combatStats;
     [SerializeField] private PlayerHealth playerHealth;
+
+    [SerializeField] private PlayerStatsRuntime statsRuntime;
 
     private PlayerEquipment _equipment;
     private bool _warnedMissingRefs;
@@ -90,7 +94,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         rootRt.anchorMax = new Vector2(1f, 1f);
         rootRt.pivot = new Vector2(1f, 1f);
         rootRt.anchoredPosition = new Vector2(-20f, -60f);
-        rootRt.sizeDelta = new Vector2(240f, 92f);
+        rootRt.sizeDelta = new Vector2(240f, 320f);
         rootRt.localScale = Vector3.one;
 
         // Background
@@ -139,6 +143,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         var dmg = EnsureLineText(rootGo.transform, "Stats_DMG", new Vector2(10f, -8f));
         var hp = EnsureLineText(rootGo.transform, "Stats_HP", new Vector2(10f, -38f));
         var dr = EnsureLineText(rootGo.transform, "Stats_DR", new Vector2(10f, -68f));
+        var prim = EnsureBlockText(rootGo.transform, "Stats_Primary", new Vector2(10f, -98f), height: 210f);
 
         // Enforce order: BG first, then texts.
         try
@@ -159,6 +164,8 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
             panel.hpText = hp;
         if (panel.drText == null)
             panel.drText = dr;
+        if (panel.primaryStatsText == null)
+            panel.primaryStatsText = prim;
 
         panel.ApplyStyle();
         panel.Refresh();
@@ -196,6 +203,47 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         rt.pivot = new Vector2(0f, 1f);
         rt.anchoredPosition = anchoredPos;
         rt.sizeDelta = new Vector2(-20f, 28f);
+        rt.localScale = Vector3.one;
+
+        var tmp = go.GetComponent<TextMeshProUGUI>();
+        if (tmp == null)
+            tmp = go.AddComponent<TextMeshProUGUI>();
+
+        tmp.raycastTarget = false;
+        return tmp;
+    }
+
+    private static TextMeshProUGUI EnsureBlockText(Transform parent, string name, Vector2 anchoredPos, float height)
+    {
+        if (parent == null)
+            return null;
+
+        Transform tf = null;
+        try { tf = parent.Find(name); } catch { tf = null; }
+
+        GameObject go;
+        if (tf == null)
+        {
+            go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+        }
+        else
+        {
+            go = tf.gameObject;
+        }
+
+        if (go == null)
+            return null;
+
+        var rt = go.GetComponent<RectTransform>();
+        if (rt == null)
+            rt = go.AddComponent<RectTransform>();
+
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.anchoredPosition = anchoredPos;
+        rt.sizeDelta = new Vector2(-20f, Mathf.Max(40f, height));
         rt.localScale = Vector3.one;
 
         var tmp = go.GetComponent<TextMeshProUGUI>();
@@ -265,6 +313,11 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         {
             try { drText = transform.Find("Stats_DR")?.GetComponent<TMP_Text>(); } catch { drText = null; }
         }
+
+        if (primaryStatsText == null)
+        {
+            try { primaryStatsText = transform.Find("Stats_Primary")?.GetComponent<TMP_Text>(); } catch { primaryStatsText = null; }
+        }
     }
 
     private void ResolveRefs()
@@ -312,6 +365,45 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 #endif
                 }
                 catch { playerHealth = null; }
+            }
+        }
+
+        if (statsRuntime == null)
+        {
+            try
+            {
+                if (combatStats != null)
+                {
+                    statsRuntime = combatStats.GetComponentInParent<PlayerStatsRuntime>();
+                    if (statsRuntime == null) statsRuntime = combatStats.GetComponent<PlayerStatsRuntime>();
+                }
+            }
+            catch { statsRuntime = null; }
+
+            if (statsRuntime == null)
+            {
+                try
+                {
+                    if (playerHealth != null)
+                    {
+                        statsRuntime = playerHealth.GetComponentInParent<PlayerStatsRuntime>();
+                        if (statsRuntime == null) statsRuntime = playerHealth.GetComponent<PlayerStatsRuntime>();
+                    }
+                }
+                catch { statsRuntime = null; }
+            }
+
+            if (statsRuntime == null)
+            {
+                try
+                {
+#if UNITY_2023_1_OR_NEWER
+                    statsRuntime = UnityEngine.Object.FindAnyObjectByType<PlayerStatsRuntime>(FindObjectsInactive.Exclude);
+#else
+                    statsRuntime = UnityEngine.Object.FindObjectOfType<PlayerStatsRuntime>();
+#endif
+                }
+                catch { statsRuntime = null; }
             }
         }
 
@@ -398,6 +490,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         ApplyTextStyle(dmgText, 22f);
         ApplyTextStyle(hpText, 22f);
         ApplyTextStyle(drText, 22f);
+        ApplyTextStyle(primaryStatsText, 16f);
 
         if (dmgText != null)
             dmgText.text = "DMG: ?";
@@ -405,6 +498,9 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
             hpText.text = "HP: ?/?";
         if (drText != null)
             drText.text = "DR: ?";
+
+        if (primaryStatsText != null)
+            primaryStatsText.text = BuildLeveledStatsString(default);
     }
 
     private static void ApplyTextStyle(TMP_Text t, float fontSize)
@@ -461,5 +557,37 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
             else
                 drText.text = "DR: ?";
         }
+
+        if (primaryStatsText != null)
+        {
+            Abyssbound.Stats.PlayerLeveledStats p = default;
+
+            if (statsRuntime != null)
+            {
+                // Leveled stats are progression-only; do not display gear bonus or totals.
+                try { p = statsRuntime.Leveled; } catch { p = default; }
+            }
+
+            primaryStatsText.text = BuildLeveledStatsString(p);
+        }
+    }
+
+    private static string BuildLeveledStatsString(in Abyssbound.Stats.PlayerLeveledStats p)
+    {
+        // Display exactly the requested OSRS-style progression stat list.
+        return
+            "Combat:\n" +
+            $"Attack: {p.attack}\n" +
+            $"Strength: {p.strength}\n" +
+            $"Defence: {p.defence}\n" +
+            $"Ranged: {p.ranged}\n" +
+            $"Magic: {p.magic}\n" +
+            "Skilling:\n" +
+            $"Alchemy: {p.alchemy}\n" +
+            $"Mining: {p.mining}\n" +
+            $"Woodcutting: {p.woodcutting}\n" +
+            $"Forging: {p.forging}\n" +
+            $"Fishing: {p.fishing}\n" +
+            $"Cooking: {p.cooking}";
     }
 }

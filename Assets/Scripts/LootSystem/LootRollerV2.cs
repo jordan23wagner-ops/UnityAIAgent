@@ -53,7 +53,8 @@ namespace Abyssbound.Loot
             if (rarityWeightsOverride.HasValue)
             {
                 var weights = rarityWeightsOverride.Value;
-                rarity = RollWeighted(table.rarities, e => e.rarity, e => weights.GetWeight(e != null && e.rarity != null ? e.rarity.id : null), rng);
+                // NOTE: WeightedRarityEntry is a struct (non-nullable) so it can never be null; treat "missing" as rarity == null.
+                rarity = RollWeighted(table.rarities, e => e.rarity, e => weights.GetWeight(e.rarity != null ? e.rarity.id : null), rng);
                 if (rarity == null)
                 {
                     // Fallback: keep drops working even if the table is missing expected rarity ids.

@@ -12,7 +12,8 @@ namespace Abyssbound.EditorTools
         [MenuItem("Tools/Abyssbound/Debug/Log Equipped Item Icon Sources")]
         private static void LogEquippedItemIconSources()
         {
-            var equipment = UnityEngine.Object.FindObjectOfType<PlayerEquipment>();
+            // FindObjectOfType<T>() is obsolete in newer Unity versions; we only need any instance.
+            var equipment = UnityEngine.Object.FindAnyObjectByType<PlayerEquipment>();
             if (equipment == null)
             {
                 UnityEngine.Debug.LogWarning("[EquipIconSrc] No PlayerEquipment found in scene.");

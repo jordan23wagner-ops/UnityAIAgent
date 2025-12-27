@@ -17,9 +17,11 @@ public sealed class EnemyMeleeAttack : MonoBehaviour
     private float _nextAttackTime;
     private PlayerHealth _playerHealth;
     private Transform _playerTransform;
+    private EnemyHealth _selfEnemyHealth;
 
     private void OnEnable()
     {
+        try { _selfEnemyHealth = GetComponent<EnemyHealth>(); } catch { _selfEnemyHealth = null; }
         TryResolvePlayer();
         _nextAttackTime = Time.time + Random.Range(0f, 0.25f);
     }
@@ -49,7 +51,7 @@ public sealed class EnemyMeleeAttack : MonoBehaviour
         if (delta.sqrMagnitude > range * range)
             return;
 
-        _playerHealth.TakeDamage(damage);
+        _playerHealth.TakeDamage(damage, _selfEnemyHealth);
         _nextAttackTime = Time.time + Mathf.Max(0.05f, cooldownSeconds);
 
         if (debugLogs)

@@ -15,6 +15,10 @@ public class CombatLoopController : MonoBehaviour
     private float _nextCheckTime;
     private bool _loggedAttackState;
 
+    private bool _useDynamicStopDistance;
+    private bool _hasLastInRange;
+    private bool _lastInRange;
+
     private void Awake()
     {
         _motor = GetComponent<PlayerMovementMotor>();
@@ -33,10 +37,17 @@ public class CombatLoopController : MonoBehaviour
 
         SubscribeToTargetDeath();
 
-        if (stopDistance > 0f)
+        _useDynamicStopDistance = stopDistance <= 0f;
+
+        if (!_useDynamicStopDistance && stopDistance > 0f)
             engageStopDistance = stopDistance;
         else if (_combat != null)
             engageStopDistance = _combat.Range;
+
+        _hasLastInRange = false;
+
+        if (Abyssbound.Combat.CombatQaFlags.AttackDebugLogs && _combat != null)
+            Debug.Log($"[CombatMove] Set stoppingDistance={engageStopDistance:0.00} Type={_combat.CurrentAttackType}", this);
 
         if (_target != null && _motor != null)
             _motor.SetFollowTarget(_target.transform, engageStopDistance);
@@ -48,6 +59,8 @@ public class CombatLoopController : MonoBehaviour
 
         _target = null;
         _loggedAttackState = false;
+        _useDynamicStopDistance = false;
+        _hasLastInRange = false;
 
         if (_combat != null)
             _combat.SelectedTarget = null;
@@ -113,6 +126,19 @@ public class CombatLoopController : MonoBehaviour
         if (Time.time < _nextCheckTime) return;
         _nextCheckTime = Time.time + recheckRate;
 
+        // Single source of truth: stop distance comes from combat.Range (weapon-type aware)
+        // unless explicitly overridden by caller.
+        if (_useDynamicStopDistance && _combat != null)
+        {
+            float newStop = _combat.Range;
+            if (!Mathf.Approximately(newStop, engageStopDistance))
+            {
+                engageStopDistance = newStop;
+                if (Abyssbound.Combat.CombatQaFlags.AttackDebugLogs)
+                    Debug.Log($"[CombatMove] Set stoppingDistance={engageStopDistance:0.00} Type={_combat.CurrentAttackType}", this);
+            }
+        }
+
         Vector3 myPos = transform.position;
         Vector3 targetPos = _target.transform.position;
 
@@ -122,7 +148,18 @@ public class CombatLoopController : MonoBehaviour
         float distSq = (dx * dx) + (dz * dz);
         float stopSq = engageStopDistance * engageStopDistance;
 
-        if (distSq > stopSq)
+        bool inRange = distSq <= stopSq;
+        if (Abyssbound.Combat.CombatQaFlags.AttackDebugLogs)
+        {
+            if (!_hasLastInRange || inRange != _lastInRange)
+            {
+                _hasLastInRange = true;
+                _lastInRange = inRange;
+                Debug.Log($"[CombatMove] dist={Mathf.Sqrt(distSq):0.00} range={engageStopDistance:0.00} inRange={(inRange ? "true" : "false")}", this);
+            }
+        }
+
+        if (!inRange)
         {
             _loggedAttackState = false;
             if (_motor != null)

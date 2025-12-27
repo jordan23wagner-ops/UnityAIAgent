@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9923bcf1fbf046449ad67413efeee8e8, type: 3}
+  m_Name: FishingSkillConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Skills.Fishing.FishingSkillConfigSO
+  primarySkill: 17
+  requiredToolItemId: tool_fishing_rod
+  tiers:
+  - id: T1
+    requiredFishingLevel: 1
+    actionSeconds: 2
+    yieldItemId: fish_raw_shrimp
+    yieldAmount: 1
+    actionXp: 5
+    yieldXp: 0
+    awardSecondaryXp: 0
+    secondarySkill: 18
+    secondaryActionXp: 0
+    secondaryYieldXp: 0
+  - id: T2
+    requiredFishingLevel: 5
+    actionSeconds: 2.5
+    yieldItemId: fish_raw_trout
+    yieldAmount: 1
+    actionXp: 8
+    yieldXp: 0
+    awardSecondaryXp: 0
+    secondarySkill: 18
+    secondaryActionXp: 0
+    secondaryYieldXp: 0
+  potSecondsPerCatch: 5
+  potMaxStoredCatches: 12
