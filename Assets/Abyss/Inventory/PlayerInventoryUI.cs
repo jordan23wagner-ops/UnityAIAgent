@@ -22,6 +22,14 @@ namespace Abyss.Inventory
     {
         private enum InventoryTab
         {
+            // QA (Dec 2025):
+            // - Enter Play Mode
+            // - Add fish_raw_shrimp via fishing
+            // - Open inventory: shrimp should appear under All tab by default
+            // - Switch to Weapons/Gear: shrimp should disappear there if classified as Skilling (expected)
+            // - Switch back to All: shrimp appears again
+            // - No exceptions, no new compile errors
+            All = 4,
             WeaponsGear = 0,
             Materials = 1,
             Consumables = 2,
@@ -30,6 +38,8 @@ namespace Abyss.Inventory
 
         private const bool INVENTORY_UI_DEBUG = false;
         private static bool InventoryUiDebugEnabled => INVENTORY_UI_DEBUG;
+
+        private const bool INV_DEBUG = false;
 
     #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private const bool INV_DIAGNOSTICS = true;
@@ -89,13 +99,16 @@ namespace Abyss.Inventory
         // UI-only selection index for visuals (grid slot index 0..27, or -1 none)
         private int _selectedSlotIndex = -1;
 
-        private InventoryTab _activeTab = InventoryTab.WeaponsGear;
+        // Default to All so dev testing never hides items behind filters.
+        private InventoryTab _activeTab = InventoryTab.All;
 
+        private Button _tabAll;
         private Button _tabWeapons;
         private Button _tabMaterials;
         private Button _tabConsumables;
         private Button _tabSkilling;
 
+        private TMP_Text _tabAllText;
         private TMP_Text _tabWeaponsText;
         private TMP_Text _tabMaterialsText;
         private TMP_Text _tabConsumablesText;
@@ -698,6 +711,57 @@ namespace Abyss.Inventory
 
         private void RefreshAll()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // TEMP (Dec 2025): tab/filter diagnostics to ensure dev testing doesn't hide items.
+            // Acceptance / QA steps are documented at the InventoryTab enum.
+            try
+            {
+                EnsureInventory();
+                var snap = _inventory != null ? _inventory.GetAllItemsSnapshot() : null;
+
+                int considered = 0;
+                int passed = 0;
+                bool shrimpPresent = false;
+                string shrimpType = "(unresolved)";
+                bool shrimpHasIcon = false;
+
+                if (snap != null)
+                {
+                    foreach (var kv in snap)
+                    {
+                        var itemId = kv.Key;
+                        int count = kv.Value;
+                        if (string.IsNullOrWhiteSpace(itemId) || count <= 0)
+                            continue;
+
+                        considered++;
+                        var def = ResolveItemDefinition(itemId);
+                        if (PassesTabFilter(def, itemId))
+                            passed++;
+                    }
+
+                    if (snap.TryGetValue("fish_raw_shrimp", out var shrimpCount) && shrimpCount > 0)
+                    {
+                        shrimpPresent = true;
+                        var def = ResolveItemDefinition("fish_raw_shrimp");
+                        if (def != null)
+                        {
+                            shrimpType = def.itemType.ToString();
+                            shrimpHasIcon = def.icon != null;
+                        }
+                    }
+                }
+
+                Debug.Log(
+                    $"[INV][REFRESHALL] tab={_activeTab} considered={considered} pass={passed} " +
+                    (shrimpPresent
+                        ? $"fish_raw_shrimp: itemType={shrimpType} hasIcon={shrimpHasIcon}"
+                        : "fish_raw_shrimp: absent"),
+                    this);
+            }
+            catch { }
+#endif
+
             RefreshGold();
             RefreshList();
             RefreshDetails();
@@ -781,6 +845,26 @@ namespace Abyss.Inventory
                 return;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+#pragma warning disable CS0162
+            if (INV_DEBUG)
+            {
+                int nonEmptyStacks = 0;
+                try
+                {
+                    foreach (var kv in snap)
+                    {
+                        if (!string.IsNullOrWhiteSpace(kv.Key) && kv.Value > 0)
+                            nonEmptyStacks++;
+                    }
+                }
+                catch { }
+
+                Debug.Log($"[INVDBG][UI REFRESH] snapshotKeys={snap.Count} nonEmptyStacks={nonEmptyStacks} gridSlots={InventoryGridSlots}", this);
+            }
+#pragma warning restore CS0162
+#endif
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (InventoryUiDebugEnabled) Debug.Log("[InventoryUI TRACE] RefreshList snapshotCount=" + snap.Count + " frame=" + Time.frameCount, this);
 #endif
 
@@ -835,6 +919,16 @@ namespace Abyss.Inventory
 
                 visibleStacks.Add((itemId, count, def));
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#pragma warning disable CS0162
+            if (INV_DEBUG)
+            {
+                int nonEmptySlots = Mathf.Min(visibleStacks.Count, InventoryGridSlots);
+                Debug.Log($"[INVDBG][UI REFRESH] visibleStacks={visibleStacks.Count} nonEmptySlotsShown={nonEmptySlots} rowsToCreate={InventoryGridSlots}", this);
+            }
+#pragma warning restore CS0162
+#endif
 
             // Sync selected slot index based on currently selected item id (UI-only).
             _selectedSlotIndex = FindSelectedSlotIndexInVisibleStacks(visibleStacks, _selectedItemId);
@@ -1434,6 +1528,19 @@ namespace Abyss.Inventory
         private PlayerInventory ResolveInventory(out string source)
         {
             source = null;
+
+            // Centralized resolver: keep UI and gameplay (Fishing/Gathering/Loot) on the same PlayerInventory instance.
+            try
+            {
+                var inv = Game.Systems.PlayerInventoryResolver.GetOrFindWithDiagnostics(out source);
+                if (inv != null)
+                    return inv;
+            }
+            catch
+            {
+                // Fall back to legacy resolver below.
+                source = null;
+            }
 
             // 1) Prefer player authority chain.
             try
@@ -2549,7 +2656,7 @@ namespace Abyss.Inventory
                 bg.color = new Color(0.08f, 0.08f, 0.08f, 0.65f);
             }
 
-            if (_tabWeapons != null && _tabMaterials != null && _tabConsumables != null && _tabSkilling != null)
+            if (_tabAll != null && _tabWeapons != null && _tabMaterials != null && _tabConsumables != null && _tabSkilling != null)
             {
                 RefreshTabVisuals();
                 return;
@@ -2567,17 +2674,23 @@ namespace Abyss.Inventory
             // If children already exist, attempt to bind by name.
             if (tabsRoot.childCount > 0)
             {
+                _tabAll = FindButtonUnder(tabsRoot, "Tab_All") ?? _tabAll;
                 _tabWeapons = FindButtonUnder(tabsRoot, "Tab_WeaponsGear") ?? _tabWeapons;
                 _tabMaterials = FindButtonUnder(tabsRoot, "Tab_Materials") ?? _tabMaterials;
                 _tabConsumables = FindButtonUnder(tabsRoot, "Tab_Consumables") ?? _tabConsumables;
                 _tabSkilling = FindButtonUnder(tabsRoot, "Tab_Skilling") ?? _tabSkilling;
             }
 
+            _tabAll ??= CreateTabButton(tabsRoot, "Tab_All", "All", out _tabAllText);
             _tabWeapons ??= CreateTabButton(tabsRoot, "Tab_WeaponsGear", "Weapons/Gear", out _tabWeaponsText);
             _tabMaterials ??= CreateTabButton(tabsRoot, "Tab_Materials", "Materials", out _tabMaterialsText);
             _tabConsumables ??= CreateTabButton(tabsRoot, "Tab_Consumables", "Consumables", out _tabConsumablesText);
             _tabSkilling ??= CreateTabButton(tabsRoot, "Tab_Skilling", "Skilling", out _tabSkillingText);
 
+            // Keep the All tab first when we create it dynamically.
+            try { if (_tabAll != null) _tabAll.transform.SetSiblingIndex(0); } catch { }
+
+            WireTab(_tabAll, InventoryTab.All);
             WireTab(_tabWeapons, InventoryTab.WeaponsGear);
             WireTab(_tabMaterials, InventoryTab.Materials);
             WireTab(_tabConsumables, InventoryTab.Consumables);
@@ -2600,6 +2713,7 @@ namespace Abyss.Inventory
 
         private void RefreshTabVisuals()
         {
+            ApplyTabVisual(_tabAll, _tabAllText, _activeTab == InventoryTab.All);
             ApplyTabVisual(_tabWeapons, _tabWeaponsText, _activeTab == InventoryTab.WeaponsGear);
             ApplyTabVisual(_tabMaterials, _tabMaterialsText, _activeTab == InventoryTab.Materials);
             ApplyTabVisual(_tabConsumables, _tabConsumablesText, _activeTab == InventoryTab.Consumables);
@@ -2675,6 +2789,10 @@ namespace Abyss.Inventory
 
         private bool PassesTabFilter(ItemDefinition def, string itemId)
         {
+            // All tab: no filtering (dev testing default).
+            if (_activeTab == InventoryTab.All)
+                return true;
+
             // Unknown items: keep visible under Weapons/Gear so they don't disappear.
             if (def == null)
                 return _activeTab == InventoryTab.WeaponsGear;
