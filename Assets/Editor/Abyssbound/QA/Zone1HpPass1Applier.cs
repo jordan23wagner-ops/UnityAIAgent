@@ -8,11 +8,11 @@ namespace Abyssbound.QA
 {
     public static class Zone1HpPass1Applier
     {
-        private const int TrashHp = 50;
-        private const int EliteHp = 125;
-        private const int BossHp = 700;
+        private const int TrashHp = 42;
+        private const int EliteHp = 166;
+        private const int BossHp = 1010;
 
-        [MenuItem("Tools/Abyssbound/QA/Zone1 HP/Apply Pass 1 (Trash 50 / Elite 125 / Boss 700)")]
+        [MenuItem("Tools/Abyssbound/QA/Zone1 HP/Apply Pass 2 (Trash 42 / Elite 166 / Boss 1010)")]
         private static void Apply()
         {
             int visited = 0;
@@ -21,7 +21,7 @@ namespace Abyssbound.QA
             int updatedHealthComponents = 0;
 
             var sb = new StringBuilder(2048);
-            sb.AppendLine("[Zone1 HP] Pass 1 apply");
+            sb.AppendLine("[Zone1 HP] Pass 2 apply");
             sb.AppendLine($"Targets: Trash={TrashHp} Elite={EliteHp} Boss={BossHp}");
 
             var guids = AssetDatabase.FindAssets("t:Prefab");

@@ -30,9 +30,9 @@ namespace Abyss.Dev
         public KeyCode spawnBossKey = KeyCode.F10;
 
         [Header("Spawn (Tier HP)")]
-        [Min(1)] public int qaTrashHp = 50;
-        [Min(1)] public int qaEliteHp = 125;
-        [Min(1)] public int qaBossHp = 700;
+        [Min(1)] public int qaTrashHp = 42;
+        [Min(1)] public int qaEliteHp = 166;
+        [Min(1)] public int qaBossHp = 1010;
 
         [Header("Spawning")]
         public List<GameObject> enemyPrefabs = new();

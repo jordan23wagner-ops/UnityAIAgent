@@ -19,9 +19,9 @@ namespace Abyss.Dev
         [SerializeField] private int maxSecondsPerKill = 20;
 
         [Header("Sim HP (by tier)")]
-        [SerializeField] private int trashHp = 50;
-        [SerializeField] private int eliteHp = 125;
-        [SerializeField] private int bossHp = 700;
+        [SerializeField] private int trashHp = 42;
+        [SerializeField] private int eliteHp = 166;
+        [SerializeField] private int bossHp = 1010;
 
         private Coroutine _routine;
 
