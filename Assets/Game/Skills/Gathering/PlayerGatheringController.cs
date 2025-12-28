@@ -76,6 +76,26 @@ namespace Abyssbound.Skills.Gathering
                 try { _inventory = GetComponentInChildren<PlayerInventory>(true); }
                 catch { _inventory = null; }
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            try
+            {
+                // Log the chosen inventory instance for diagnosing duplicates.
+                // Note: verbose logging is gated in PlayerInventoryResolver.
+                Game.Systems.PlayerInventoryResolver.LogAllInventoriesOnStart("GatheringSkillController.GetOrFindInventory");
+
+                if (_inventory != null)
+                {
+                    var id = _inventory.GetInstanceID();
+                    var path = Game.Systems.PlayerInventoryResolver.GetGameObjectPath(_inventory.gameObject);
+                    // Keep this behind the resolver's verbose flag by using its method as the gate.
+                    // If verbose is off, LogAllInventoriesOnStart does nothing and this log stays quiet.
+                    // (We avoid introducing another global debug flag.)
+                    // Intentionally no log here unless the global verbose is enabled.
+                }
+            }
+            catch { }
+#endif
             return _inventory;
         }
 

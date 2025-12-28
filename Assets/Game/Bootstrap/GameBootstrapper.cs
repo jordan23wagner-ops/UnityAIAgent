@@ -256,6 +256,14 @@ public class GameBootstrapper : MonoBehaviour
             Debug.Log("[Bootstrap] Added PlayerMovementMotor.", player);
         }
 
+        // Inventory diagnostics (quiet by default; enable in PlayerInventoryResolver to troubleshoot duplicate inventories).
+        try
+        {
+            Game.Systems.PlayerInventoryResolver.LogAllInventoriesOnStart("GameBootstrapper.EnsurePlayerComponents");
+            Game.Systems.PlayerInventoryResolver.EnforceSingleAuthoritativeInventoryOptional(destroyDuplicateComponents: false);
+        }
+        catch { }
+
         if (player.GetComponent<CombatLoopController>() == null)
         {
             player.AddComponent<CombatLoopController>();

@@ -7,12 +7,33 @@ namespace Game.Systems
 {
     public static class PlayerInventoryResolver
     {
+        // Keep console clean by default; enable temporarily for diagnosing duplicate inventories.
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static bool VERBOSE_INVENTORY_DEBUG = false;
+#else
+        private static bool VERBOSE_INVENTORY_DEBUG = false;
+#endif
+
         private static bool _warnedMultiple;
         private static bool _warnedMissing;
 
         public static PlayerInventory GetOrFind()
         {
-            // 1) Prefer inventory attached to the player input authority (single source of truth).
+            // Preferred rule (project): Player_Hero inventory is authoritative.
+            // NOTE: Some systems may attach PlayerInputAuthority on a different object; do not let that override Player_Hero.
+            try
+            {
+                var hero = GameObject.Find("Player_Hero");
+                if (hero != null)
+                {
+                    var inv = hero.GetComponentInChildren<PlayerInventory>(true);
+                    if (inv != null)
+                        return inv;
+                }
+            }
+            catch { }
+
+            // Fallback: inventory attached to the player input authority chain.
             try
             {
 #if UNITY_2022_2_OR_NEWER
@@ -31,19 +52,7 @@ namespace Game.Systems
             }
             catch { }
 
-            // 2) Known player object name.
-            try
-            {
-                var hero = GameObject.Find("Player_Hero");
-                if (hero != null)
-                {
-                    var inv = hero.GetComponentInChildren<PlayerInventory>(true);
-                    if (inv != null) return inv;
-                }
-            }
-            catch { }
-
-            // 3) Scan active inventories.
+            // Last resort: scan active inventories.
             List<PlayerInventory> active = null;
             try
             {
@@ -129,6 +138,151 @@ namespace Game.Systems
             }
 
             return chosen;
+        }
+
+        public static PlayerInventory GetOrFindWithDiagnostics(out string source)
+        {
+            source = null;
+
+            PlayerInventory inv = null;
+
+            try
+            {
+                var hero = GameObject.Find("Player_Hero");
+                if (hero != null)
+                {
+                    inv = hero.GetComponentInChildren<PlayerInventory>(true);
+                    if (inv != null)
+                    {
+                        source = "Player_Hero";
+                        return inv;
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+#if UNITY_2022_2_OR_NEWER
+                var authority = UnityEngine.Object.FindFirstObjectByType<PlayerInputAuthority>(FindObjectsInactive.Exclude);
+#else
+                var authority = UnityEngine.Object.FindObjectOfType<PlayerInputAuthority>();
+#endif
+                if (authority != null)
+                {
+                    inv = authority.GetComponentInParent<PlayerInventory>();
+                    if (inv != null)
+                    {
+                        source = "PlayerInputAuthority(parent)";
+                        return inv;
+                    }
+
+                    inv = authority.GetComponentInChildren<PlayerInventory>();
+                    if (inv != null)
+                    {
+                        source = "PlayerInputAuthority(child)";
+                        return inv;
+                    }
+                }
+            }
+            catch { }
+
+            inv = GetOrFind();
+            source = inv != null ? "ScanFallback" : "(null)";
+            return inv;
+        }
+
+        public static void LogAllInventoriesOnStart(string context)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!VERBOSE_INVENTORY_DEBUG)
+                return;
+
+            try
+            {
+                List<PlayerInventory> allList = null;
+
+#if UNITY_2022_2_OR_NEWER
+                var all = UnityEngine.Object.FindObjectsByType<PlayerInventory>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+                var all = UnityEngine.Object.FindObjectsOfType<PlayerInventory>();
+#endif
+
+                if (all != null)
+                    allList = new List<PlayerInventory>(all);
+
+                Debug.Log($"[INV][DIAG] {context}: PlayerInventory instances found={(allList != null ? allList.Count : 0)}");
+
+                if (allList == null) return;
+                for (int i = 0; i < allList.Count; i++)
+                {
+                    var inv = allList[i];
+                    if (inv == null) continue;
+                    var go = inv.gameObject;
+                    var path = GetGameObjectPath(go);
+                    int id = 0;
+                    try { id = inv.GetInstanceID(); } catch { }
+                    bool active = false;
+                    bool enabled = false;
+                    try { active = go != null && go.activeInHierarchy; } catch { }
+                    try { enabled = inv.enabled; } catch { }
+                    Debug.Log($"[INV][DIAG] - invId={id} enabled={enabled} active={active} go='{path}'", inv);
+                }
+            }
+            catch { }
+#endif
+        }
+
+        public static void EnforceSingleAuthoritativeInventoryOptional(bool destroyDuplicateComponents)
+        {
+            var authoritative = GetOrFind();
+            if (authoritative == null)
+                return;
+
+            try
+            {
+#if UNITY_2022_2_OR_NEWER
+                var all = UnityEngine.Object.FindObjectsByType<PlayerInventory>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+                var all = UnityEngine.Object.FindObjectsOfType<PlayerInventory>();
+#endif
+                if (all == null) return;
+
+                int activeCount = 0;
+                for (int i = 0; i < all.Length; i++)
+                {
+                    var inv = all[i];
+                    if (inv != null && inv.isActiveAndEnabled)
+                        activeCount++;
+                }
+
+                if (activeCount <= 1)
+                    return;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (VERBOSE_INVENTORY_DEBUG)
+                {
+                    int authId = 0;
+                    try { authId = authoritative.GetInstanceID(); } catch { }
+                    Debug.LogWarning($"[INV][DIAG] Multiple active PlayerInventory instances ({activeCount}). Authoritative invId={authId} go='{GetGameObjectPath(authoritative.gameObject)}'.");
+                }
+#endif
+
+                if (!destroyDuplicateComponents)
+                    return;
+
+                for (int i = 0; i < all.Length; i++)
+                {
+                    var inv = all[i];
+                    if (inv == null) continue;
+                    if (!inv.isActiveAndEnabled) continue;
+                    if (ReferenceEquals(inv, authoritative)) continue;
+
+                    // Destroy only the duplicate inventory COMPONENT (not the whole GameObject) to reduce blast radius.
+                    UnityEngine.Object.Destroy(inv);
+                }
+            }
+            catch { }
         }
 
         public static void AssertSingleInventoryOptional()

@@ -14,6 +14,8 @@ namespace Abyss.Inventory
 {
     public sealed class PlayerInventoryRowUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
+        private const bool INV_DEBUG = false;
+
         [Header("Fill (Raycast Target)")]
         [SerializeField] private Image background;
 
@@ -300,11 +302,7 @@ namespace Abyss.Inventory
             _boundCount = safeCount;
             _hasItem = def != null || !string.IsNullOrWhiteSpace(fallbackItemId);
 
-            if (countText != null)
-            {
-                // UI requirement: show stack count only if > 1.
-                countText.text = safeCount > 1 ? $"x{safeCount}" : string.Empty;
-            }
+            // Stack binding is applied later (after icon resolution) to ensure template objects are activated.
 
             // Resolve ItemDefinition even if caller only supplies a string key (some inventories use display name keys).
             var resolvedDef = def != null ? def : ResolveItemDefinitionFallback(fallbackItemId, display);
@@ -365,6 +363,113 @@ namespace Abyss.Inventory
                 catch { }
             }
 
+            // IMPORTANT: Non-rolled items (e.g., fish/materials) may exist only as Loot V2 base items.
+            // Try resolving a direct base item by id so icons render for ALL items that have ItemDefinitionSO.icon.
+            if (icon == null && !string.IsNullOrWhiteSpace(fallbackItemId))
+            {
+                try
+                {
+                    var reg = Abyssbound.Loot.LootRegistryRuntime.GetOrCreate();
+                    if (reg != null && reg.TryGetItem(fallbackItemId, out var baseItem) && baseItem != null && baseItem.icon != null)
+                        icon = baseItem.icon;
+                }
+                catch { }
+            }
+
+            // Fish icon fallback: use Resources sprite if itemId is fish-related and still no icon.
+            if (icon == null)
+            {
+                string itemIdForFallback = null;
+                try
+                {
+                    itemIdForFallback = !string.IsNullOrWhiteSpace(fallbackItemId)
+                        ? fallbackItemId
+                        : (resolvedDef != null ? resolvedDef.itemId : null);
+                }
+                catch { itemIdForFallback = fallbackItemId; }
+
+                if (!string.IsNullOrWhiteSpace(itemIdForFallback))
+                {
+                    bool isFish = itemIdForFallback.IndexOf("fish", StringComparison.OrdinalIgnoreCase) >= 0
+                        || string.Equals(itemIdForFallback, "fish_raw_shrimp", StringComparison.OrdinalIgnoreCase);
+
+                    if (isFish)
+                    {
+                        try
+                        {
+                            var fishFallback = Resources.Load<Sprite>("Icons/icon_fish_raw");
+                            if (fishFallback != null)
+                            {
+                                icon = fishFallback;
+#if UNITY_EDITOR
+                                Debug.Log($"[INV][ICON] using fish fallback icon for {itemIdForFallback}", this);
+#endif
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+
+            // Icon binding (no try/catch; do not toggle GameObjects).
+            if (iconImage != null)
+            {
+                bool hasIcon = icon != null;
+                if (iconImage.gameObject != null)
+                    iconImage.gameObject.SetActive(hasIcon);
+
+                iconImage.enabled = hasIcon;
+                iconImage.sprite = hasIcon ? icon : null;
+                if (hasIcon)
+                    iconImage.color = Color.white;
+
+                // Ensure consistent rendering.
+                iconImage.type = Image.Type.Simple;
+                iconImage.preserveAspect = true;
+                iconImage.raycastTarget = false;
+            }
+
+            // Stack binding: explicitly toggle GameObject active + force alpha.
+            if (countText != null)
+            {
+                bool showStack = safeCount > 1;
+                try
+                {
+                    if (countText.gameObject != null)
+                        countText.gameObject.SetActive(showStack);
+                }
+                catch { }
+
+                try
+                {
+                    countText.alpha = 1f;
+                }
+                catch { }
+
+                countText.enabled = showStack;
+                countText.text = showStack ? $"x{safeCount}" : string.Empty;
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#pragma warning disable CS0162
+            if (INV_DEBUG)
+            {
+                string id = !string.IsNullOrWhiteSpace(fallbackItemId)
+                    ? fallbackItemId
+                    : (resolvedDef != null ? resolvedDef.itemId : display);
+
+                bool iconEnabled = iconImage != null && iconImage.enabled;
+                bool iconActive = iconImage != null && iconImage.gameObject != null && iconImage.gameObject.activeInHierarchy;
+                bool stackEnabled = countText != null && countText.enabled;
+                bool stackActive = countText != null && countText.gameObject != null && countText.gameObject.activeInHierarchy;
+
+                Debug.Log(
+                    $"[INVDBG][ROW BIND] slot={SlotIndex} id='{id}' count={safeCount} iconNull={(icon == null)} iconEnabled={iconEnabled} iconActive={iconActive} stackEnabled={stackEnabled} stackActive={stackActive}",
+                    this);
+            }
+#pragma warning restore CS0162
+#endif
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_hasItem)
             {
@@ -407,7 +512,11 @@ namespace Abyss.Inventory
                 EnsureGridElements();
 
             if (nameText != null) nameText.text = string.Empty;
-            if (countText != null) countText.text = string.Empty;
+            if (countText != null)
+            {
+                countText.text = string.Empty;
+                countText.enabled = false;
+            }
 
             _boundCount = 0;
             _hasItem = false;
@@ -429,8 +538,6 @@ namespace Abyss.Inventory
             {
                 iconImage.sprite = null;
                 iconImage.enabled = false;
-                if (iconImage.gameObject.activeSelf)
-                    iconImage.gameObject.SetActive(false);
             }
 
             if (rarityStrip != null)
@@ -637,36 +744,8 @@ namespace Abyss.Inventory
 
         private void ApplyVisuals(Sprite icon, AbyssItemRarity rarity)
         {
-            if (iconImage != null)
-            {
-                // User requirement: never use the runtime white sprite (borders) as an icon placeholder.
-                // If icon is null, disable the icon image so we don't show gray squares.
-                bool hasIcon = icon != null;
-
-                iconImage.sprite = icon;
-                iconImage.enabled = hasIcon;
-                if (iconImage.gameObject.activeSelf != hasIcon)
-                    iconImage.gameObject.SetActive(hasIcon);
-
-                if (hasIcon)
-                {
-                    try
-                    {
-                        var iconCol = iconImage.color;
-                        iconImage.color = new Color(iconCol.r, iconCol.g, iconCol.b, 1f);
-                    }
-                    catch { }
-                    try
-                    {
-                        iconImage.type = Image.Type.Simple;
-                        iconImage.preserveAspect = true;
-                        iconImage.raycastTarget = false;
-                    }
-                    catch { }
-
-                    try { iconImage.SetAllDirty(); } catch { }
-                }
-            }
+            // Icon + stack binding is owned by Bind(). ApplyVisuals only handles
+            // non-critical visuals (rarity strip/name tint) and should not toggle active state.
 
             rarity = ItemRarityVisuals.Normalize(rarity);
             var rarityColor = RarityColorMap.GetColorOrDefault(rarity, Color.white);
@@ -1145,32 +1224,13 @@ namespace Abyss.Inventory
                 {
                     if (!string.IsNullOrEmpty(countText.text))
                         countText.text = string.Empty;
-
-                    if (_isGridMode)
-                    {
-                        try { if (countText.gameObject.activeSelf) countText.gameObject.SetActive(false); } catch { }
-                    }
+                    countText.enabled = false;
                 }
                 else
                 {
-                    if (_isGridMode)
-                    {
-                        if (_boundCount > 1)
-                        {
-                            countText.text = $"x{Mathf.Max(0, _boundCount)}";
-                            try { if (!countText.gameObject.activeSelf) countText.gameObject.SetActive(true); } catch { }
-                        }
-                        else
-                        {
-                            countText.text = string.Empty;
-                            try { if (countText.gameObject.activeSelf) countText.gameObject.SetActive(false); } catch { }
-                        }
-                    }
-                    else
-                    {
-                        // UI requirement: show stack count only if > 1.
-                        countText.text = _boundCount > 1 ? $"x{Mathf.Max(0, _boundCount)}" : string.Empty;
-                    }
+                    bool showStack = _boundCount > 1;
+                    countText.text = showStack ? $"x{Mathf.Max(0, _boundCount)}" : string.Empty;
+                    countText.enabled = showStack;
                 }
             }
 
@@ -1179,8 +1239,6 @@ namespace Abyss.Inventory
             {
                 iconImage.sprite = null;
                 iconImage.enabled = false;
-                if (iconImage.gameObject.activeSelf)
-                    iconImage.gameObject.SetActive(false);
             }
 
             // Ensure raycast target graphic.
