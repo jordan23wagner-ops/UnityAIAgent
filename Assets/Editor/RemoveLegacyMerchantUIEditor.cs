@@ -4,9 +4,14 @@ using UnityEditor;
 using UnityEngine.UI;
 using UnityEditor.SceneManagement;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 public static class RemoveLegacyMerchantUIEditor
 {
-    [MenuItem("Tools/Abyssbound/Legacy/Remove Legacy Merchant UIs")] 
+    #if ABYSS_LEGACY_QA_TOOLS
+    // Old menu: Tools/Abyssbound/Legacy/Remove Legacy Merchant UIs
+    [MenuItem("Tools/Legacy QA/Abyssbound/Legacy/Remove Legacy Merchant UIs")]
     public static void RemoveLegacyMerchantUIs()
     {
         if (Application.isPlaying)
@@ -167,4 +172,5 @@ public static class RemoveLegacyMerchantUIEditor
 
         return results;
     }
+    #endif
 }

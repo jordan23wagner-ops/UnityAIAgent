@@ -5,13 +5,18 @@ using Game.Systems;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 namespace Abyssbound.EditorTools.QA.Skills.Fishing
 {
     public static class FishingQaMenu
     {
         private const string ConfigAssetPath = "Assets/Resources/Skills/Fishing/FishingSkillConfig.asset";
 
-        [MenuItem("Tools/Abyssbound/QA/Skills/Fishing/Create Default Config Asset")]
+        // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Create Default Config Asset
+    #if ABYSS_LEGACY_QA_TOOLS
+        [MenuItem("Tools/Legacy QA/Skills/Fishing/Create Default Config Asset")]
         public static void CreateDefaultConfigAsset()
         {
             var existing = AssetDatabase.LoadAssetAtPath<FishingSkillConfigSO>(ConfigAssetPath);
@@ -60,16 +65,20 @@ namespace Abyssbound.EditorTools.QA.Skills.Fishing
             Selection.activeObject = cfg;
         }
 
-        [MenuItem("Tools/Abyssbound/QA/Skills/Fishing/Spawn Fishing Spot (T1)")]
+        // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Spawn Fishing Spot (T1)
+        [MenuItem("Tools/Legacy QA/Skills/Fishing/Spawn Fishing Spot (T1)")]
         public static void SpawnFishingSpotT1() => SpawnSpot(0);
 
-        [MenuItem("Tools/Abyssbound/QA/Skills/Fishing/Spawn Fishing Spot (T2)")]
+        // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Spawn Fishing Spot (T2)
+        [MenuItem("Tools/Legacy QA/Skills/Fishing/Spawn Fishing Spot (T2)")]
         public static void SpawnFishingSpotT2() => SpawnSpot(1);
 
-        [MenuItem("Tools/Abyssbound/QA/Skills/Fishing/Spawn Fishing Pot (T1)")]
+        // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Spawn Fishing Pot (T1)
+        [MenuItem("Tools/Legacy QA/Skills/Fishing/Spawn Fishing Pot (T1)")]
         public static void SpawnFishingPotT1() => SpawnPot(0);
 
-        [MenuItem("Tools/Abyssbound/QA/Skills/Fishing/Grant Fishing Rod")]
+        // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Grant Fishing Rod
+        [MenuItem("Tools/Legacy QA/Skills/Fishing/Grant Fishing Rod")]
         public static void GrantFishingRod()
         {
             var inv = PlayerInventoryResolver.GetOrFind();
@@ -82,7 +91,8 @@ namespace Abyssbound.EditorTools.QA.Skills.Fishing
             inv.Add("tool_fishing_rod", 1);
         }
 
-        [MenuItem("Tools/Abyssbound/QA/Skills/Fishing/Print Fishing Level & XP")]
+        // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Print Fishing Level & XP
+        [MenuItem("Tools/Legacy QA/Skills/Fishing/Print Fishing Level & XP")]
         public static void PrintFishingLevel()
         {
             var stats = FindStats();
@@ -97,7 +107,8 @@ namespace Abyssbound.EditorTools.QA.Skills.Fishing
             Debug.Log($"[QA][Fishing] Fishing: level={lvl} xp={xp}");
         }
 
-        [MenuItem("Tools/Abyssbound/QA/Skills/Fishing/Fill Inventory To Max Slots")]
+        // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Fill Inventory To Max Slots
+        [MenuItem("Tools/Legacy QA/Skills/Fishing/Fill Inventory To Max Slots")]
         public static void FillInventoryToMaxSlots()
         {
             var inv = PlayerInventoryResolver.GetOrFind();
@@ -208,5 +219,7 @@ namespace Abyssbound.EditorTools.QA.Skills.Fishing
             if (f == null) return;
             f.SetValue(obj, value);
         }
+
+#endif
     }
 }

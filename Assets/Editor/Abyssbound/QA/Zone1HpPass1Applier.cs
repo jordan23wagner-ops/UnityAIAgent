@@ -4,6 +4,9 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 namespace Abyssbound.QA
 {
     public static class Zone1HpPass1Applier
@@ -12,7 +15,9 @@ namespace Abyssbound.QA
         private const int EliteHp = 166;
         private const int BossHp = 1010;
 
-        [MenuItem("Tools/Abyssbound/QA/Zone1 HP/Apply Pass 2 (Trash 42 / Elite 166 / Boss 1010)")]
+        // Old menu path: Tools/Abyssbound/QA/Zone1 HP/Apply Pass 2 (Trash 42 / Elite 166 / Boss 1010)
+    #if ABYSS_LEGACY_QA_TOOLS
+        [MenuItem("Tools/Legacy QA/Zone1 HP/Apply Pass 2 (Trash 42 / Elite 166 / Boss 1010)")]
         private static void Apply()
         {
             int visited = 0;
@@ -106,6 +111,7 @@ namespace Abyssbound.QA
             sb.AppendLine($"Done. Visited={visited} Zone1EnemyPrefabs={enemyPrefabs} UpdatedPrefabs={updated} UpdatedEnemyHealthComponents={updatedHealthComponents}");
             Debug.Log(sb.ToString());
         }
+#endif
 
         private static bool IsZone1Scoped(GameObject root)
         {

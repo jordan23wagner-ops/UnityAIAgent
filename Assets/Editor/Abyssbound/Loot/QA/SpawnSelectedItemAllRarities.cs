@@ -4,9 +4,14 @@ using Abyssbound.Loot;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 public static class SpawnSelectedItemAllRarities
 {
-    [MenuItem("Tools/Abyssbound/QA/Spawn Selected Item (All Rarities)")]
+    // Old menu path: Tools/Abyssbound/QA/Spawn Selected Item (All Rarities)
+#if ABYSS_LEGACY_QA_TOOLS
+    [MenuItem("Tools/Legacy QA/Loot/Spawn Selected Item (All Rarities)")]
     public static void SpawnAll()
     {
         if (!Application.isPlaying)
@@ -34,5 +39,6 @@ public static class SpawnSelectedItemAllRarities
         if (LootQaSettings.DebugLogsEnabled)
             Debug.Log($"[Loot QA] Spawned {spawned} item(s) across all rarities @ ilvl={Mathf.Max(1, ilvl)}");
     }
+#endif
 }
 #endif

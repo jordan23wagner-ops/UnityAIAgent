@@ -18,7 +18,7 @@ using UnityEngine.InputSystem;
 public class GameBootstrapper : MonoBehaviour
 {
     // NOTE (Dec 2025): HUD health bar layout hardening
-    // - EnsureHud() now ignores world-space canvases and enforces a deterministic top-center layout for HealthBarUI
+    // - EnsureHud() now ignores world-space canvases and enforces a deterministic bottom-center layout for HealthBarUI
     // - This prevents our world-space runtime UI canvas from affecting player HUD sizing
 
     [Header("Player")]
@@ -542,11 +542,11 @@ public class GameBootstrapper : MonoBehaviour
         if (rt == null)
             rt = healthBar.AddComponent<RectTransform>();
 
-        rt.anchorMin = new Vector2(0.5f, 1f);
-        rt.anchorMax = new Vector2(0.5f, 1f);
-        rt.pivot = new Vector2(0.5f, 1f);
-        rt.sizeDelta = new Vector2(300f, 20f);
-        rt.anchoredPosition = new Vector2(0f, -20f);
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.sizeDelta = new Vector2(320f, 22f);
+        rt.anchoredPosition = new Vector2(0f, 10f);
         rt.localScale = Vector3.one;
     }
 
@@ -618,11 +618,11 @@ public class GameBootstrapper : MonoBehaviour
         if (rt == null)
             rt = ui.gameObject.AddComponent<RectTransform>();
 
-        rt.anchorMin = new Vector2(0.5f, 1f);
-        rt.anchorMax = new Vector2(0.5f, 1f);
-        rt.pivot = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = new Vector2(0f, -20f);
-        rt.sizeDelta = new Vector2(300f, 20f);
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 10f);
+        rt.sizeDelta = new Vector2(320f, 22f);
         rt.localScale = Vector3.one;
     }
 
@@ -635,11 +635,11 @@ public class GameBootstrapper : MonoBehaviour
         var barRt = barGo.GetComponent<RectTransform>();
         if (barRt == null)
             barRt = barGo.AddComponent<RectTransform>();
-        barRt.anchorMin = new Vector2(0.5f, 1f);
-        barRt.anchorMax = new Vector2(0.5f, 1f);
-        barRt.pivot = new Vector2(0.5f, 1f);
-        barRt.anchoredPosition = new Vector2(0f, -20f);
-        barRt.sizeDelta = new Vector2(300f, 20f);
+        barRt.anchorMin = new Vector2(0.5f, 0f);
+        barRt.anchorMax = new Vector2(0.5f, 0f);
+        barRt.pivot = new Vector2(0.5f, 0f);
+        barRt.anchoredPosition = new Vector2(0f, 10f);
+        barRt.sizeDelta = new Vector2(320f, 22f);
         barRt.localScale = Vector3.one;
 
         // Slider as a child that stretches to fill the HealthBar.

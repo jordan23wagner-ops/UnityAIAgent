@@ -1,9 +1,12 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Abyss.Items;
 using Abyssbound.Loot;
+using Abyssbound.Items.Use;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
 
@@ -16,6 +19,122 @@ namespace Abyss.Inventory
         [SerializeField] private TMP_Text rarityText;
         [SerializeField] private TMP_Text countText;
         [SerializeField] private TMP_Text descriptionText;
+
+        private PlayerInventoryUI _cachedInventoryUi;
+        private ItemTooltipUI _cachedTooltip;
+
+        private void OnEnable()
+        {
+            try { ItemUseRouter.OnItemUsed += HandleItemUsed; } catch { }
+        }
+
+        private void OnDisable()
+        {
+            try { ItemUseRouter.OnItemUsed -= HandleItemUsed; } catch { }
+        }
+
+        private void HandleItemUsed(string itemId)
+        {
+            if (!string.Equals(itemId, TownScrollUseHandler.TownScrollItemId, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // Clear this details panel immediately.
+            try { Clear(); } catch { }
+
+            // Hide the shared tooltip immediately (hover state may not exit during teleport).
+            try
+            {
+                var tooltip = ResolveTooltip();
+                if (tooltip != null)
+                    tooltip.Hide();
+            }
+            catch { }
+
+            // Clear selection in PlayerInventoryUI (private state) without refactoring.
+            try
+            {
+                var ui = ResolveInventoryUi();
+                if (ui != null)
+                    ClearSelectionViaReflection(ui);
+            }
+            catch { }
+        }
+
+        private PlayerInventoryUI ResolveInventoryUi()
+        {
+            if (_cachedInventoryUi != null)
+                return _cachedInventoryUi;
+
+            try { _cachedInventoryUi = GetComponentInParent<PlayerInventoryUI>(true); } catch { _cachedInventoryUi = null; }
+            return _cachedInventoryUi;
+        }
+
+        private ItemTooltipUI ResolveTooltip()
+        {
+            if (_cachedTooltip != null)
+                return _cachedTooltip;
+
+            try
+            {
+                var canvas = GetComponentInParent<Canvas>();
+                if (canvas != null)
+                    _cachedTooltip = canvas.GetComponentInChildren<ItemTooltipUI>(true);
+            }
+            catch
+            {
+                _cachedTooltip = null;
+            }
+
+            return _cachedTooltip;
+        }
+
+        private static void ClearSelectionViaReflection(PlayerInventoryUI ui)
+        {
+            if (ui == null)
+                return;
+
+            var t = ui.GetType();
+            const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+
+            // Ensure visuals are not left highlighting a stale slot.
+            try
+            {
+                var slotField = t.GetField("_selectedSlotIndex", Flags);
+                if (slotField != null)
+                    slotField.SetValue(ui, -1);
+            }
+            catch { }
+
+            // Clear selection (sets selected item null and refreshes details/highlight).
+            try
+            {
+                var clear = t.GetMethod("ClearSelection", Flags);
+                if (clear != null)
+                {
+                    clear.Invoke(ui, null);
+                }
+                else
+                {
+                    // Best-effort fallback if method name changes.
+                    var idField = t.GetField("_selectedItemId", Flags);
+                    var defField = t.GetField("_selectedDef", Flags);
+                    var countField = t.GetField("_selectedCount", Flags);
+
+                    if (idField != null) idField.SetValue(ui, null);
+                    if (defField != null) defField.SetValue(ui, null);
+                    if (countField != null) countField.SetValue(ui, 0);
+                }
+            }
+            catch { }
+
+            // Kick a lightweight refresh if available.
+            try
+            {
+                var refresh = t.GetMethod("RefreshDetails", Flags);
+                refresh?.Invoke(ui, null);
+            }
+            catch { }
+        }
 
         private bool _capturedDefaultColors;
         private Color _nameDefaultColor;

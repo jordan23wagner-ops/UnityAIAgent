@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using TMPro;
 using Abyss.Items;
 using Abyssbound.Loot;
+using Abyssbound.Items.Use;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
 
@@ -51,6 +52,12 @@ namespace Abyss.Inventory
 
         private bool _hasItem;
         private int _boundCount;
+        private string _boundItemId;
+
+        // Double-click detection (time based; Button.onClick does not provide clickCount).
+        private float _lastClickUnscaledTime = -999f;
+        private string _lastClickItemId;
+        private const float DoubleClickWindowSeconds = 0.32f;
 
         private Color _rarityBorderRgb = Color.white;
 
@@ -302,6 +309,21 @@ namespace Abyss.Inventory
             _boundCount = safeCount;
             _hasItem = def != null || !string.IsNullOrWhiteSpace(fallbackItemId);
 
+            // Preserve the canonical item id for interactions (e.g., double-click use).
+            try
+            {
+                if (def != null && !string.IsNullOrWhiteSpace(def.itemId))
+                    _boundItemId = def.itemId;
+                else if (!string.IsNullOrWhiteSpace(fallbackItemId))
+                    _boundItemId = fallbackItemId;
+                else
+                    _boundItemId = display;
+            }
+            catch
+            {
+                _boundItemId = fallbackItemId;
+            }
+
             // Stack binding is applied later (after icon resolution) to ensure template objects are activated.
 
             // Resolve ItemDefinition even if caller only supplies a string key (some inventories use display name keys).
@@ -491,7 +513,7 @@ namespace Abyss.Inventory
             if (button != null)
             {
                 button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() => _onClick?.Invoke());
+                button.onClick.AddListener(HandleClick);
             }
 
             _isHovered = false;
@@ -520,6 +542,7 @@ namespace Abyss.Inventory
 
             _boundCount = 0;
             _hasItem = false;
+            _boundItemId = null;
             _rarityBorderRgb = Color.white;
 
             // Clear tooltip binding for empty slots.
@@ -552,13 +575,45 @@ namespace Abyss.Inventory
             {
                 button.onClick.RemoveAllListeners();
                 if (_onClick != null)
-                    button.onClick.AddListener(() => _onClick?.Invoke());
+                    button.onClick.AddListener(HandleClick);
 
                 // In grid mode we want empty slots hoverable + clickable.
                 button.interactable = _isGridMode;
             }
 
             RenderState();
+        }
+
+        private void HandleClick()
+        {
+            try { _onClick?.Invoke(); } catch { }
+
+            // Only intercept item "use" on double-click for Town Scroll.
+            if (!_hasItem)
+                return;
+
+            var now = Time.unscaledTime;
+            var id = _boundItemId;
+            bool sameAsLast = !string.IsNullOrWhiteSpace(id)
+                && !string.IsNullOrWhiteSpace(_lastClickItemId)
+                && string.Equals(id, _lastClickItemId, StringComparison.OrdinalIgnoreCase);
+
+            bool isDouble = sameAsLast && (now - _lastClickUnscaledTime) <= DoubleClickWindowSeconds;
+
+            _lastClickUnscaledTime = now;
+            _lastClickItemId = id;
+
+            if (!isDouble)
+                return;
+
+            if (string.Equals(id, TownScrollUseHandler.TownScrollItemId, StringComparison.OrdinalIgnoreCase))
+            {
+                TownScrollUseHandler.TryUseFromInventory();
+
+                // Prevent triple-click from re-triggering in the same window.
+                _lastClickUnscaledTime = -999f;
+                _lastClickItemId = null;
+            }
         }
 
         private void EnsureTooltipTrigger()

@@ -10,7 +10,9 @@ namespace Abyssbound.DebugTools
     {
 #if ENABLE_INPUT_SYSTEM
         [Header("Keys")]
-        [SerializeField] private Key spawnBossSigilKey = Key.F6;
+        // NOTE: F6 is reserved for Waypoints (Abyss.Waypoints.WaypointManager).
+        // This legacy/dev cheat is intentionally NOT bound to F6.
+        [SerializeField] private Key spawnBossSigilKey = Key.F8;
         [SerializeField] private Key addTestSwordKey = Key.F7;
 #endif
 
@@ -27,7 +29,7 @@ namespace Abyssbound.DebugTools
             if (kb[spawnBossSigilKey].wasPressedThisFrame)
             {
                 if (LootQaSettings.DebugLogsEnabled)
-                    Debug.Log("[DevCheats] Spawn Sigil (F6)");
+                    Debug.Log("[DevCheats] Spawn Sigil (F8)");
                 DevCheatActions.SpawnBossSigil();
             }
 
@@ -39,11 +41,11 @@ namespace Abyssbound.DebugTools
             }
 #else
             // Legacy input path for projects set to "Input Manager" only.
-            // F6/F7 bindings are fixed to preserve current behavior.
-            if (Input.GetKeyDown(KeyCode.F6))
+            // F6 is reserved for Waypoints now.
+            if (Input.GetKeyDown(KeyCode.F8))
             {
                 if (LootQaSettings.DebugLogsEnabled)
-                    Debug.Log("[DevCheats] Spawn Sigil (F6)");
+                    Debug.Log("[DevCheats] Spawn Sigil (F8)");
                 DevCheatActions.SpawnBossSigil();
             }
 

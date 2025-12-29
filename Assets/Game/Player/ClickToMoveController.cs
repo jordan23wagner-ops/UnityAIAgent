@@ -1,5 +1,6 @@
 using Game.Input;
 using UnityEngine;
+using Abyssbound.DeathDrop;
 
 [DisallowMultipleComponent]
 public class ClickToMoveController : MonoBehaviour
@@ -62,6 +63,23 @@ public class ClickToMoveController : MonoBehaviour
 
     private void OnClick()
     {
+        try
+        {
+            if (Time.unscaledTime < DeathDropManager.SuppressGameplayInputUntil)
+                return;
+        }
+        catch { }
+
+        // Waypoints IMGUI menu input gating (minimal guard; do not refactor movement system).
+        try
+        {
+            if (Abyss.Waypoints.WaypointManager.IsMenuOpen)
+                return;
+            if (Time.unscaledTime < Abyss.Waypoints.WaypointManager.SuppressGameplayClicksUntil)
+                return;
+        }
+        catch { }
+
         if (Camera.main == null)
         {
             Debug.LogError("[ClickToMove] Camera.main is NULL. Tag your camera as MainCamera.", this);

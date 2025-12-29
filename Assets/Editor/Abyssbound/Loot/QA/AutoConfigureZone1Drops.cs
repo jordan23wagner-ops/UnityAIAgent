@@ -8,6 +8,9 @@ using LootTableV2 = Abyssbound.Loot.LootTableSO;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 public static class AutoConfigureZone1Drops
 {
     private const string ZoneFolder = "Assets/GameData/Loot/Zone1";
@@ -19,7 +22,9 @@ public static class AutoConfigureZone1Drops
     private const string LootV2ElitePath = "Assets/Resources/Loot/Tables/Zone1_Elite.asset";
     private const string LootV2BossPath = "Assets/Resources/Loot/Tables/Zone1_Boss.asset";
 
-    [MenuItem("Tools/Abyssbound/QA/Auto-Configure Zone Drops (Zone1)")]
+    // Old menu path: Tools/Abyssbound/QA/Auto-Configure Zone Drops (Zone1)
+#if ABYSS_LEGACY_QA_TOOLS
+    [MenuItem("Tools/Legacy QA/Loot/Auto-Configure Zone Drops (Zone1)")]
     public static void Run()
     {
         var (trash, elite, boss) = EnsureZone1Tables();
@@ -168,6 +173,7 @@ public static class AutoConfigureZone1Drops
             $"Zone tables: Trash={(trash != null ? trash.name : "(missing)")}, Elite={(elite != null ? elite.name : "(missing)")}, Boss={(boss != null ? boss.name : "(missing)")}"
         );
     }
+#endif
 
     [MenuItem("Tools/Abyssbound/Loot/Normalize Zone1 Enemies (Trash/Elite/Boss) to Loot V2")]
     public static void NormalizeZone1EnemiesTrashEliteBossToLootV2()

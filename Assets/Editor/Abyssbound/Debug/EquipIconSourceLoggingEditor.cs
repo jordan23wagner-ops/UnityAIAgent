@@ -5,11 +5,16 @@ using Abyss.Items;
 using UnityEditor;
 using UnityEngine;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 namespace Abyssbound.EditorTools
 {
     public static class EquipIconSourceLoggingEditor
     {
-        [MenuItem("Tools/Abyssbound/Debug/Log Equipped Item Icon Sources")]
+        #if ABYSS_LEGACY_QA_TOOLS
+        // Old menu: Tools/Abyssbound/Debug/Log Equipped Item Icon Sources
+        [MenuItem("Tools/Legacy QA/Abyssbound/Debug/Log Equipped Item Icon Sources")]
         private static void LogEquippedItemIconSources()
         {
             // FindObjectOfType<T>() is obsolete in newer Unity versions; we only need any instance.
@@ -70,6 +75,7 @@ namespace Abyssbound.EditorTools
                 UnityEngine.Debug.Log($"[EquipIconSrc] equippedSlot={slot} itemId='{itemId}' dn='{displayName}' icon='{iconName}' iconPath='{iconPath}' baseSO='{baseSoPath}'");
             }
         }
+        #endif
     }
 }
 #endif

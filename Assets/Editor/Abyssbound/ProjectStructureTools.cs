@@ -6,13 +6,18 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 namespace Abyssbound.EditorTools
 {
     public static class ProjectStructureTools
     {
         private const string Root = "Assets/Abyssbound";
 
-            [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Create Abyssbound Folder Structure")]
+        #if ABYSS_LEGACY_QA_TOOLS
+        // Old menu: Tools/Abyssbound/Maintenance/Legacy/Create Abyssbound Folder Structure
+        [MenuItem("Tools/Legacy QA/Abyssbound/Maintenance/Legacy/Create Abyssbound Folder Structure")]
         public static void CreateFolderStructure()
         {
             EnsureFolder(Root);
@@ -37,7 +42,8 @@ namespace Abyssbound.EditorTools
             Debug.Log("[ProjectStructureTools] Ensured folder structure under Assets/Abyssbound");
         }
 
-        [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Move Known Assets Into Structure (Safe)")]
+        // Old menu: Tools/Abyssbound/Maintenance/Legacy/Move Known Assets Into Structure (Safe)
+        [MenuItem("Tools/Legacy QA/Abyssbound/Maintenance/Legacy/Move Known Assets Into Structure (Safe)")]
         public static void MoveKnownAssetsSafe()
         {
             CreateFolderStructure();
@@ -70,6 +76,7 @@ namespace Abyssbound.EditorTools
             log.Insert(0, $"[ProjectStructureTools] Move complete. moved={moved} skipped={skipped} failed={failed}\n");
             Debug.Log(log.ToString());
         }
+        #endif
 
         private static void MoveScenes(StringBuilder log, ref int moved, ref int skipped, ref int failed)
         {

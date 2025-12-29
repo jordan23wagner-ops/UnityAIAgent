@@ -6,6 +6,9 @@ using Abyssbound.Loot;
 using UnityEditor;
 using UnityEngine;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 public static class Add2HTestItemsToInventory
 {
     private const string RootFolder = "Assets/GameData/Loot/Test2H";
@@ -14,7 +17,9 @@ public static class Add2HTestItemsToInventory
     private const string LongbowId = "Test2H_TrainingLongbow";
     private const string StaffId = "Test2H_TrainingStaff";
 
-    [MenuItem("Tools/Abyssbound/QA/Add 2H Test Items To Inventory")]
+    #if ABYSS_LEGACY_QA_TOOLS
+    // Old menu: Tools/Abyssbound/QA/Add 2H Test Items To Inventory
+    [MenuItem("Tools/Legacy QA/Abyssbound/QA/Add 2H Test Items To Inventory")]
     public static void AddToInventory()
     {
         if (!EnsureAssetsAndRegistries(out var baseItems, out var error))
@@ -71,6 +76,7 @@ public static class Add2HTestItemsToInventory
 
         Debug.Log("[Loot QA] Added 2H test items (Greatsword, Longbow, Staff) to PlayerInventory.");
     }
+    #endif
 
     private static bool EnsureAssetsAndRegistries(out List<ItemDefinitionSO> baseItems, out string error)
     {

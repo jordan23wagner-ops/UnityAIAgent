@@ -5,9 +5,14 @@ using UnityEngine;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 public static class AssignTestRaritiesEditor
 {
-    [MenuItem("Tools/Abyssbound/QA/Items/Assign Test Rarities (Non-destructive)")]
+    #if ABYSS_LEGACY_QA_TOOLS
+    // Old menu: Tools/Abyssbound/QA/Items/Assign Test Rarities (Non-destructive)
+    [MenuItem("Tools/Legacy QA/Abyssbound/QA/Items/Assign Test Rarities (Non-destructive)")]
     public static void AssignTestRarities()
     {
         var guids = AssetDatabase.FindAssets("t:ItemDefinition");
@@ -44,6 +49,7 @@ public static class AssignTestRaritiesEditor
         var details = changedNames.Count > 0 ? $" Changed (up to {maxList}): {string.Join(", ", changedNames)}" : string.Empty;
         Debug.Log($"[AssignTestRarities] Scanned {scanned} ItemDefinition asset(s). Updated {changed}. (Bronze Sword/Common, Training Bow/Uncommon, Apprentice Staff/Rare){details}");
     }
+    #endif
 
     private static AbyssItemRarity? TryGetDesiredRarity(ItemDefinition def)
     {

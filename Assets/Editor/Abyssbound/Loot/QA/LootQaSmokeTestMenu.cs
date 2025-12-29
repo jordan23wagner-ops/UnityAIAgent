@@ -11,9 +11,15 @@ using Game.Systems;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
+#if ABYSS_LEGACY_QA_TOOLS
+
 public static class LootQaSmokeTestMenu
 {
-    [MenuItem("Tools/Abyssbound/QA/Smoke Test/Run Loot QA Smoke Test (Setup + Spawn + Equip + Open UI)")]
+    // Old menu path: Tools/Abyssbound/QA/Smoke Test/Run Loot QA Smoke Test (Setup + Spawn + Equip + Open UI)
+    [MenuItem("Tools/Legacy QA/Loot/Smoke Test/Run Loot QA Smoke Test (Setup + Spawn + Equip + Open UI)")]
     public static void Run()
     {
         if (!Application.isPlaying)
@@ -103,7 +109,8 @@ public static class LootQaSmokeTestMenu
         Debug.Log("[LootQA Smoke] Visual checks: inventory grid borders should be rarity-tinted; equipment slot outline + rarity strip should be rarity-tinted (legacy + rolled). Open tooltip/details to confirm name tinting.");
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Smoke Test/Run Loot QA Full Automation (Multi-slot + 200 Drops)")]
+    // Old menu path: Tools/Abyssbound/QA/Smoke Test/Run Loot QA Full Automation (Multi-slot + 200 Drops)
+    [MenuItem("Tools/Legacy QA/Loot/Smoke Test/Run Loot QA Full Automation (Multi-slot + 200 Drops)")]
     public static void RunFullAutomation()
     {
         if (!Application.isPlaying)
@@ -150,7 +157,8 @@ public static class LootQaSmokeTestMenu
         Debug.Log($"[LootQA Full] Done. Multi-slot equip ok={multiSlotsEquippedOk} fail={multiSlotsEquippedFail} | stacksNow={(inv != null ? inv.GetStackCount() : 0)}");
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Smoke Test/Simulate 200 Drops (Auto LootTableSO)")]
+    // Old menu path: Tools/Abyssbound/QA/Smoke Test/Simulate 200 Drops (Auto LootTableSO)
+    [MenuItem("Tools/Legacy QA/Loot/Smoke Test/Simulate 200 Drops (Auto LootTableSO)")]
     public static void Simulate200Drops()
     {
         if (!Application.isPlaying)
@@ -680,4 +688,5 @@ public static class LootQaSmokeTestMenu
         catch { }
     }
 }
+#endif
 #endif

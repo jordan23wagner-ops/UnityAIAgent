@@ -1,3 +1,4 @@
+#if ABYSS_LEGACY_QA_TOOLS
 #if UNITY_EDITOR
 using UnityEditor;
 
@@ -21,4 +22,8 @@ namespace Abyssbound.EditorTools
         }
     }
 }
+#endif
+
+#else
+// Legacy QA tool disabled. Enable ABYSS_LEGACY_QA_TOOLS in Player Settings > Scripting Define Symbols to compile.
 #endif

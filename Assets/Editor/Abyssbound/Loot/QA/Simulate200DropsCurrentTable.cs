@@ -7,12 +7,17 @@ using Abyssbound.Loot;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 public static class Simulate200DropsCurrentTable
 {
     private const int RollCount = 200;
     private const string DefaultTableResourcesPath = "Loot/Tables/Zone1_Trash";
 
-    [MenuItem("Tools/Abyssbound/QA/Simulate 200 Drops (Loot V2 Current Table)")]
+    // Old menu path: Tools/Abyssbound/QA/Simulate 200 Drops (Loot V2 Current Table)
+#if ABYSS_LEGACY_QA_TOOLS
+    [MenuItem("Tools/Legacy QA/Loot/Simulate 200 Drops (Loot V2 Current Table)")]
     public static void Simulate()
     {
         if (!Application.isPlaying)
@@ -87,6 +92,7 @@ public static class Simulate200DropsCurrentTable
 
         Debug.Log(sb.ToString());
     }
+#endif
 
     private static LootTableSO TryGetTableFromSelection()
     {

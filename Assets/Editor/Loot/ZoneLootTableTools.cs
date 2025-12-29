@@ -5,11 +5,16 @@ using Abyss.Loot;
 using UnityEditor;
 using UnityEngine;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 namespace Abyss.Loot.Editor
 {
     public static class ZoneLootTableTools
     {
-        [MenuItem("Tools/Abyssbound/Legacy/Content/Create Zone1 Loot Table (from ItemDefinitions)...")]
+        #if ABYSS_LEGACY_QA_TOOLS
+        // Old menu: Tools/Abyssbound/Legacy/Content/Create Zone1 Loot Table (from ItemDefinitions)...
+        [MenuItem("Tools/Legacy QA/Abyssbound/Legacy/Content/Create Zone1 Loot Table (from ItemDefinitions)...")]
         private static void CreateZone1LootTable()
         {
             string path = EditorUtility.SaveFilePanelInProject(
@@ -62,6 +67,7 @@ namespace Abyss.Loot.Editor
 
             Debug.Log($"[ZoneLootTableTools] Created '{path}' with zonePool={table.zonePool.Count} materialsPool={table.materialsPool.Count}.");
         }
+        #endif
     }
 }
 #endif

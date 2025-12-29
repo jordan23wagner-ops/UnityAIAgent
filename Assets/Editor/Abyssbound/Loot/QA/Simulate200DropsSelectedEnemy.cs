@@ -8,6 +8,9 @@ using Abyssbound.Loot;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 public static class Simulate200DropsSelectedEnemy
 {
     private const int RollCount = 200;
@@ -51,7 +54,9 @@ public static class Simulate200DropsSelectedEnemy
         Debug.Log("[Loot V2 QA] Copied last Loot V2 sim report to clipboard.");
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Simulate 200 Drops (Selected Enemy)")]
+    // Old menu path: Tools/Abyssbound/QA/Simulate 200 Drops (Selected Enemy)
+#if ABYSS_LEGACY_QA_TOOLS
+    [MenuItem("Tools/Legacy QA/Loot/Simulate 200 Drops (Selected Enemy)")]
     public static void Simulate()
     {
         if (!Application.isPlaying)
@@ -195,6 +200,7 @@ public static class Simulate200DropsSelectedEnemy
 
         Debug.Log(sb.ToString());
     }
+#endif
 
     private static void SimulateLootV2(LootDropOnDeath drop, int rollCount)
     {

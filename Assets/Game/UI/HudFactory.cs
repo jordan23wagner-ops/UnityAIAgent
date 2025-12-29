@@ -108,12 +108,13 @@ public static class HudFactory
         if (rootRt == null)
             rootRt = rootGo.AddComponent<RectTransform>();
 
-        // Root layout: top-center, fixed size (NOT stretching).
-        rootRt.anchorMin = new Vector2(0.5f, 1f);
-        rootRt.anchorMax = new Vector2(0.5f, 1f);
-        rootRt.pivot = new Vector2(0.5f, 1f);
+        // Root layout: bottom-center, fixed size (NOT stretching).
+        // (Moved from top to bottom to avoid overlapping top HUD elements.)
+        rootRt.anchorMin = new Vector2(0.5f, 0f);
+        rootRt.anchorMax = new Vector2(0.5f, 0f);
+        rootRt.pivot = new Vector2(0.5f, 0f);
         rootRt.sizeDelta = new Vector2(320f, 22f);
-        rootRt.anchoredPosition = new Vector2(0f, -20f);
+        rootRt.anchoredPosition = new Vector2(0f, 10f);
         rootRt.localScale = Vector3.one;
 
         // Standard Unity Slider hierarchy (exactly as requested):

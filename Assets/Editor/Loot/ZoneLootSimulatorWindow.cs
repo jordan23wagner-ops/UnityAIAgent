@@ -25,13 +25,18 @@ namespace Abyss.Loot.Editor
         private Vector2 _scroll;
         private string _report;
 
-        [MenuItem("Tools/Abyssbound/Legacy/QA/Simulate Zone Loot Rates (Window)...")]
+        // Legacy QA tools are gated behind a compile define.
+        // Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+        #if ABYSS_LEGACY_QA_TOOLS
+        // Old menu: Tools/Abyssbound/Legacy/QA/Simulate Zone Loot Rates (Window)...
+        [MenuItem("Tools/Legacy QA/Abyssbound/Legacy/QA/Simulate Zone Loot Rates (Window)...")]
         private static void Open()
         {
             var w = GetWindow<ZoneLootSimulatorWindow>("Zone Loot Simulator");
             w.minSize = new Vector2(520, 360);
             w.Show();
         }
+        #endif
 
         private void OnGUI()
         {

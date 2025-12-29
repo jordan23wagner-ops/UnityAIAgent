@@ -3,11 +3,16 @@ using UnityEditor;
 using UnityEngine;
 using Abyss.Legacy;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 public static class Zone1BossGateTools
 {
     private const string DefaultGateAssetPath = "Assets/Game/Gates/Zone1BossGate.asset";
 
-    [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Definition (Legacy)")]
+    #if ABYSS_LEGACY_QA_TOOLS
+    // Old menu: Tools/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Definition (Legacy)
+    [MenuItem("Tools/Legacy QA/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Definition (Legacy)")]
     public static void CreateZone1BossGateDefinition()
     {
         EnsureFolder("Assets/Game");
@@ -41,7 +46,8 @@ public static class Zone1BossGateTools
         Debug.Log($"[Zone1BossGateTools] Created GateDefinition at {DefaultGateAssetPath}");
     }
 
-    [MenuItem("Tools/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Placeholder (Scene) (Legacy)")]
+    // Old menu: Tools/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Placeholder (Scene) (Legacy)
+    [MenuItem("Tools/Legacy QA/Abyssbound/Maintenance/Legacy/Gates/Create Zone1 Boss Gate Placeholder (Scene) (Legacy)")]
     public static void CreateZone1BossGatePlaceholder()
     {
         if (Application.isPlaying)
@@ -81,6 +87,7 @@ public static class Zone1BossGateTools
         Selection.activeGameObject = go;
         Debug.Log("[Zone1BossGateTools] Created scene placeholder at (0,0,0). Move it to your real boss gate entrance when ready.");
     }
+    #endif
 
     private static void EnsureFolder(string path)
     {

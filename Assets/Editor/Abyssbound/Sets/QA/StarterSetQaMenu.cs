@@ -7,6 +7,9 @@ using Abyssbound.Loot;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor menus are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 public static class StarterSetQaMenu
 {
     private const string SetAssetPath = "Assets/GameData/Sets/ItemSet_AbyssalInitiate.asset";
@@ -32,7 +35,9 @@ public static class StarterSetQaMenu
         try { EnsureStarterSetAssets(out _, out _); } catch { }
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Print Equipped Set Counts")]
+#if ABYSS_LEGACY_QA_TOOLS
+    // Old menu path: Tools/Abyssbound/QA/Print Equipped Set Counts
+    [MenuItem("Tools/Legacy QA/Sets/Print Equipped Set Counts")]
     public static void PrintEquippedSetCounts()
     {
         if (!EnsurePlayMode())
@@ -61,7 +66,8 @@ public static class StarterSetQaMenu
         }
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Print Active Set Bonus Keys")]
+    // Old menu path: Tools/Abyssbound/QA/Print Active Set Bonus Keys
+    [MenuItem("Tools/Legacy QA/Sets/Print Active Set Bonus Keys")]
     public static void PrintActiveSetBonusKeys()
     {
         if (!EnsurePlayMode())
@@ -90,13 +96,14 @@ public static class StarterSetQaMenu
             Debug.Log($"[QA] Active Set Bonus: {keys[i]}");
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Give Starter Set (Abyssal Initiate) _F5")]
+    // Old menu path: Tools/Abyssbound/QA/Give Starter Set (Abyssal Initiate) _F5
+    [MenuItem("Tools/Legacy QA/Sets/Give Starter Set (Abyssal Initiate) _F5")]
     public static void GiveStarterSet()
     {
         if (!EnsurePlayMode())
             return;
 
-        if (!EnsureStarterSetAssets(out var set, out var pieces))
+        if (!EnsureStarterSetAssets(out _, out var pieces))
             return;
 
         int ilvl = GetQaItemLevelOrDefault();
@@ -134,13 +141,14 @@ public static class StarterSetQaMenu
         Debug.Log($"[QA] Granted {SetDisplayName} set ({granted} items) ilvl={Mathf.Max(1, ilvl)}");
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Give + Equip Starter Set (Abyssal Initiate) #F5")]
+    // Old menu path: Tools/Abyssbound/QA/Give + Equip Starter Set (Abyssal Initiate) #F5
+    [MenuItem("Tools/Legacy QA/Sets/Give + Equip Starter Set (Abyssal Initiate) #F5")]
     public static void GiveAndEquipStarterSet()
     {
         if (!EnsurePlayMode())
             return;
 
-        if (!EnsureStarterSetAssets(out var set, out var pieces))
+        if (!EnsureStarterSetAssets(out _, out var pieces))
             return;
 
         int ilvl = GetQaItemLevelOrDefault();
@@ -191,6 +199,7 @@ public static class StarterSetQaMenu
 
         Debug.Log($"[QA] Granted+Equipped {SetDisplayName} set ({granted} items) ilvl={Mathf.Max(1, ilvl)}");
     }
+#endif
 
     private static bool EnsurePlayMode()
     {

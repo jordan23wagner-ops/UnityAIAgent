@@ -3,20 +3,28 @@ using Abyss.Dev;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 namespace Abyssbound.QA
 {
     public static class TtkSimMenu
     {
         private const int DefaultKills = 50;
 
-        [MenuItem("Tools/Abyssbound/QA/TTK Sim/Run Trash (50)")]
-        private static void RunTrash50() => Run("Loot/Tables/Zone1_Trash", DefaultKills);
+    // Old menu path: Tools/Abyssbound/QA/TTK Sim/Run Trash (50)
+#if ABYSS_LEGACY_QA_TOOLS
+    [MenuItem("Tools/Legacy QA/TTK Sim/Run Trash (50)")]
+    private static void RunTrash50() => Run("Loot/Tables/Zone1_Trash", DefaultKills);
 
-        [MenuItem("Tools/Abyssbound/QA/TTK Sim/Run Elite (50)")]
-        private static void RunElite50() => Run("Loot/Tables/Zone1_Elite", DefaultKills);
+    // Old menu path: Tools/Abyssbound/QA/TTK Sim/Run Elite (50)
+    [MenuItem("Tools/Legacy QA/TTK Sim/Run Elite (50)")]
+    private static void RunElite50() => Run("Loot/Tables/Zone1_Elite", DefaultKills);
 
-        [MenuItem("Tools/Abyssbound/QA/TTK Sim/Run Boss (50)")]
-        private static void RunBoss50() => Run("Loot/Tables/Zone1_Boss", DefaultKills);
+    // Old menu path: Tools/Abyssbound/QA/TTK Sim/Run Boss (50)
+    [MenuItem("Tools/Legacy QA/TTK Sim/Run Boss (50)")]
+    private static void RunBoss50() => Run("Loot/Tables/Zone1_Boss", DefaultKills);
+#endif
 
         private static void Run(string lootTableResourcesPath, int kills)
         {

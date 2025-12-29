@@ -1,3 +1,4 @@
+#if ABYSS_LEGACY_QA_TOOLS
 #if UNITY_EDITOR
 using System;
 using System.Reflection;
@@ -6,11 +7,15 @@ using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 public static class LootQaSelectedItemSettingsEditor
 {
     private const string ResourcesFolder = "Assets/Resources";
     private const string AssetPath = "Assets/Resources/LootQaSelectedItemSettings.asset";
 
+#if ABYSS_LEGACY_QA_TOOLS
     [InitializeOnLoadMethod]
     private static void EnsureAssetExistsOnLoad()
     {
@@ -21,7 +26,8 @@ public static class LootQaSelectedItemSettingsEditor
         EnsureAssetExists();
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Create Settings Asset")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Create Settings Asset
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Create Settings Asset")]
     public static void EnsureAssetExists()
     {
         if (!AssetDatabase.IsValidFolder(ResourcesFolder))
@@ -44,7 +50,8 @@ public static class LootQaSelectedItemSettingsEditor
         Selection.activeObject = asset;
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Ping Settings Asset")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Ping Settings Asset
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Ping Settings Asset")]
     public static void PingSettingsAsset()
     {
         EnsureAssetExists();
@@ -59,7 +66,8 @@ public static class LootQaSelectedItemSettingsEditor
         EditorGUIUtility.PingObject(settings);
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Set Selected From Project Selection")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Set Selected From Project Selection
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Set Selected From Project Selection")]
     public static void SetSelectedFromProjectSelection()
     {
         EnsureAssetExists();
@@ -88,7 +96,8 @@ public static class LootQaSelectedItemSettingsEditor
         Debug.Log($"[LootQA] Selected QA item set to: {resolved.name}", settings);
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Clear Selected")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Clear Selected
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Clear Selected")]
     public static void ClearSelected()
     {
         EnsureAssetExists();
@@ -103,7 +112,8 @@ public static class LootQaSelectedItemSettingsEditor
         Debug.Log("[LootQA] Cleared Selected QA item.", settings);
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Set Default From Project Selection")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Set Default From Project Selection
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Set Default From Project Selection")]
     public static void SetDefaultFromProjectSelection()
     {
         EnsureAssetExists();
@@ -132,7 +142,8 @@ public static class LootQaSelectedItemSettingsEditor
         Debug.Log($"[LootQA] Default QA item set to: {resolved.name}", settings);
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Ping Any ItemDefinitionSO")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Ping Any ItemDefinitionSO
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Ping Any ItemDefinitionSO")]
     public static void PingAnyItemDefinitionSo()
     {
         var obj = FindFirstAssetByType("t:ItemDefinitionSO");
@@ -147,7 +158,8 @@ public static class LootQaSelectedItemSettingsEditor
         Debug.Log($"[LootQA] Pinged ItemDefinitionSO asset: {obj.name}", obj);
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Auto-Set Selected (First ItemDefinitionSO)")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Auto-Set Selected (First ItemDefinitionSO)
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Auto-Set Selected (First ItemDefinitionSO)")]
     public static void AutoSetSelectedFirstItemDefinitionSo()
     {
         EnsureAssetExists();
@@ -171,7 +183,8 @@ public static class LootQaSelectedItemSettingsEditor
         Debug.Log($"[LootQA] Auto-set Selected QA item to: {obj.name}", settings);
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Auto-Set Selected + Default (First ItemDefinitionSO)")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Auto-Set Selected + Default (First ItemDefinitionSO)
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Auto-Set Selected + Default (First ItemDefinitionSO)")]
     public static void AutoSetSelectedAndDefaultFirstItemDefinitionSo()
     {
         EnsureAssetExists();
@@ -196,7 +209,8 @@ public static class LootQaSelectedItemSettingsEditor
         Debug.Log($"[LootQA] Auto-set Selected+Default QA item to: {obj.name}", settings);
     }
 
-    [MenuItem("Tools/Abyssbound/QA/Selected Item/Ping Selected Item")]
+    // Old menu path: Tools/Abyssbound/QA/Selected Item/Ping Selected Item
+    [MenuItem("Tools/Legacy QA/Loot/Selected Item/Ping Selected Item")]
     public static void PingSelectedItem()
     {
         EnsureAssetExists();
@@ -221,6 +235,8 @@ public static class LootQaSelectedItemSettingsEditor
         if (o == null) return false;
         return o is ItemDefinitionSO || o.GetType().FullName == "Abyss.Items.ItemDefinition";
     }
+
+#endif
 
     private static bool TryResolveSupportedItemFromSelection(Object selection, out Object resolved)
     {
@@ -367,4 +383,8 @@ public static class LootQaSelectedItemSettingsEditor
         return null;
     }
 }
+#endif
+
+#else
+// Legacy QA tool disabled. Enable ABYSS_LEGACY_QA_TOOLS in Player Settings > Scripting Define Symbols to compile.
 #endif

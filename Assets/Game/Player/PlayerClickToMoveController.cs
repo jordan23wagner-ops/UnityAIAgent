@@ -1,4 +1,5 @@
 using UnityEngine;
+using Abyssbound.DeathDrop;
 
 [DisallowMultipleComponent]
 public sealed class PlayerClickToMoveController : MonoBehaviour
@@ -51,6 +52,13 @@ public sealed class PlayerClickToMoveController : MonoBehaviour
     {
         if (!Application.isPlaying)
             return;
+
+        try
+        {
+            if (Time.unscaledTime < DeathDropManager.SuppressGameplayInputUntil)
+                return;
+        }
+        catch { }
 
         if (raycastCamera == null)
             raycastCamera = Camera.main;

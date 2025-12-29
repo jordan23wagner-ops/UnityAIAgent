@@ -2,9 +2,14 @@ using UnityEditor;
 using UnityEngine;
 using UnityEditor.Callbacks;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 public static class PlaytestMerchantShopUIEditor
 {
-    [MenuItem("Tools/Abyssbound/QA/Playtest Merchant Shop UI (Selected)")]
+    #if ABYSS_LEGACY_QA_TOOLS
+    // Old menu: Tools/Abyssbound/QA/Playtest Merchant Shop UI (Selected)
+    [MenuItem("Tools/Legacy QA/Abyssbound/QA/Playtest Merchant Shop UI (Selected)")]
     public static void PlaytestSelected()
     {
         var go = Selection.activeGameObject;
@@ -40,6 +45,7 @@ public static class PlaytestMerchantShopUIEditor
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
         EditorApplication.isPlaying = true;
     }
+    #endif
 
     private static void TryOpenInPlayMode(Abyss.Shop.MerchantShop shop)
     {

@@ -1,3 +1,4 @@
+#if ABYSS_LEGACY_QA_TOOLS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -285,3 +286,7 @@ namespace AIAssistant
         }
     }
 }
+
+#else
+// Legacy QA tool disabled. Enable ABYSS_LEGACY_QA_TOOLS in Player Settings > Scripting Define Symbols to compile.
+#endif

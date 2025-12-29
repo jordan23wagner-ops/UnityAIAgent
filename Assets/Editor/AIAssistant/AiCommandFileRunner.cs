@@ -5,6 +5,9 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
+// Legacy QA tools are gated behind a compile define.
+// Enable via: Project Settings > Player > Scripting Define Symbols: ABYSS_LEGACY_QA_TOOLS
+
 namespace AIAssistant
 {
     public static class AiCommandFileRunner
@@ -14,17 +17,21 @@ namespace AIAssistant
         private const string FailedFolder = "Assets/AICommands/Failed";
         private const string ReportsFolder = "Assets/AIReports/Commands";
 
-        [MenuItem("Tools/Abyssbound/AI Assistant/Run Latest Incoming (DryRun)")]
+        #if ABYSS_LEGACY_QA_TOOLS
+        // Old menu: Tools/Abyssbound/AI Assistant/Run Latest Incoming (DryRun)
+        [MenuItem("Tools/Legacy QA/Abyssbound/AI Assistant/Run Latest Incoming (DryRun)")]
         public static void RunLatestIncomingDryRun()
         {
             RunLatestIncoming(ExecutionMode.DryRun);
         }
 
-        [MenuItem("Tools/Abyssbound/AI Assistant/Run Latest Incoming (Apply)")]
+        // Old menu: Tools/Abyssbound/AI Assistant/Run Latest Incoming (Apply)
+        [MenuItem("Tools/Legacy QA/Abyssbound/AI Assistant/Run Latest Incoming (Apply)")]
         public static void RunLatestIncomingApply()
         {
             RunLatestIncoming(ExecutionMode.Apply);
         }
+        #endif
 
         public static void RunLatestIncoming(ExecutionMode mode)
         {

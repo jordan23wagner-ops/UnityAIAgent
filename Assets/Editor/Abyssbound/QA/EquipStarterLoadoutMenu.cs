@@ -8,6 +8,9 @@ using Game.Systems;
 using UnityEditor;
 using UnityEngine;
 
+// NOTE: Legacy/QA editor tools are hidden unless ABYSS_LEGACY_QA_TOOLS is defined.
+// Enable via Project Settings > Player > Scripting Define Symbols.
+
 namespace Abyssbound.QA
 {
     public static class EquipStarterLoadoutMenu
@@ -17,7 +20,9 @@ namespace Abyssbound.QA
         private const string ArmorBasicLegs = "armor_basic_legs";
         private const string ArmorBasicHelm = "armor_basic_helm";
 
-        [MenuItem("Tools/Abyssbound/QA/Equip Starter Loadout")]
+        // Old menu path: Tools/Abyssbound/QA/Equip Starter Loadout
+    #if ABYSS_LEGACY_QA_TOOLS
+        [MenuItem("Tools/Legacy QA/Player/Equip Starter Loadout")]
         private static void EquipStarterLoadout()
         {
             if (!Application.isPlaying)
@@ -74,6 +79,7 @@ namespace Abyssbound.QA
 
             Debug.Log("Starter Loadout equipped.");
         }
+#endif
 
         private static void ClearAllEquipmentToInventory(PlayerEquipment equipment, PlayerInventory inv)
         {
