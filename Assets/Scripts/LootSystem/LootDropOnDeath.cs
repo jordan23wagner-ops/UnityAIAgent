@@ -34,6 +34,8 @@ public sealed class LootDropOnDeath : MonoBehaviour
     public bool logLootTierRolls;
     public bool logTierContentDrops;
 
+    [SerializeField] private bool logLootDebug = false;
+
     [SerializeField] private bool logEliteBonusRolls;
 
     private static bool s_WarnedMissingDefaultTable;
@@ -145,7 +147,7 @@ public sealed class LootDropOnDeath : MonoBehaviour
                 bossBonusRolls = bossBonusRolls,
                 computed = false,
             };
-            ApplyThreatLootScaling(ref weights, out int bonusRolls, out float bonusRollChance);
+            ApplyThreatLootScaling(ref weights, logLootDebug, out int bonusRolls, out float bonusRollChance);
 
             int lootTier = 1;
             try
@@ -428,7 +430,7 @@ public sealed class LootDropOnDeath : MonoBehaviour
         return table;
     }
 
-    private static void ApplyThreatLootScaling(ref ZoneLootTuningSO.TierRarityWeights weights, out int bonusRolls, out float bonusRollChance)
+    private static void ApplyThreatLootScaling(ref ZoneLootTuningSO.TierRarityWeights weights, bool logLootDebug, out int bonusRolls, out float bonusRollChance)
     {
         bonusRolls = 0;
         bonusRollChance = 0f;
@@ -490,9 +492,8 @@ public sealed class LootDropOnDeath : MonoBehaviour
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         try
         {
-            if (LootQaSettings.DebugLogsEnabled)
+            if (LootQaSettings.DebugLogsEnabled && logLootDebug)
             {
-                Debug.Log("[Loot][FINGERPRINT] FILE=LootDropOnDeath.cs METHOD=ApplyThreatLootScaling PATH=Assets/Scripts/LootSystem/LootDropOnDeath.cs");
                 Debug.Log($"[Loot] Threat={threat:0.0} dist={dist:0}m scaledWeights=(C:{weights.common:0.###} U:{weights.uncommon:0.###} M:{weights.magic:0.###} R:{weights.rare:0.###} E:{weights.epic:0.###} L:{weights.legendary:0.###}) bonusRolls={bonusRolls} chance={bonusRollChance:0.##}");
             }
         }

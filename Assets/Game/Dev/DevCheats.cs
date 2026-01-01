@@ -228,6 +228,26 @@ namespace Abyss.Dev
             var go = Instantiate(prefab, pos, Quaternion.identity);
             go.name = namePrefix;
 
+            string qaTier = null;
+            if (string.Equals(namePrefix, "QA_Trash", StringComparison.Ordinal)) qaTier = "Trash";
+            else if (string.Equals(namePrefix, "QA_Elite", StringComparison.Ordinal)) qaTier = "Elite";
+            else if (string.Equals(namePrefix, "QA_Boss", StringComparison.Ordinal)) qaTier = "Boss";
+
+            if (!string.IsNullOrWhiteSpace(qaTier))
+            {
+                EnemyCombatProfile profile = null;
+                try { profile = go.GetComponent<EnemyCombatProfile>(); } catch { profile = null; }
+                if (profile == null)
+                {
+                    try { profile = go.AddComponent<EnemyCombatProfile>(); } catch { profile = null; }
+                }
+
+                if (profile != null)
+                    profile.tier = qaTier;
+
+                Debug.Log($"[SpawnQA] name={namePrefix} tier={qaTier}", go);
+            }
+
             InjectEnemyTiering(go);
 
             // Force Loot V2 table for QA and prevent double-drops.
@@ -321,6 +341,26 @@ namespace Abyss.Dev
         {
             if (spawnedEnemy == null)
                 return;
+
+            string qaTier = null;
+            if (string.Equals(spawnedEnemy.name, "QA_Trash", StringComparison.Ordinal)) qaTier = "Trash";
+            else if (string.Equals(spawnedEnemy.name, "QA_Elite", StringComparison.Ordinal)) qaTier = "Elite";
+            else if (string.Equals(spawnedEnemy.name, "QA_Boss", StringComparison.Ordinal)) qaTier = "Boss";
+
+            if (!string.IsNullOrWhiteSpace(qaTier))
+            {
+                EnemyCombatProfile profile = null;
+                try { profile = spawnedEnemy.GetComponent<EnemyCombatProfile>(); } catch { profile = null; }
+                if (profile == null)
+                {
+                    try { profile = spawnedEnemy.AddComponent<EnemyCombatProfile>(); } catch { profile = null; }
+                }
+
+                if (profile != null)
+                    profile.tier = qaTier;
+
+                Debug.Log($"[DevCheats] Set EnemyCombatProfile.tier={qaTier} for {spawnedEnemy.name}", spawnedEnemy);
+            }
 
             var svc = ResolveTierServiceForInjection();
             var player = ResolvePlayerTransformForInjection();

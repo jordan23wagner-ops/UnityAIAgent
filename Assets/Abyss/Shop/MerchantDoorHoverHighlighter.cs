@@ -19,6 +19,16 @@ namespace Abyss.Shop
         private Camera _cam;
         private MerchantDoorClickTarget _current;
 
+        [Header("Debug")]
+        [SerializeField] private bool logHover = false;
+
+        private MerchantDoorClickTarget _pending;
+        private float _pendingSince;
+        private float _pendingBestDist;
+        private int _pendingHitCount;
+
+        private const float SwitchDebounceSeconds = 0.10f;
+
         private Game.Input.PlayerInputAuthority _input;
 
         private TextMeshPro _label;
@@ -84,28 +94,56 @@ namespace Abyss.Shop
                 return;
             }
 
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            // Choose ONE best target from all hits.
+            // Prefer hits that resolve to an interactable (MerchantDoorClickTarget); otherwise no hover target.
+            MerchantDoorClickTarget best = null;
+            float bestDist = float.PositiveInfinity;
 
-            MerchantDoorClickTarget target = null;
             for (int i = 0; i < hits.Length; i++)
             {
                 var hit = hits[i];
                 if (hit.collider == null) continue;
 
-                // Prefer direct component on collider object.
-                target = hit.collider.GetComponent<MerchantDoorClickTarget>();
-                if (target == null)
-                    target = hit.collider.GetComponentInParent<MerchantDoorClickTarget>();
+                var t = hit.collider.GetComponent<MerchantDoorClickTarget>();
+                if (t == null)
+                    t = hit.collider.GetComponentInParent<MerchantDoorClickTarget>();
 
-                if (target != null)
-                    break;
+                if (t == null) continue;
+
+                if (best == null || hit.distance < bestDist)
+                {
+                    best = t;
+                    bestDist = hit.distance;
+                }
             }
-            if (target == _current) return;
 
+            int hitCount = hits.Length;
+
+            // Debounce switching: require the new best to remain stable for 0.10s.
+            if (best == _current)
+            {
+                _pending = null;
+                return;
+            }
+
+            if (best != _pending)
+            {
+                _pending = best;
+                _pendingSince = Time.unscaledTime;
+                _pendingBestDist = bestDist;
+                _pendingHitCount = hitCount;
+                return;
+            }
+
+            if (Time.unscaledTime - _pendingSince < SwitchDebounceSeconds)
+                return;
+
+            // Confirm switch.
             if (_current != null)
                 _current.SetHighlighted(false);
 
-            _current = target;
+            _current = best;
+            _pending = null;
 
             if (_current != null)
             {
@@ -115,6 +153,13 @@ namespace Abyss.Shop
             else
             {
                 HideLabel();
+            }
+
+            if (logHover)
+            {
+                string bestName = _current != null ? _current.name : "<none>";
+                float dist = float.IsPositiveInfinity(_pendingBestDist) ? -1f : _pendingBestDist;
+                Debug.Log($"[Hover] best={bestName} dist={dist:0.###} hits={_pendingHitCount}");
             }
         }
 
@@ -212,6 +257,8 @@ namespace Abyss.Shop
                 _current.SetHighlighted(false);
                 _current = null;
             }
+
+            _pending = null;
 
             HideLabel();
         }
