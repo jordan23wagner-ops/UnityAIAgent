@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 using Abyss.Items;
 using Abyss.Equipment;
+using Abyssbound.Progression;
+using Abyssbound.Items.Use;
 
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -50,7 +53,14 @@ namespace Abyss.Inventory
         // OSRS-style inventory grid.
         private const int InventoryGridColumns = 4;
         private const int InventoryGridRows = 7;
-        private const int InventoryGridSlots = InventoryGridColumns * InventoryGridRows;
+
+        // Capacity (bag upgrades): UI renders only this many slots.
+        private int _gridCapacitySlots = PlayerProgression.DefaultMaxInventorySlots;
+        private int _lastLoggedGridCapacitySlots = -1;
+        private PlayerProgression _progression;
+
+        private Coroutine _capacityRefreshCoroutine;
+        private int _pendingCapacityRefreshMaxSlots = -1;
 
         [Header("Root")]
         [SerializeField] private GameObject root;
@@ -160,6 +170,224 @@ namespace Abyss.Inventory
             detailsUI?.Clear();
 
             WireCharacterTabs();
+
+            // Default UI capacity without spawning progression objects.
+            RefreshGridCapacity();
+        }
+
+        private void OnEnable()
+        {
+            try { PlayerProgression.OnInventoryCapacityChanged += HandleInventoryCapacityChanged; } catch { }
+            try { ItemUseRouter.OnItemUsed += HandleItemUsed; } catch { }
+        }
+
+        private void OnDisable()
+        {
+            try { PlayerProgression.OnInventoryCapacityChanged -= HandleInventoryCapacityChanged; } catch { }
+            try { ItemUseRouter.OnItemUsed -= HandleItemUsed; } catch { }
+
+            try
+            {
+                if (_capacityRefreshCoroutine != null)
+                    StopCoroutine(_capacityRefreshCoroutine);
+            }
+            catch { }
+
+            _capacityRefreshCoroutine = null;
+            _pendingCapacityRefreshMaxSlots = -1;
+        }
+
+        private void OnDestroy()
+        {
+            try
+            {
+                if (_progression != null)
+                    _progression.OnMaxInventorySlotsChanged -= HandleMaxInventorySlotsChanged;
+            }
+            catch { }
+        }
+
+        private void EnsureProgression()
+        {
+            if (_progression != null)
+                return;
+
+            try
+            {
+                _progression = PlayerProgression.Instance;
+                if (_progression == null)
+                {
+#if UNITY_2022_2_OR_NEWER
+                    _progression = FindFirstObjectByType<PlayerProgression>(FindObjectsInactive.Include);
+#else
+                    _progression = FindObjectOfType<PlayerProgression>();
+#endif
+                }
+            }
+            catch
+            {
+                _progression = null;
+            }
+
+            if (_progression != null)
+            {
+                try
+                {
+                    // Keep legacy instance event unsubscribed; we use the static next-frame event instead.
+                    _progression.OnMaxInventorySlotsChanged -= HandleMaxInventorySlotsChanged;
+                }
+                catch { }
+            }
+        }
+
+        private void HandleMaxInventorySlotsChanged(int _)
+        {
+            // Legacy callback (kept for safety): route to next-frame refresh.
+            HandleInventoryCapacityChanged(_progression != null ? _progression.MaxInventorySlots : PlayerProgression.DefaultMaxInventorySlots);
+        }
+
+        private void HandleInventoryCapacityChanged(int newMaxSlots)
+        {
+            bool open = false;
+            try { open = _isOpen || (root != null && root.activeSelf); } catch { open = _isOpen; }
+            if (!open)
+                return;
+
+            _pendingCapacityRefreshMaxSlots = newMaxSlots;
+
+            try
+            {
+                if (_capacityRefreshCoroutine != null)
+                    StopCoroutine(_capacityRefreshCoroutine);
+            }
+            catch { }
+
+            _capacityRefreshCoroutine = StartCoroutine(RefreshCapacityNextFrame());
+        }
+
+        private void HandleItemUsed(string _)
+        {
+            // Successful use/consume: hide tooltip immediately and clear selection to avoid stale references.
+            HardHideTooltipAndClearSelection();
+        }
+
+        private IEnumerator RefreshCapacityNextFrame()
+        {
+            yield return null;
+
+            bool open = false;
+            try { open = _isOpen || (root != null && root.activeSelf); } catch { open = _isOpen; }
+            if (!open)
+                yield break;
+
+            int newMax = _pendingCapacityRefreshMaxSlots;
+            if (newMax <= 0)
+                yield break;
+
+            Debug.Log($"[InventoryUI] Capacity refresh next frame: maxSlots={newMax}");
+
+            HardHideTooltipAndClearSelection();
+
+            _gridCapacitySlots = Mathf.Clamp(newMax, PlayerProgression.DefaultMaxInventorySlots, PlayerProgression.MaxInventorySlotsCap);
+
+            // Rebuild + rebind item visuals.
+            try
+            {
+                _refreshQueued = false;
+                RefreshAll();
+            }
+            catch
+            {
+                _refreshQueued = true;
+            }
+
+            // Force layout to settle after grid rebuild.
+            try
+            {
+                Canvas.ForceUpdateCanvases();
+                var rt = root != null ? root.GetComponent<RectTransform>() : null;
+                if (rt != null)
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            }
+            catch { }
+        }
+
+        private void HardHideTooltipAndClearSelection()
+        {
+            try
+            {
+                var tooltip = ResolveTooltip();
+                if (tooltip != null)
+                    tooltip.HideAndClear();
+            }
+            catch { }
+
+            try { EventSystem.current?.SetSelectedGameObject(null); } catch { }
+
+            try { ClearSelection(); } catch { }
+        }
+
+        private ItemTooltipUI ResolveTooltip()
+        {
+            try
+            {
+                var canvas = GetComponentInParent<Canvas>();
+                if (canvas != null)
+                    return canvas.GetComponentInChildren<ItemTooltipUI>(true);
+            }
+            catch { }
+
+            return null;
+        }
+
+        public void RefreshGridCapacity()
+        {
+            EnsureProgression();
+
+            int maxSlots = PlayerProgression.DefaultMaxInventorySlots;
+            try
+            {
+                if (_progression != null)
+                    maxSlots = _progression.MaxInventorySlots;
+            }
+            catch
+            {
+                maxSlots = PlayerProgression.DefaultMaxInventorySlots;
+            }
+
+            if (maxSlots <= 0)
+                maxSlots = PlayerProgression.DefaultMaxInventorySlots;
+
+            _gridCapacitySlots = maxSlots;
+        }
+
+        public void RefreshGridCapacityAndRebuildIfOpen()
+        {
+            RefreshGridCapacity();
+            if (_isOpen)
+                _refreshQueued = true;
+        }
+
+        public void RefreshGridCapacityAndRebuildNowIfOpen()
+        {
+            RefreshGridCapacity();
+
+            bool open = false;
+            try { open = _isOpen || (root != null && root.activeSelf); } catch { open = _isOpen; }
+            if (!open)
+                return;
+
+            // Rebuild immediately so the extra slots show without requiring close/reopen.
+            try
+            {
+                _refreshQueued = false;
+                RefreshAll();
+            }
+            catch
+            {
+                // Best-effort: fall back to queued refresh.
+                _refreshQueued = true;
+            }
         }
 
         private void Update()
@@ -213,10 +441,12 @@ namespace Abyss.Inventory
                 if (!_isOpen)
                 {
                     _isOpen = true;
+                    RefreshGridCapacity();
                     EnsureEquipButton();
                     EnsureInventory();
                     EnsureEquipment();
                     RefreshDetails();
+                    _refreshQueued = true;
                 }
             }
             else
@@ -420,6 +650,9 @@ namespace Abyss.Inventory
             }
 
             try { _inputAuthority?.SetUiInputLocked(true); } catch { }
+
+            // Ensure we render the correct number of slots for current progression.
+            RefreshGridCapacity();
 
             // Build the grid immediately so we don't show a blank/flashy intermediate frame.
             _refreshQueued = false;
@@ -859,7 +1092,7 @@ namespace Abyss.Inventory
                 }
                 catch { }
 
-                Debug.Log($"[INVDBG][UI REFRESH] snapshotKeys={snap.Count} nonEmptyStacks={nonEmptyStacks} gridSlots={InventoryGridSlots}", this);
+                Debug.Log($"[INVDBG][UI REFRESH] snapshotKeys={snap.Count} nonEmptyStacks={nonEmptyStacks} gridSlots={_gridCapacitySlots}", this);
             }
 #pragma warning restore CS0162
 #endif
@@ -924,8 +1157,8 @@ namespace Abyss.Inventory
 #pragma warning disable CS0162
             if (INV_DEBUG)
             {
-                int nonEmptySlots = Mathf.Min(visibleStacks.Count, InventoryGridSlots);
-                Debug.Log($"[INVDBG][UI REFRESH] visibleStacks={visibleStacks.Count} nonEmptySlotsShown={nonEmptySlots} rowsToCreate={InventoryGridSlots}", this);
+                int nonEmptySlots = Mathf.Min(visibleStacks.Count, _gridCapacitySlots);
+                Debug.Log($"[INVDBG][UI REFRESH] visibleStacks={visibleStacks.Count} nonEmptySlotsShown={nonEmptySlots} rowsToCreate={_gridCapacitySlots}", this);
             }
 #pragma warning restore CS0162
 #endif
@@ -933,11 +1166,19 @@ namespace Abyss.Inventory
             // Sync selected slot index based on currently selected item id (UI-only).
             _selectedSlotIndex = FindSelectedSlotIndexInVisibleStacks(visibleStacks, _selectedItemId);
 
-            if (visibleStacks.Count > InventoryGridSlots)
+            if (visibleStacks.Count > _gridCapacitySlots)
             {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                Debug.LogWarning($"[PlayerInventoryUI] Inventory has {visibleStacks.Count} stacks but UI is fixed to {InventoryGridSlots} slots; truncating display.", this);
+                Debug.LogWarning($"[PlayerInventoryUI] Inventory has {visibleStacks.Count} stacks but UI is fixed to {_gridCapacitySlots} slots; truncating display.", this);
 #endif
+            }
+
+            // One log per capacity change (no per-frame spam).
+            if (_lastLoggedGridCapacitySlots != _gridCapacitySlots)
+            {
+                _lastLoggedGridCapacitySlots = _gridCapacitySlots;
+                int rows = Mathf.CeilToInt(_gridCapacitySlots / (float)InventoryGridColumns);
+                Debug.Log($"[InventoryUI] Grid capacity = {_gridCapacitySlots} (rows={rows}, cols={InventoryGridColumns})", this);
             }
 
             // Prefer square cells sized to fit the viewport.
@@ -953,7 +1194,7 @@ namespace Abyss.Inventory
             }
             catch { }
 
-            for (int slotIndex = 0; slotIndex < InventoryGridSlots; slotIndex++)
+            for (int slotIndex = 0; slotIndex < _gridCapacitySlots; slotIndex++)
             {
                 bool hasItem = slotIndex < visibleStacks.Count;
                 string itemId = hasItem ? visibleStacks[slotIndex].itemId : null;
@@ -1440,7 +1681,7 @@ namespace Abyss.Inventory
             if (string.IsNullOrWhiteSpace(selectedItemId) || visibleStacks == null)
                 return -1;
 
-            for (int i = 0; i < visibleStacks.Count && i < InventoryGridSlots; i++)
+            for (int i = 0; i < visibleStacks.Count && i < _gridCapacitySlots; i++)
             {
                 if (string.Equals(visibleStacks[i].itemId, selectedItemId, StringComparison.OrdinalIgnoreCase))
                     return i;

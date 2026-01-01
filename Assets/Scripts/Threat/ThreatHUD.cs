@@ -9,10 +9,24 @@ namespace Abyssbound.Threat
     [DisallowMultipleComponent]
     public sealed class ThreatHUD : MonoBehaviour
     {
+        // QA Checklist (Threat HUD Layout)
+        // - Skull row readable on white terrain and sky
+        // - Skull colors clearly visible at all threat levels
+        // - Distance text readable but secondary
+        // - No overlap, clipping, or console warnings
+
         [Header("Wiring")]
         [SerializeField] private Image[] skullBackgrounds = new Image[5];
         [SerializeField] private Image[] skullFills = new Image[5];
         [SerializeField] private TMP_Text threatValueText;
+
+        [Header("Distance")]
+        [SerializeField] private TMP_Text distanceText;
+        [SerializeField] private TMP_Text farthestDistanceText;
+        [SerializeField, Tooltip("Distance text updates per second (not every frame).")]
+        private float distanceTextUpdatesPerSecond = 6f;
+
+        [SerializeField] private Color32 threatDistanceTextColor = new Color32(220, 220, 220, 255);
 
         [Header("Visual")]
         public Sprite skullSprite;
@@ -26,6 +40,8 @@ namespace Abyssbound.Threat
         public bool debugLogColors = false;
 
         private ThreatService _service;
+
+        private float _nextDistanceTextUpdateTime;
 
         // Runtime-generated placeholder sprite (1x1 white).
         private static Sprite _fallbackSprite;
@@ -41,12 +57,16 @@ namespace Abyssbound.Threat
         {
             SanitizeUnicodeSkullTmpOnce();
             DisableLegacySkullTextIfPresent();
+            EnsureLayoutContainers();
             AutoWireFromChildrenIfNeeded();
             EnsureSpritesAssigned();
             EnsureBackgroundPanelReadable();
+            EnsureSkullContrastBoost();
             DisableAllRaycastTargetsOnce();
 
             ResolveService();
+            EnsureSkullSlotsMatchMaxThreat();
+            AutoWireDistanceTextsIfNeeded();
             ApplyNumericVisibility();
             Refresh();
         }
@@ -54,12 +74,17 @@ namespace Abyssbound.Threat
         private void OnEnable()
         {
             DisableLegacySkullTextIfPresent();
+            EnsureLayoutContainers();
             AutoWireFromChildrenIfNeeded();
             EnsureSpritesAssigned();
             EnsureBackgroundPanelReadable();
+            EnsureSkullContrastBoost();
             DisableAllRaycastTargetsOnce();
 
             ResolveService();
+
+            EnsureSkullSlotsMatchMaxThreat();
+            AutoWireDistanceTextsIfNeeded();
 
             if (_service != null)
             {
@@ -68,6 +93,16 @@ namespace Abyssbound.Threat
 
             ApplyNumericVisibility();
             Refresh();
+        }
+
+        private void Update()
+        {
+            float interval = distanceTextUpdatesPerSecond <= 0f ? 0.2f : (1f / Mathf.Max(0.1f, distanceTextUpdatesPerSecond));
+            if (Time.unscaledTime < _nextDistanceTextUpdateTime)
+                return;
+
+            _nextDistanceTextUpdateTime = Time.unscaledTime + interval;
+            RefreshDistanceTexts();
         }
 
         private void OnDisable()
@@ -158,20 +193,38 @@ namespace Abyssbound.Threat
             }
 
             RenderSkulls(threat, tint);
+            RefreshDistanceTexts(tint);
         }
 
         private void RenderSkulls(float threat, Color tint)
         {
             float remaining = threat;
 
-            // Strong tint for readability.
+            // Keep the threat hue ramp as-is for current threat.
+            // Adjust visual treatment by state (full/half/empty) using HSV.
             tint.a = 1f;
 
-            const float emptyAlpha = 0.25f;
-            const float halfAlpha = 0.70f;
-            const float fullAlpha = 1.00f;
+            Color fullColor = tint;
+            fullColor.a = 1f;
 
-            for (int i = 0; i < 5; i++)
+            Color.RGBToHSV(fullColor, out float h, out float s, out float v);
+
+            float halfS = Mathf.Clamp01(s * 0.95f);
+            float halfV = Mathf.Clamp01(v * 0.65f);
+            Color halfColor = Color.HSVToRGB(h, halfS, halfV);
+            halfColor.a = 1f;
+
+            float emptyS = Mathf.Clamp01(s * 0.15f);
+            float emptyV = Mathf.Clamp01(v * 0.25f);
+            Color emptyColor = Color.HSVToRGB(h, emptyS, emptyV);
+            emptyColor.a = 0.35f;
+
+            // Base skull silhouette: off-white so skulls stay readable even at low threat.
+            // This is applied to the BG layer; the Fill layer gets the threat tint.
+            Color baseSkull = new Color(0.929f, 0.929f, 0.929f, 1f); // #EDEDED
+
+            int count = Mathf.Max(0, Mathf.Min(skullBackgrounds != null ? skullBackgrounds.Length : 0, skullFills != null ? skullFills.Length : 0));
+            for (int i = 0; i < count; i++)
             {
                 float fill = 0f;
                 if (remaining >= 1f) fill = 1f;
@@ -182,9 +235,11 @@ namespace Abyssbound.Threat
                 var bg = skullBackgrounds != null && i < skullBackgrounds.Length ? skullBackgrounds[i] : null;
                 var fg = skullFills != null && i < skullFills.Length ? skullFills[i] : null;
 
-                float alpha = fill <= 0f ? emptyAlpha : (fill < 1f ? halfAlpha : fullAlpha);
-                var c = tint;
-                c.a = alpha;
+                Color fgColor = fill <= 0f ? emptyColor : (fill < 1f ? halfColor : fullColor);
+
+                // BG stays off-white (silhouette) with a muted alpha; Fill provides threat tint.
+                float bgAlpha = fill <= 0f ? 0.30f : (fill < 1f ? 0.22f : 0.14f);
+                Color bgColor = new Color(baseSkull.r, baseSkull.g, baseSkull.b, bgAlpha);
 
                 if (bg != null)
                 {
@@ -198,8 +253,7 @@ namespace Abyssbound.Threat
                         bg.material = null;
                         bg.type = Image.Type.Simple;
 
-                        // Always apply the vivid hue (even when empty).
-                        bg.color = c;
+                        bg.color = bgColor;
                     }
                     catch { }
                 }
@@ -220,11 +274,61 @@ namespace Abyssbound.Threat
                         fg.fillOrigin = 0;
                         fg.fillAmount = fill;
 
-                        // Always apply the vivid hue (even when fillAmount is 0).
-                        fg.color = c;
+                        fg.color = fgColor;
                     }
                     catch { }
                 }
+            }
+        }
+
+        private void RefreshDistanceTexts()
+        {
+            float maxThreat = TryGetMaxThreatFromService(_service);
+            Color tint = EvaluateVividThreatColor(_service != null ? _service.CurrentThreat : 0f, maxThreat);
+            RefreshDistanceTexts(tint);
+        }
+
+        private void RefreshDistanceTexts(Color tint)
+        {
+            if (distanceText == null && farthestDistanceText == null)
+                return;
+
+            float dist = 0f;
+            float far = 0f;
+
+            try
+            {
+                if (_service != null)
+                {
+                    dist = Mathf.Max(0f, _service.CurrentDistanceMeters);
+                    far = Mathf.Max(0f, _service.FarthestDistanceMeters);
+                }
+
+                var prov = ThreatDistanceProvider.Instance;
+                if (prov != null)
+                {
+                    dist = Mathf.Max(dist, prov.CurrentDistanceMeters);
+                    far = Mathf.Max(far, prov.FarthestDistanceMeters);
+                }
+            }
+            catch { }
+
+            // Secondary metadata styling: stable, serialized color.
+            // Keep size/placement controlled by prefab/layout.
+            var labelColor = (Color)threatDistanceTextColor;
+
+            if (distanceText != null)
+            {
+                try { distanceText.text = $"Dist {dist:0}m"; } catch { }
+                try { distanceText.color = labelColor; } catch { }
+                try { distanceText.raycastTarget = false; } catch { }
+            }
+
+            if (farthestDistanceText != null)
+            {
+                try { farthestDistanceText.text = $"Max {far:0}m"; } catch { }
+                try { farthestDistanceText.color = labelColor; } catch { }
+                try { farthestDistanceText.raycastTarget = false; } catch { }
             }
         }
 
@@ -315,11 +419,11 @@ namespace Abyssbound.Threat
             }
             catch { }
 
-            bool ok = skullBackgrounds != null && skullBackgrounds.Length == 5 && skullFills != null && skullFills.Length == 5;
+            bool ok = skullBackgrounds != null && skullBackgrounds.Length > 0 && skullFills != null && skullFills.Length == skullBackgrounds.Length;
             if (ok)
             {
                 bool anyMissing = false;
-                for (int i = 0; i < 5; i++)
+                for (int i = 0; i < skullBackgrounds.Length; i++)
                 {
                     if (skullBackgrounds[i] == null || skullFills[i] == null)
                     {
@@ -338,10 +442,22 @@ namespace Abyssbound.Threat
                 if (row == null)
                     return;
 
-                var bgs = new Image[5];
-                var fgs = new Image[5];
+                int count = 0;
+                for (int i = 0; i < 64; i++)
+                {
+                    var slot = row.Find($"Skull{i + 1}");
+                    if (slot == null)
+                        break;
+                    count++;
+                }
 
-                for (int i = 0; i < 5; i++)
+                if (count <= 0)
+                    return;
+
+                var bgs = new Image[count];
+                var fgs = new Image[count];
+
+                for (int i = 0; i < count; i++)
                 {
                     var slot = row.Find($"Skull{i + 1}");
                     if (slot == null) continue;
@@ -357,6 +473,170 @@ namespace Abyssbound.Threat
                 skullFills = fgs;
             }
             catch { }
+        }
+
+        private void EnsureSkullSlotsMatchMaxThreat()
+        {
+            float maxThreat = TryGetMaxThreatFromService(_service);
+            int desired = Mathf.Max(1, Mathf.CeilToInt(maxThreat));
+
+            try
+            {
+                var row = transform.Find("SkullRow");
+                if (row == null)
+                    return;
+
+                int existing = 0;
+                for (int i = 0; i < 128; i++)
+                {
+                    if (row.Find($"Skull{i + 1}") == null) break;
+                    existing++;
+                }
+
+                if (existing <= 0)
+                    return;
+
+                if (existing >= desired)
+                {
+                    AutoWireFromChildrenIfNeeded();
+                    return;
+                }
+
+                Transform template = row.Find("Skull1");
+                if (template == null)
+                    template = row.GetChild(0);
+
+                if (template == null)
+                    return;
+
+                for (int i = existing; i < desired; i++)
+                {
+                    var cloned = Instantiate(template.gameObject, row);
+                    cloned.name = $"Skull{i + 1}";
+                }
+
+                AutoWireFromChildrenIfNeeded();
+                EnsureSpritesAssigned();
+            }
+            catch { }
+        }
+
+        private void AutoWireDistanceTextsIfNeeded()
+        {
+            try
+            {
+                if (distanceText == null)
+                {
+                    var t = transform.Find("DistanceText") ?? transform.Find("DistanceContainer/DistanceText");
+                    distanceText = t != null ? t.GetComponent<TMP_Text>() : null;
+                }
+
+                if (farthestDistanceText == null)
+                {
+                    var t = transform.Find("FarthestDistanceText") ?? transform.Find("DistanceContainer/FarthestDistanceText");
+                    farthestDistanceText = t != null ? t.GetComponent<TMP_Text>() : null;
+                }
+            }
+            catch { }
+        }
+
+        private void EnsureLayoutContainers()
+        {
+            // UI-only layout enforcement:
+            // - Split skulls and distance text into separate vertical sections
+            // - Add breathing room without shrinking skulls
+            try
+            {
+                var root = transform as RectTransform;
+                if (root == null)
+                    return;
+
+                // Ensure panel height has room for two sections.
+                try
+                {
+                    var s = root.sizeDelta;
+                    s.y = Mathf.Max(s.y, 128f);
+                    root.sizeDelta = s;
+                }
+                catch { }
+
+                var skullRow = root.Find("SkullRow") as RectTransform;
+
+                var skullContainerT = root.Find("SkullContainer") as RectTransform;
+                if (skullContainerT == null)
+                {
+                    var go = new GameObject("SkullContainer", typeof(RectTransform));
+                    skullContainerT = go.GetComponent<RectTransform>();
+                    skullContainerT.SetParent(root, false);
+                    skullContainerT.SetSiblingIndex(0);
+                }
+
+                var distanceContainerT = root.Find("DistanceContainer") as RectTransform;
+                if (distanceContainerT == null)
+                {
+                    var go = new GameObject("DistanceContainer", typeof(RectTransform));
+                    distanceContainerT = go.GetComponent<RectTransform>();
+                    distanceContainerT.SetParent(root, false);
+                    distanceContainerT.SetSiblingIndex(1);
+                }
+
+                // Layout: top-anchored sections.
+                ConfigureSection(skullContainerT, yTop: -6f, height: 72f);
+                ConfigureSection(distanceContainerT, yTop: -6f - 72f - 8f, height: 40f);
+
+                // Skull row belongs to SkullContainer.
+                if (skullRow != null && skullRow.parent != skullContainerT)
+                    skullRow.SetParent(skullContainerT, worldPositionStays: false);
+
+                // Center skull row within its container.
+                if (skullRow != null)
+                {
+                    skullRow.anchorMin = new Vector2(0.5f, 0.5f);
+                    skullRow.anchorMax = new Vector2(0.5f, 0.5f);
+                    skullRow.pivot = new Vector2(0.5f, 0.5f);
+                    skullRow.anchoredPosition = Vector2.zero;
+                    skullRow.sizeDelta = new Vector2(300f, 56f);
+                }
+
+                EnsureSkullBackdrop(skullContainerT, skullRow);
+
+                // Move distance texts into DistanceContainer if they exist.
+                var distT = (root.Find("DistanceText") as RectTransform) ?? (distanceContainerT.Find("DistanceText") as RectTransform);
+                var farT = (root.Find("FarthestDistanceText") as RectTransform) ?? (distanceContainerT.Find("FarthestDistanceText") as RectTransform);
+                if (distT != null && distT.parent != distanceContainerT)
+                    distT.SetParent(distanceContainerT, false);
+                if (farT != null && farT.parent != distanceContainerT)
+                    farT.SetParent(distanceContainerT, false);
+
+                // Stack and center in DistanceContainer.
+                if (distT != null)
+                {
+                    distT.anchorMin = new Vector2(0.5f, 1f);
+                    distT.anchorMax = new Vector2(0.5f, 1f);
+                    distT.pivot = new Vector2(0.5f, 1f);
+                    distT.anchoredPosition = new Vector2(0f, 0f);
+                    distT.sizeDelta = new Vector2(300f, 16f);
+                }
+                if (farT != null)
+                {
+                    farT.anchorMin = new Vector2(0.5f, 1f);
+                    farT.anchorMax = new Vector2(0.5f, 1f);
+                    farT.pivot = new Vector2(0.5f, 1f);
+                    farT.anchoredPosition = new Vector2(0f, -16f);
+                    farT.sizeDelta = new Vector2(300f, 16f);
+                }
+            }
+            catch { }
+        }
+
+        private static void ConfigureSection(RectTransform rt, float yTop, float height)
+        {
+            if (rt == null) return;
+            rt.anchorMin = new Vector2(0.5f, 1f);
+            rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = new Vector2(0f, yTop);
+            rt.sizeDelta = new Vector2(320f, Mathf.Max(0f, height));
         }
 
         private void EnsureBackgroundPanelReadable()
@@ -382,7 +662,96 @@ namespace Abyssbound.Threat
 
             try
             {
-                backgroundPanel.color = new Color(0f, 0f, 0f, 0.60f);
+                // Keep overall panel present but not dominant; skull-only backdrop does the heavy lifting.
+                backgroundPanel.color = new Color(0f, 0f, 0f, 0.35f);
+            }
+            catch { }
+        }
+
+        private void EnsureSkullBackdrop(RectTransform skullContainer, RectTransform skullRow)
+        {
+            if (skullContainer == null)
+                return;
+
+            try
+            {
+                var backdropT = skullContainer.Find("SkullBackdrop") as RectTransform;
+                Image img = null;
+
+                if (backdropT == null)
+                {
+                    var go = new GameObject("SkullBackdrop", typeof(RectTransform), typeof(Image));
+                    backdropT = go.GetComponent<RectTransform>();
+                    backdropT.SetParent(skullContainer, false);
+                    backdropT.SetSiblingIndex(0);
+                    img = go.GetComponent<Image>();
+                }
+                else
+                {
+                    img = backdropT.GetComponent<Image>();
+                    if (img == null)
+                        img = backdropT.gameObject.AddComponent<Image>();
+                }
+
+                // Ensure backdrop renders behind the skull row.
+                if (skullRow != null)
+                {
+                    int rowIndex = skullRow.GetSiblingIndex();
+                    if (backdropT.GetSiblingIndex() > rowIndex)
+                        backdropT.SetSiblingIndex(rowIndex);
+                }
+
+                backdropT.anchorMin = Vector2.zero;
+                backdropT.anchorMax = Vector2.one;
+                backdropT.pivot = new Vector2(0.5f, 0.5f);
+                backdropT.anchoredPosition = Vector2.zero;
+
+                // Padding around skulls (requested 8–10px).
+                backdropT.offsetMin = new Vector2(9f, 9f);
+                backdropT.offsetMax = new Vector2(-9f, -9f);
+
+                if (img != null)
+                {
+                    img.raycastTarget = false;
+                    img.type = Image.Type.Simple;
+                    img.preserveAspect = false;
+                    try { img.material = null; } catch { }
+
+                    var fallback = GetOrCreateFallbackSprite();
+                    if (fallback != null)
+                    {
+                        try { img.sprite = fallback; } catch { }
+                    }
+
+                    // Pure black backdrop behind skulls only.
+                    img.color = new Color(0f, 0f, 0f, 0.70f);
+                }
+            }
+            catch { }
+        }
+
+        private void EnsureSkullContrastBoost()
+        {
+            // Subtle shadow/outline to help skull readability.
+            try
+            {
+                if (skullFills == null)
+                    return;
+
+                for (int i = 0; i < skullFills.Length; i++)
+                {
+                    var img = skullFills[i];
+                    if (img == null)
+                        continue;
+
+                    var shadow = img.GetComponent<Shadow>();
+                    if (shadow == null)
+                        shadow = img.gameObject.AddComponent<Shadow>();
+
+                    shadow.effectColor = new Color(0f, 0f, 0f, 0.28f);
+                    shadow.effectDistance = new Vector2(1f, -1f);
+                    shadow.useGraphicAlpha = true;
+                }
             }
             catch { }
         }

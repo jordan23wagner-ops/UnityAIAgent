@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dafe4567cbfd5a54c9ce809652584c53, type: 3}
+  m_Name: TierLootConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.TierLootConfigSO
+  tier1: {fileID: 11400000, guid: 5bca216c40515ea4aae01d67cf3084be, type: 2}
+  tier2: {fileID: 11400000, guid: 02cdc4a36e059c144b1c3b2252c4af80, type: 2}
+  tier3: {fileID: 11400000, guid: be9ef33bb6136034d91f783de27811b8, type: 2}
+  tier4: {fileID: 11400000, guid: 2b4b9ce305f87f3479527866e20ff99f, type: 2}
+  tier5: {fileID: 11400000, guid: b537ef79a422ccc4fbc0dff69d4bd4e2, type: 2}

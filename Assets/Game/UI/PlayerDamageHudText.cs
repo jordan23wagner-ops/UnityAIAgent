@@ -11,11 +11,13 @@ public sealed class PlayerDamageHudText : MonoBehaviour
     [SerializeField] private TMP_Text damageText;
     [SerializeField] private PlayerCombatStats stats;
 
+    [Header("Colors")]
+    [SerializeField] private Color32 damageTextColor = new Color32(245, 215, 110, 255);
+
     private PlayerEquipment _equipment;
     private bool _warnedMissingStats;
     private float _nextPollTime;
 
-    private static readonly Color32 s_DamageColor = new Color32(245, 215, 110, 255);
     private static readonly Color32 s_OutlineColor = new Color32(0, 0, 0, 255);
     private static readonly Color32 s_BgColor = new Color32(0, 0, 0, 190);
 
@@ -317,7 +319,7 @@ public sealed class PlayerDamageHudText : MonoBehaviour
             return;
 
         damageText.text = "DMG: ?";
-        damageText.color = s_DamageColor;
+        damageText.color = damageTextColor;
 
         // Styling requirements.
         if (damageText is TextMeshProUGUI ugui)
@@ -347,7 +349,7 @@ public sealed class PlayerDamageHudText : MonoBehaviour
         if (damageText == null)
             return;
 
-        damageText.color = s_DamageColor;
+        damageText.color = damageTextColor;
 
         if (stats == null)
         {

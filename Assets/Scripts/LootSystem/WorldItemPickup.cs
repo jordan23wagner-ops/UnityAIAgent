@@ -70,6 +70,31 @@ public sealed class WorldItemPickup : MonoBehaviour
         if (inv == null) return;
 
         var reg = LootRegistryRuntime.GetOrCreate();
+
+        // Stackable Loot V2 items should be stored by base item id (not unique rolled ids),
+        // otherwise they would consume one slot each and never stack.
+        try
+        {
+            if (reg != null && !string.IsNullOrWhiteSpace(instance.baseItemId) && reg.TryGetItem(instance.baseItemId, out var baseItem) && baseItem != null)
+            {
+                if (baseItem.stackable)
+                {
+                    inv.Add(baseItem.id, Mathf.Max(1, inventoryCount));
+
+                    if (_tooltip != null)
+                        _tooltip.Hide(this);
+
+                    if (disableInsteadOfDestroy)
+                        gameObject.SetActive(false);
+                    else
+                        Destroy(gameObject);
+
+                    return;
+                }
+            }
+        }
+        catch { }
+
         var rolledId = reg.RegisterRolledInstance(instance);
         if (string.IsNullOrWhiteSpace(rolledId)) return;
 

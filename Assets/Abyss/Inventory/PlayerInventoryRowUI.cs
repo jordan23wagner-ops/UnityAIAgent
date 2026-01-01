@@ -613,6 +613,62 @@ namespace Abyss.Inventory
                 // Prevent triple-click from re-triggering in the same window.
                 _lastClickUnscaledTime = -999f;
                 _lastClickItemId = null;
+                return;
+            }
+
+            // QA CHECKLIST (Cooked Shrimp)
+            // - Have cooked_shrimp in inventory
+            // - Take damage
+            // - Double-click cooked_shrimp
+            // - HP increases by 5
+            // - Item count decreases by 1
+            // - No console errors
+            if (string.Equals(id, "cooked_shrimp", StringComparison.OrdinalIgnoreCase))
+            {
+                var inv = Game.Systems.PlayerInventoryResolver.GetOrFind();
+                if (inv == null)
+                    return;
+
+                var player = inv.gameObject;
+                if (player == null)
+                    return;
+
+                PlayerHealth health = null;
+                try { health = player.GetComponent<PlayerHealth>(); } catch { health = null; }
+                if (health == null)
+                {
+                    try { health = player.GetComponentInParent<PlayerHealth>(); } catch { health = null; }
+                }
+
+                if (health == null)
+                {
+                    Debug.LogWarning("[Consumable] No PlayerHealth found; cannot eat cooked_shrimp.");
+                    return;
+                }
+
+                // Follow existing consumable semantics: consume first, then apply effect.
+                if (!inv.TryConsume("cooked_shrimp", 1))
+                    return;
+
+                health.Heal(5);
+                Debug.Log("[Consumable] Ate Cooked Shrimp (+5 HP)");
+
+                // Notify UI listeners (tooltip/selection) on successful use.
+                ItemUseRouter.NotifyItemUsed("cooked_shrimp");
+
+                // Prevent triple-click from re-triggering in the same window.
+                _lastClickUnscaledTime = -999f;
+                _lastClickItemId = null;
+                return;
+            }
+
+            if (BagUpgradeUseHandler.CanHandle(id))
+            {
+                BagUpgradeUseHandler.TryUseFromInventory(id);
+
+                // Prevent triple-click from re-triggering in the same window.
+                _lastClickUnscaledTime = -999f;
+                _lastClickItemId = null;
             }
         }
 

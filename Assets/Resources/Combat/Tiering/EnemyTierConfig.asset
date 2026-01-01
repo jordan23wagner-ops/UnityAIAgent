@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a64e3944070b9a646b3bf840e5dacbd3, type: 3}
+  m_Name: EnemyTierConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Combat.Tiering.EnemyTierConfigSO
+  tiers:
+  - minDistance: 0
+    maxDistance: 20
+    hpMult: 1
+    dmgMult: 1
+  - minDistance: 20
+    maxDistance: 40
+    hpMult: 1.3
+    dmgMult: 1.2
+  - minDistance: 40
+    maxDistance: 60
+    hpMult: 1.7
+    dmgMult: 1.45
+  - minDistance: 60
+    maxDistance: 80
+    hpMult: 2.2
+    dmgMult: 1.8
+  - minDistance: 80
+    maxDistance: -1
+    hpMult: 3
+    dmgMult: 2.3

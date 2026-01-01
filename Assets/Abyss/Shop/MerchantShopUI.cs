@@ -7,6 +7,8 @@ using TMPro;
 using Game.Town;
 using Abyss.Items;
 using Game.Systems;
+using Abyssbound.BagUpgrades;
+using Abyssbound.Loot;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
 
@@ -589,6 +591,33 @@ namespace Abyss.Shop
                 SetMessage("No inventory found.");
                 return;
             }
+
+            // Bag upgrades (and other Loot V2 untradeables) should never be sellable.
+            try
+            {
+                string baseId = _selectedItemId;
+                var reg = LootRegistryRuntime.GetOrCreate();
+                if (reg != null)
+                {
+                    if (reg.TryGetRolledInstance(_selectedItemId, out var inst) && inst != null && !string.IsNullOrWhiteSpace(inst.baseItemId))
+                        baseId = inst.baseItemId;
+                    else
+                        baseId = _selectedItemId;
+
+                    if (BagUpgradeIds.IsBagUpgradeBaseId(baseId))
+                    {
+                        SetMessage("Cannot sell bag upgrades.");
+                        return;
+                    }
+
+                    if (reg.TryGetItem(baseId, out var lootItem) && lootItem != null && lootItem.untradeable)
+                    {
+                        SetMessage("Cannot sell this item.");
+                        return;
+                    }
+                }
+            }
+            catch { }
 
             int owned = _inventory.Count(_selectedItemId);
             if (owned < _qty)

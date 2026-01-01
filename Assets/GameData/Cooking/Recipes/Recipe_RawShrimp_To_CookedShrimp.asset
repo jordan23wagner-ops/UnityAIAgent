@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6015683d0c6d8a942876b569e4276851, type: 3}
+  m_Name: Recipe_RawShrimp_To_CookedShrimp
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Cooking.CookingRecipeSO
+  recipeId: raw_shrimp_to_cooked_shrimp
+  displayName: Cook Shrimp
+  inputItemId: fish_raw_shrimp
+  inputCount: 1
+  outputItemId: cooked_shrimp
+  outputCount: 1

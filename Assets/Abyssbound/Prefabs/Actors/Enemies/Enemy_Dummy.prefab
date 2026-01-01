@@ -202,6 +202,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LootDropOnDeath
   lootTable: {fileID: 11400000, guid: 5d1c0c4dc0f24e41a4bb4e6cc4f4e1b2, type: 2}
   itemLevel: 0
+  tierLootConfig: {fileID: 11400000, guid: 0ae9f2e1b97a589429c053e730ce8046, type: 2}
+  eliteBonusRolls: 1
+  bossBonusRolls: 2
   pickupPrefab: {fileID: 0}
   scatterRadius: 0.35
   logDrop: 0
+  logLootTierRolls: 0
+  logTierContentDrops: 1
+  logEliteBonusRolls: 0

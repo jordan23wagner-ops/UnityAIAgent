@@ -14,7 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Loot.ItemDefinitionSO
   id: Starter_Helm
   displayName: Abyssal Initiate Helm
+  description: 
   icon: {fileID: 21300000, guid: 00b1bba8465cdde478d45602a972fdb9, type: 3}
+  itemType: 3
+  stackable: 1
+  untradeable: 0
   slot: 1
   occupiesSlots: 
   baseStats:

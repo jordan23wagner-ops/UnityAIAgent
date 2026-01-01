@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Abyss.Items;
 using Abyssbound.Loot;
+using Abyssbound.Progression;
 using UnityEngine;
 
 public class PlayerInventory : MonoBehaviour
@@ -34,15 +35,22 @@ public class PlayerInventory : MonoBehaviour
 
     public int GetMaxInventorySlots()
     {
-        int max = BaseInventorySlots;
+        // v1 (Bag Upgrades): progression-owned permanent capacity.
+        try
+        {
+            var prog = PlayerProgression.GetOrCreate();
+            if (prog != null)
+                return Mathf.Clamp(prog.MaxInventorySlots, BaseInventorySlots, PlayerProgression.MaxInventorySlotsCap);
+        }
+        catch { }
 
-        // Highest tier wins.
+        // Legacy fallback (older bag items that granted capacity based on possession).
+        int max = BaseInventorySlots;
         if (HasAny(s_BagTier5Ids)) return 24;
         if (HasAny(s_BagTier4Ids)) return 22;
         if (HasAny(s_BagTier3Ids)) return 20;
         if (HasAny(s_BagTier2Ids)) return 18;
         if (HasAny(s_BagTier1Ids)) return 16;
-
         return max;
     }
 
@@ -67,6 +75,20 @@ public class PlayerInventory : MonoBehaviour
         // Rolled instances never stack; each copy is a new key.
         if (itemId.StartsWith("ri_", StringComparison.OrdinalIgnoreCase))
             return Mathf.Max(1, amount);
+
+        // Legacy equippables should never stack; each copy consumes its own slot.
+        try
+        {
+            var def = ResolveLegacyItemDefinition(itemId);
+            if (def != null)
+            {
+                bool equippable = false;
+                try { equippable = def.equipmentSlot != EquipmentSlot.None; } catch { equippable = false; }
+                if (equippable)
+                    return Mathf.Max(1, amount);
+            }
+        }
+        catch { }
 
         // Stackable by default: only consumes a new slot if it doesn't already exist.
         return _items != null && _items.ContainsKey(itemId) ? 0 : 1;
@@ -96,6 +118,20 @@ public class PlayerInventory : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(itemId)) return;
         if (amount <= 0) return;
+
+        // Capacity enforcement (v1): do not allow adding items that would require new stacks beyond max.
+        // Stacking into existing stacks is always allowed.
+        try
+        {
+            int addStacks = EstimateAdditionalStacksForAdd(itemId, amount);
+            if (addStacks > 0 && WouldExceedMaxSlotsWithAdditionalStacks(addStacks))
+            {
+                if (LootQaSettings.DebugLogsEnabled)
+                    Debug.Log($"[Inventory] Add blocked (inventory full): {itemId} x{amount}", this);
+                return;
+            }
+        }
+        catch { }
 
         // Non-stackable policy:
         // - Rolled instances (ri_...) should never stack; if amount > 1, clone into multiple rolled IDs.

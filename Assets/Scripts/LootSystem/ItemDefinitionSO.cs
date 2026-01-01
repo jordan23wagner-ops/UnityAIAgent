@@ -10,7 +10,18 @@ namespace Abyssbound.Loot
         [Header("Identity")]
         public string id;
         public string displayName;
+        [TextArea]
+        public string description;
         public Sprite icon;
+
+        [Header("Item")]
+        public ItemType itemType = ItemType.Consumable;
+
+        [Tooltip("If true, multiple copies should stack in one inventory slot when stored by base item id.")]
+        public bool stackable = true;
+
+        [Tooltip("If true, this item should not be sellable/tradeable.")]
+        public bool untradeable;
 
         [Header("Equipment")]
         public EquipmentSlot slot = EquipmentSlot.None;

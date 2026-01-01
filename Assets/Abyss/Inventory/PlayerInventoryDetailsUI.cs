@@ -9,6 +9,7 @@ using Abyssbound.Loot;
 using Abyssbound.Items.Use;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
+using Abyssbound.BagUpgrades;
 
 namespace Abyss.Inventory
 {
@@ -35,7 +36,10 @@ namespace Abyss.Inventory
 
         private void HandleItemUsed(string itemId)
         {
-            if (!string.Equals(itemId, TownScrollUseHandler.TownScrollItemId, StringComparison.OrdinalIgnoreCase))
+            bool shouldClearUx = string.Equals(itemId, TownScrollUseHandler.TownScrollItemId, StringComparison.OrdinalIgnoreCase)
+                || BagUpgradeIds.IsBagUpgradeBaseId(itemId);
+
+            if (!shouldClearUx)
                 return;
 
             // Clear this details panel immediately.
@@ -46,7 +50,7 @@ namespace Abyss.Inventory
             {
                 var tooltip = ResolveTooltip();
                 if (tooltip != null)
-                    tooltip.Hide();
+                    tooltip.HideTooltip();
             }
             catch { }
 
@@ -166,9 +170,33 @@ namespace Abyss.Inventory
                 return;
             }
 
+            // If this item isn't a legacy ItemDefinition (e.g. Loot V2 items like bag upgrades),
+            // attempt to resolve display data from the loot registry.
+            ItemDefinitionSO lootBase = null;
+            try
+            {
+                if (def == null && !string.IsNullOrWhiteSpace(fallbackItemId))
+                {
+                    var reg = LootRegistryRuntime.GetOrCreate();
+                    if (reg != null)
+                    {
+                        if (reg.TryGetRolledInstance(fallbackItemId, out var inst) && inst != null && !string.IsNullOrWhiteSpace(inst.baseItemId))
+                            reg.TryGetItem(inst.baseItemId, out lootBase);
+                        else
+                            reg.TryGetItem(fallbackItemId, out lootBase);
+                    }
+                }
+            }
+            catch
+            {
+                lootBase = null;
+            }
+
             string displayName = def != null
                 ? (string.IsNullOrWhiteSpace(def.displayName) ? ResolveFallbackName(def, fallbackItemId) : def.displayName)
-                : (string.IsNullOrWhiteSpace(fallbackItemId) ? string.Empty : fallbackItemId);
+                : (lootBase != null
+                    ? (string.IsNullOrWhiteSpace(lootBase.displayName) ? lootBase.id : lootBase.displayName)
+                    : (string.IsNullOrWhiteSpace(fallbackItemId) ? string.Empty : fallbackItemId));
 
             var normalizedRarity = def != null ? ItemRarityVisuals.Normalize(def.rarity) : AbyssItemRarity.Common;
 
@@ -208,13 +236,18 @@ namespace Abyss.Inventory
             }
 
             if (descriptionText != null)
-                descriptionText.text = def != null
-                    ? (string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description)
-                    : "No description.";
+            {
+                if (def != null)
+                    descriptionText.text = string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description;
+                else if (lootBase != null)
+                    descriptionText.text = string.IsNullOrWhiteSpace(lootBase.description) ? "No description." : lootBase.description;
+                else
+                    descriptionText.text = "No description.";
+            }
 
             if (iconImage != null)
             {
-                var icon = def != null ? def.icon : null;
+                var icon = def != null ? def.icon : (lootBase != null ? lootBase.icon : null);
                 bool hasIcon = icon != null;
                 iconImage.sprite = icon;
                 iconImage.enabled = hasIcon;

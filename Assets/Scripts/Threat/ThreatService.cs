@@ -15,6 +15,10 @@ namespace Abyssbound.Threat
         [SerializeField] private float step = 0.5f;
         [SerializeField] private float metersPerThreat = 50f;
 
+        [Header("Distance Config (optional)")]
+        [SerializeField] private ThreatDistanceConfigSO distanceConfig;
+        [SerializeField] private ThreatDistanceProvider distanceProvider;
+
         [Header("Visual")]
         [SerializeField] private Gradient threatGradient;
 
@@ -25,6 +29,9 @@ namespace Abyssbound.Threat
         public float CurrentThreat { get; private set; }
         public int CurrentThreatStepIndex { get; private set; }
         public Color CurrentThreatColor { get; private set; } = Color.white;
+
+        public float CurrentDistanceMeters { get; private set; }
+        public float FarthestDistanceMeters { get; private set; }
 
         public event Action<float> OnThreatChanged;
 
@@ -49,10 +56,15 @@ namespace Abyssbound.Threat
             if (threatGradient == null)
                 threatGradient = ThreatMath.CreateDefaultThreatGradient();
 
+            TryResolveDistanceProvider();
+            ApplyDistanceConfigToRuntimeFields();
+
             // Initialize state.
             CurrentThreat = 0f;
             CurrentThreatStepIndex = 0;
             CurrentThreatColor = ThreatMath.EvaluateThreatColor(threatGradient, 0f, maxThreat);
+            CurrentDistanceMeters = 0f;
+            FarthestDistanceMeters = 0f;
         }
 
         private void OnDestroy()
@@ -73,10 +85,15 @@ namespace Abyssbound.Threat
             if (_player == null)
                 return;
 
-            Vector3 townAnchor = ResolveTownAnchorPosition();
-            float distance = Vector3.Distance(_player.transform.position, townAnchor);
+            TryResolveDistanceProvider();
 
-            float quantized = ThreatMath.QuantizeClampThreat(distance, metersPerThreat, step, maxThreat);
+            float distance = GetCurrentDistanceMeters();
+            CurrentDistanceMeters = distance;
+            FarthestDistanceMeters = Mathf.Max(FarthestDistanceMeters, distance);
+
+            ApplyDistanceConfigToRuntimeFields();
+
+            float quantized = QuantizeThreat(distance);
             int stepIndex = ThreatMath.ThreatToStepIndex(quantized, step, maxThreat);
             Color color = ThreatMath.EvaluateThreatColor(threatGradient, quantized, maxThreat);
 
@@ -200,6 +217,63 @@ namespace Abyssbound.Threat
                 return;
             gate = true;
             try { Debug.LogWarning(msg); } catch { }
+        }
+
+        private void TryResolveDistanceProvider()
+        {
+            if (distanceProvider != null)
+                return;
+
+            try
+            {
+#if UNITY_2022_2_OR_NEWER
+                distanceProvider = UnityEngine.Object.FindFirstObjectByType<ThreatDistanceProvider>(FindObjectsInactive.Exclude);
+#else
+                distanceProvider = UnityEngine.Object.FindObjectOfType<ThreatDistanceProvider>();
+#endif
+            }
+            catch
+            {
+                distanceProvider = null;
+            }
+        }
+
+        private void ApplyDistanceConfigToRuntimeFields()
+        {
+            if (distanceConfig == null)
+                return;
+
+            try
+            {
+                step = Mathf.Max(0.01f, distanceConfig.step);
+                maxThreat = Mathf.Max(0f, distanceConfig.MaxThreat);
+            }
+            catch { }
+        }
+
+        private float GetCurrentDistanceMeters()
+        {
+            if (distanceProvider != null)
+            {
+                try { return Mathf.Max(0f, distanceProvider.CurrentDistanceMeters); }
+                catch { }
+            }
+
+            Vector3 townAnchor = ResolveTownAnchorPosition();
+            Vector3 p = _player.transform.position;
+            float d = Vector2.Distance(new Vector2(p.x, p.z), new Vector2(townAnchor.x, townAnchor.z));
+            return Mathf.Max(0f, d);
+        }
+
+        private float QuantizeThreat(float distanceMeters)
+        {
+            if (distanceConfig != null)
+            {
+                try { return distanceConfig.EvaluateThreat(distanceMeters); }
+                catch { }
+            }
+
+            return ThreatMath.QuantizeClampThreat(distanceMeters, metersPerThreat, step, maxThreat);
         }
     }
 }

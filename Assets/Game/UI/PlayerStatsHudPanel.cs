@@ -14,6 +14,9 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
     [SerializeField] private TMP_Text drText;
     [SerializeField] private TMP_Text primaryStatsText;
 
+    [Header("Colors")]
+    [SerializeField] private Color32 statsTextColor = new Color32(245, 215, 110, 255);
+
     [Header("References")]
     [SerializeField] private PlayerCombatStats combatStats;
     [SerializeField] private PlayerHealth playerHealth;
@@ -24,7 +27,6 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
     private bool _warnedMissingRefs;
     private float _nextPollTime;
 
-    private static readonly Color32 s_LabelColor = new Color32(245, 215, 110, 255);
     private static readonly Color32 s_OutlineColor = new Color32(0, 0, 0, 255);
     private static readonly Color32 s_BgColor = new Color32(0, 0, 0, 190);
 
@@ -487,10 +489,10 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 
     private void ApplyStyle()
     {
-        ApplyTextStyle(dmgText, 22f);
-        ApplyTextStyle(hpText, 22f);
-        ApplyTextStyle(drText, 22f);
-        ApplyTextStyle(primaryStatsText, 16f);
+        ApplyTextStyle(dmgText, 22f, statsTextColor);
+        ApplyTextStyle(hpText, 22f, statsTextColor);
+        ApplyTextStyle(drText, 22f, statsTextColor);
+        ApplyTextStyle(primaryStatsText, 16f, statsTextColor);
 
         if (dmgText != null)
             dmgText.text = "DMG: ?";
@@ -503,12 +505,12 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
             primaryStatsText.text = BuildLeveledStatsString(default);
     }
 
-    private static void ApplyTextStyle(TMP_Text t, float fontSize)
+    private static void ApplyTextStyle(TMP_Text t, float fontSize, Color32 color)
     {
         if (t == null)
             return;
 
-        t.color = s_LabelColor;
+        t.color = color;
 
         if (t is TextMeshProUGUI ugui)
         {
@@ -534,6 +536,12 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 
     public void Refresh()
     {
+        // Keep colors stable in Play Mode (avoid editor tweaks being overwritten by other runtime code).
+        if (dmgText != null) { try { dmgText.color = statsTextColor; } catch { } }
+        if (hpText != null) { try { hpText.color = statsTextColor; } catch { } }
+        if (drText != null) { try { drText.color = statsTextColor; } catch { } }
+        if (primaryStatsText != null) { try { primaryStatsText.color = statsTextColor; } catch { } }
+
         if (dmgText != null)
         {
             if (combatStats != null)

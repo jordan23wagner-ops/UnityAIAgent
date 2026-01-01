@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using Abyssbound.BagUpgrades;
 using Abyssbound.Stats;
 using Game.Systems;
 using UnityEngine;
@@ -236,6 +237,53 @@ namespace Abyssbound.Skills.Gathering
                     else if (afterCount > beforeCount || afterStacks > beforeStacks)
                     {
                         Debug.Log($"[Fishing] Inventory add SUCCESS for {yieldItemId}", this);
+
+                        // Rare bag upgrade drop from fishing (never T5).
+                        try
+                        {
+                            string bagId = BagUpgradeDropRuntime.TryRollFishingDropBaseId();
+                            if (!string.IsNullOrWhiteSpace(bagId))
+                            {
+                                Debug.Log($"[Fishing] Bag upgrade rolled: {bagId} x1", this);
+
+                                int used2 = 0;
+                                int max2 = 0;
+                                try { used2 = inv.GetStackCount(); } catch { used2 = 0; }
+                                try { max2 = inv.GetMaxInventorySlots(); } catch { max2 = 0; }
+
+                                bool wouldConsumeNewSlot2 = false;
+                                try { wouldConsumeNewSlot2 = inv.EstimateAdditionalStacksForAdd(bagId, 1) > 0; }
+                                catch { wouldConsumeNewSlot2 = true; }
+
+                                if (max2 > 0 && used2 >= max2 && wouldConsumeNewSlot2)
+                                {
+                                    Debug.LogWarning($"[Fishing] Bag upgrade add FAILED for {bagId} (inventory full)", this);
+                                }
+                                else
+                                {
+                                    int beforeBag = 0;
+                                    int beforeBagStacks = used2;
+                                    try { beforeBag = inv.Count(bagId); } catch { beforeBag = 0; }
+                                    try { beforeBagStacks = inv.GetStackCount(); } catch { beforeBagStacks = used2; }
+
+                                    bool addBagThrew = false;
+                                    try { inv.Add(bagId, 1); } catch { addBagThrew = true; }
+
+                                    int afterBag = beforeBag;
+                                    int afterBagStacks = beforeBagStacks;
+                                    try { afterBag = inv.Count(bagId); } catch { afterBag = beforeBag; }
+                                    try { afterBagStacks = inv.GetStackCount(); } catch { afterBagStacks = beforeBagStacks; }
+
+                                    if (addBagThrew)
+                                        Debug.LogWarning($"[Fishing] Bag upgrade add FAILED for {bagId} (exception)", this);
+                                    else if (afterBag > beforeBag || afterBagStacks > beforeBagStacks)
+                                        Debug.Log($"[Fishing] Bag upgrade add SUCCESS for {bagId}", this);
+                                    else
+                                        Debug.LogWarning($"[Fishing] Bag upgrade add FAILED for {bagId}", this);
+                                }
+                            }
+                        }
+                        catch { }
                     }
                     else
                     {

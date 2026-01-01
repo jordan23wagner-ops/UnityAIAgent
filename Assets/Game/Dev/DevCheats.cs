@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using Abyss.Loot;
+using Abyssbound.Combat.Tiering;
+using Abyssbound.BagUpgrades;
 using Abyssbound.Loot;
 using Game.Input;
+using Game.Systems;
 using UnityEngine;
 
 namespace Abyss.Dev
@@ -19,6 +22,8 @@ namespace Abyss.Dev
         [SerializeField] private bool showOverlay = true;
 
         [Header("Hotkeys")]
+        [Tooltip("Toggles the on-screen DevCheats overlay (IMGUI).")]
+        public KeyCode toggleOverlayKey = KeyCode.BackQuote;
         public KeyCode toggleGodModeKey = KeyCode.F1;
         public KeyCode spawnEnemyKey = KeyCode.F2;
         public KeyCode killSpawnedKey = KeyCode.F3;
@@ -29,10 +34,18 @@ namespace Abyss.Dev
         public KeyCode spawnEliteKey = KeyCode.F9;
         public KeyCode spawnBossKey = KeyCode.F10;
 
+        [Header("Spawn (Items)")]
+        public KeyCode spawnBagUpgradeT1Key = KeyCode.F11;
+
         [Header("Spawn (Tier HP)")]
         [Min(1)] public int qaTrashHp = 42;
         [Min(1)] public int qaEliteHp = 166;
         [Min(1)] public int qaBossHp = 1010;
+
+        [Header("Tiering Injection")]
+        [SerializeField] private DistanceTierService tierService;
+        [SerializeField] private Transform playerTransform;
+        [SerializeField] private bool logTierInjection;
 
         [Header("Spawning")]
         public List<GameObject> enemyPrefabs = new();
@@ -96,6 +109,12 @@ namespace Abyss.Dev
 #if !UNITY_EDITOR && !DEVELOPMENT_BUILD
             return;
 #else
+            if (Input.GetKeyDown(toggleOverlayKey))
+            {
+                showOverlay = !showOverlay;
+                Debug.Log($"[DevCheats] Overlay={(showOverlay ? "ON" : "OFF")}");
+            }
+
             if (Input.GetKeyDown(toggleGodModeKey))
             {
                 godMode = !godMode;
@@ -119,7 +138,68 @@ namespace Abyss.Dev
 
             if (Input.GetKeyDown(spawnBossKey))
                 SpawnEnemyWithLootV2("Loot/Tables/Zone1_Boss", "QA_Boss");
+
+            if (Input.GetKeyDown(spawnBagUpgradeT1Key))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+                int tier;
+                if (ctrl && shift) tier = 5;
+                else if (ctrl) tier = 3;
+                else if (alt) tier = 4;
+                else if (shift) tier = 2;
+                else tier = 1;
+
+                GiveBagUpgradeTier(tier);
+            }
 #endif
+        }
+
+        private void GiveBagUpgradeTier(int tier)
+        {
+            const int qty = 1;
+
+            tier = Mathf.Clamp(tier, 1, 5);
+            string id = BagUpgradeIds.GetIdForTier(tier);
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                Debug.LogError("[DevCheat] Missing item id for bag upgrade.");
+                return;
+            }
+
+            var reg = LootRegistryRuntime.GetOrCreate();
+            if (reg == null || !reg.TryGetItem(id, out var baseItem) || baseItem == null)
+            {
+                Debug.LogError($"[DevCheat] Missing item definition for '{id}'. Run Tools/Bag Upgrades/Setup Bag Upgrades v1 (One-Click).", this);
+                return;
+            }
+
+            var inv = PlayerInventoryResolver.GetOrFind();
+            if (inv == null)
+            {
+                Debug.LogError("[DevCheat] No PlayerInventory found.");
+                return;
+            }
+
+            int before = 0;
+            try { before = inv.Count(id); } catch { before = 0; }
+
+            try { inv.Add(id, Mathf.Max(1, qty)); }
+            catch
+            {
+                Debug.LogError($"[DevCheat] Failed to add Bag Upgrade T{tier} (exception).", this);
+                return;
+            }
+
+            int after = before;
+            try { after = inv.Count(id); } catch { after = before; }
+
+            if (after > before)
+                Debug.Log($"[DevCheat] Spawned Bag Upgrade T{tier}");
+            else
+                Debug.LogError($"[DevCheat] Failed to spawn Bag Upgrade T{tier} (inventory full?)", this);
         }
 
         private void SpawnEnemyWithLootV2(string lootTableResourcesPath, string namePrefix)
@@ -147,6 +227,8 @@ namespace Abyss.Dev
 
             var go = Instantiate(prefab, pos, Quaternion.identity);
             go.name = namePrefix;
+
+            InjectEnemyTiering(go);
 
             // Force Loot V2 table for QA and prevent double-drops.
             try
@@ -222,6 +304,8 @@ namespace Abyss.Dev
                 var go = Instantiate(prefab, pos, Quaternion.identity);
                 go.name = prefab.name;
 
+                InjectEnemyTiering(go);
+
                 ApplyLootOverrides(go);
                 EnsureEnemyMeleeAttack(go);
                 EnsureEnemyAggroChase(go);
@@ -231,6 +315,84 @@ namespace Abyss.Dev
             _lastSpawnedCount = count;
 
             Debug.Log($"[DevCheats] Spawned {count}x '{prefab.name}'.");
+        }
+
+        private void InjectEnemyTiering(GameObject spawnedEnemy)
+        {
+            if (spawnedEnemy == null)
+                return;
+
+            var svc = ResolveTierServiceForInjection();
+            var player = ResolvePlayerTransformForInjection();
+
+            var applier = spawnedEnemy.GetComponent<EnemyTierApplier>();
+            bool added = false;
+            if (applier == null)
+            {
+                applier = spawnedEnemy.AddComponent<EnemyTierApplier>();
+                added = true;
+            }
+
+            // EnemyTierApplier fields are intentionally serialized/private for prefab safety;
+            // inject references via reflection without modifying the applier script.
+            TrySetApplierField(applier, "tierService", svc);
+            TrySetApplierField(applier, "playerTransform", player);
+
+            if (logTierInjection)
+            {
+                Debug.Log($"[DevCheats] TierInjection '{spawnedEnemy.name}': tierService={(svc != null)}, playerTransform={(player != null)}, applier={(added ? "added" : "reused")}", spawnedEnemy);
+            }
+
+            // Also attach loot context so loot-on-death can read tier without recalculating distance.
+            try
+            {
+                if (spawnedEnemy.GetComponent<EnemyLootContext>() == null)
+                    spawnedEnemy.AddComponent<EnemyLootContext>();
+            }
+            catch { }
+        }
+
+        private DistanceTierService ResolveTierServiceForInjection()
+        {
+            if (tierService != null)
+                return tierService;
+
+            GameObject go = GameObject.Find("DistanceTierService");
+            if (go == null)
+                go = GameObject.Find("Systems_DistanceTiering");
+
+            if (go != null)
+                tierService = go.GetComponent<DistanceTierService>();
+
+            return tierService;
+        }
+
+        private Transform ResolvePlayerTransformForInjection()
+        {
+            if (playerTransform != null)
+                return playerTransform;
+
+            if (_input != null)
+                playerTransform = _input.transform;
+
+            return playerTransform;
+        }
+
+        private static void TrySetApplierField(EnemyTierApplier applier, string fieldName, object value)
+        {
+            if (applier == null || string.IsNullOrEmpty(fieldName))
+                return;
+
+            try
+            {
+                const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+                var f = typeof(EnemyTierApplier).GetField(fieldName, flags);
+                if (f == null)
+                    return;
+
+                f.SetValue(applier, value);
+            }
+            catch { }
         }
 
         private static void EnsureEnemyMeleeAttack(GameObject enemy)
@@ -350,7 +512,7 @@ namespace Abyss.Dev
             string text =
                 $"DevCheats  |  GodMode: {(godMode ? "ON" : "OFF")}\n" +
                 $"LastSpawn: {_lastSpawnedCount}  ActiveSpawned: {_spawned.Count}\n" +
-                $"Keys: {toggleGodModeKey}=GodMode  {spawnEnemyKey}=Spawn  {killSpawnedKey}=Kill  {selfDamageKey}=SelfDamage  {spawnTrashKey}=Trash  {spawnEliteKey}=Elite  {spawnBossKey}=Boss\n" +
+                $"Keys: {toggleOverlayKey}=Overlay  {toggleGodModeKey}=GodMode  {spawnEnemyKey}=Spawn  {killSpawnedKey}=Kill  {selfDamageKey}=SelfDamage  {spawnTrashKey}=Trash  {spawnEliteKey}=Elite  {spawnBossKey}=Boss\n" +
                 ttk;
 
             // Measure height so the background fits the content.

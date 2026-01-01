@@ -41,6 +41,9 @@ public sealed class ItemTooltipUI : MonoBehaviour
     private bool _visible;
     private Object _currentOwner;
 
+    // Prevent immediate re-show (e.g., pointer still over slot during rebuild).
+    private int _suppressShowUntilFrame;
+
     private static readonly StringBuilder s_Sb = new(256);
 
     public static ItemTooltipUI GetOrCreateUnder(Transform uiRoot)
@@ -113,6 +116,9 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
     public void Show(Object owner, ItemDefinition def, string fallbackItemId, int count, EquipmentSlot slotContext = EquipmentSlot.None)
     {
+        if (Time.frameCount <= _suppressShowUntilFrame)
+            return;
+
         _currentOwner = owner;
 
         CaptureDefaultTextColorsIfNeeded();
@@ -182,6 +188,9 @@ public sealed class ItemTooltipUI : MonoBehaviour
         string rarityLine,
         string extraStatLines)
     {
+        if (Time.frameCount <= _suppressShowUntilFrame)
+            return;
+
         _currentOwner = owner;
 
         CaptureDefaultTextColorsIfNeeded();
@@ -259,6 +268,9 @@ public sealed class ItemTooltipUI : MonoBehaviour
 
     public void ShowLootInstance(Object owner, Abyssbound.Loot.ItemInstance instance, Abyssbound.Loot.LootRegistryRuntime registry)
     {
+        if (Time.frameCount <= _suppressShowUntilFrame)
+            return;
+
         _currentOwner = owner;
         ApplyReadabilitySettings();
 
@@ -450,6 +462,21 @@ public sealed class ItemTooltipUI : MonoBehaviour
             panel.gameObject.SetActive(false);
 
         try { ApplyIcon(null); } catch { }
+    }
+
+    // Public UX hook: hide immediately after consuming an item (double-click use, teleport, etc).
+    // This intentionally does not require an owner match.
+    public void HideTooltip()
+    {
+        Hide();
+    }
+
+    // Hard stop: hide and suppress showing until next frame so it can't instantly reappear
+    // during selection changes / list rebuild while the pointer is still hovering.
+    public void HideAndClear()
+    {
+        try { _suppressShowUntilFrame = Time.frameCount + 1; } catch { _suppressShowUntilFrame = int.MaxValue; }
+        Hide();
     }
 
     private void ApplyIcon(Sprite sprite)
