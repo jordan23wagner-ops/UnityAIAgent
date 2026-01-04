@@ -65,6 +65,19 @@ namespace Abyss.Shop
             _mpb = new MaterialPropertyBlock();
             RebuildStates();
             SetHighlighted(false);
+
+            // Minimal merchant tooltip integration:
+            // World tooltip comes from WorldInteractable.GetHoverText(); attach a provider on the hit object.
+            // Interaction is disabled in the provider so merchant clicks remain handled by MerchantShop.
+            try
+            {
+                if (GetComponent<MerchantTooltipWorldInteractable>() == null)
+                    gameObject.AddComponent<MerchantTooltipWorldInteractable>();
+            }
+            catch
+            {
+                // never throw
+            }
         }
 
         public void SetHighlightRenderers(Renderer[] renderers)

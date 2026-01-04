@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using TMPro;
 using UnityEngine.UI;
+
+using Abyssbound.WorldInteraction;
 
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -17,12 +18,16 @@ namespace Abyss.Shop
     public sealed class MerchantDoorHoverHighlighter : MonoBehaviour
     {
         private Camera _cam;
-        private MerchantDoorClickTarget _current;
+        private UnityEngine.Object _current;
+        private MerchantDoorClickTarget _currentDoor;
+        private MerchantShop _currentShop;
 
         [Header("Debug")]
         [SerializeField] private bool logHover = false;
 
-        private MerchantDoorClickTarget _pending;
+        private UnityEngine.Object _pending;
+        private MerchantDoorClickTarget _pendingDoor;
+        private MerchantShop _pendingShop;
         private float _pendingSince;
         private float _pendingBestDist;
         private int _pendingHitCount;
@@ -31,18 +36,32 @@ namespace Abyss.Shop
 
         private Game.Input.PlayerInputAuthority _input;
 
-        private TextMeshPro _label;
-        private static readonly Color LabelColor = Color.blue;
+        // Legacy label (disabled when using unified tooltip)
+        // NOTE: kept for backwards compatibility / inspector serialization.
         [SerializeField] private float labelFontSize = 14f;
+
+        private static MerchantDoorHoverHighlighter s_instance;
+        private UnityEngine.Object _lastHoverForTrace;
+        private string _lastHoverNameForTrace;
 
         private void Awake()
         {
+            s_instance = this;
             EnsureCamera();
 #if UNITY_2022_2_OR_NEWER
             _input = FindFirstObjectByType<Game.Input.PlayerInputAuthority>();
 #else
             _input = FindObjectOfType<Game.Input.PlayerInputAuthority>();
 #endif
+        }
+
+        public static string DebugCurrentHoveredMerchantName
+        {
+            get
+            {
+                try { return s_instance != null ? s_instance._lastHoverNameForTrace : null; }
+                catch { return null; }
+            }
         }
 
         private void Update()
@@ -94,41 +113,62 @@ namespace Abyss.Shop
                 return;
             }
 
-            // Choose ONE best target from all hits.
-            // Prefer hits that resolve to an interactable (MerchantDoorClickTarget); otherwise no hover target.
-            MerchantDoorClickTarget best = null;
-            float bestDist = float.PositiveInfinity;
+            // Choose ONE best hover target from all hits.
+            // Prefer door click targets if present; otherwise fall back to MerchantShop so merchants can still tooltip.
+            MerchantDoorClickTarget bestDoor = null;
+            MerchantShop bestShop = null;
+            float bestDoorDist = float.PositiveInfinity;
+            float bestShopDist = float.PositiveInfinity;
 
             for (int i = 0; i < hits.Length; i++)
             {
                 var hit = hits[i];
                 if (hit.collider == null) continue;
 
-                var t = hit.collider.GetComponent<MerchantDoorClickTarget>();
-                if (t == null)
-                    t = hit.collider.GetComponentInParent<MerchantDoorClickTarget>();
-
-                if (t == null) continue;
-
-                if (best == null || hit.distance < bestDist)
+                if (bestDoor == null || hit.distance < bestDoorDist)
                 {
-                    best = t;
-                    bestDist = hit.distance;
+                    var t = hit.collider.GetComponent<MerchantDoorClickTarget>();
+                    if (t == null)
+                        t = hit.collider.GetComponentInParent<MerchantDoorClickTarget>();
+
+                    if (t != null)
+                    {
+                        bestDoor = t;
+                        bestDoorDist = hit.distance;
+                        continue;
+                    }
+                }
+
+                if (bestShop == null || hit.distance < bestShopDist)
+                {
+                    var shop = hit.collider.GetComponentInParent<MerchantShop>();
+                    if (shop != null)
+                    {
+                        bestShop = shop;
+                        bestShopDist = hit.distance;
+                    }
                 }
             }
 
             int hitCount = hits.Length;
 
-            // Debounce switching: require the new best to remain stable for 0.10s.
-            if (best == _current)
+            var bestObj = (UnityEngine.Object)(bestDoor != null ? bestDoor : (UnityEngine.Object)bestShop);
+            float bestDist = bestDoor != null ? bestDoorDist : bestShopDist;
+
+            // If we are still hovering the same target, keep the tooltip positioned near the cursor.
+            if (bestObj != null && bestObj == _current)
             {
                 _pending = null;
+                TraceHoverIfChanged(bestObj, bestDoor, bestShop, traceSwitch: false);
                 return;
             }
 
-            if (best != _pending)
+            // Debounce switching: require the new best to remain stable for 0.10s.
+            if (bestObj != _pending)
             {
-                _pending = best;
+                _pending = bestObj;
+                _pendingDoor = bestDoor;
+                _pendingShop = bestShop;
                 _pendingSince = Time.unscaledTime;
                 _pendingBestDist = bestDist;
                 _pendingHitCount = hitCount;
@@ -136,23 +176,31 @@ namespace Abyss.Shop
             }
 
             if (Time.unscaledTime - _pendingSince < SwitchDebounceSeconds)
+            {
                 return;
+            }
 
             // Confirm switch.
-            if (_current != null)
-                _current.SetHighlighted(false);
+            if (_currentDoor != null)
+                _currentDoor.SetHighlighted(false);
 
-            _current = best;
+            // Trace hover transitions based on the current->best switch.
+            TraceHoverSwitch(_current, _currentDoor, _currentShop, bestObj, bestDoor, bestShop);
+
+            _current = bestObj;
+            _currentDoor = _pendingDoor;
+            _currentShop = _pendingShop;
             _pending = null;
+            _pendingDoor = null;
+            _pendingShop = null;
 
-            if (_current != null)
+            if (_currentDoor != null)
             {
-                _current.SetHighlighted(true);
-                ShowLabelFor(_current);
+                _currentDoor.SetHighlighted(true);
             }
             else
             {
-                HideLabel();
+                // No hover target.
             }
 
             if (logHover)
@@ -252,56 +300,116 @@ namespace Abyss.Shop
 
         private void Clear()
         {
-            if (_current != null)
+            var prevObj = _current;
+            var prevDoor = _currentDoor;
+            var prevShop = _currentShop;
+
+            if (_currentDoor != null)
             {
-                _current.SetHighlighted(false);
-                _current = null;
+                _currentDoor.SetHighlighted(false);
             }
+
+            _current = null;
+            _currentDoor = null;
+            _currentShop = null;
 
             _pending = null;
+            _pendingDoor = null;
+            _pendingShop = null;
 
-            HideLabel();
+            // Trace exit if we were hovering something.
+            TraceHoverSwitch(prevObj, prevDoor, prevShop, null, null, null);
         }
 
-        private void EnsureLabel()
+        private void TraceHoverIfChanged(UnityEngine.Object bestObj, MerchantDoorClickTarget bestDoor, MerchantShop bestShop, bool traceSwitch)
         {
-            if (_label != null) return;
+            if (!logHover)
+                return;
 
-            var go = new GameObject("MerchantHoverLabel");
-            go.transform.SetParent(transform, false);
-            _label = go.AddComponent<TextMeshPro>();
-            _label.text = string.Empty;
-            _label.fontSize = labelFontSize;
-            _label.alignment = TextAlignmentOptions.Center;
-            _label.color = LabelColor;
-            _label.textWrappingMode = TextWrappingModes.NoWrap;
-            _label.gameObject.SetActive(false);
+            if (bestObj == _lastHoverForTrace)
+                return;
+
+            TraceHoverSwitch(_lastHoverForTrace, null, null, bestObj, bestDoor, bestShop);
         }
 
-        private void ShowLabelFor(MerchantDoorClickTarget target)
+        private void TraceHoverSwitch(UnityEngine.Object fromObj, MerchantDoorClickTarget fromDoor, MerchantShop fromShop, UnityEngine.Object toObj, MerchantDoorClickTarget toDoor, MerchantShop toShop)
         {
-            EnsureLabel();
+            if (!logHover)
+                return;
 
-            string name = target != null ? target.GetDisplayName() : string.Empty;
-            if (string.IsNullOrWhiteSpace(name))
-                name = "Shop";
+            string fromName = GetMerchantNameForTrace(fromDoor, fromShop, fromObj, out _);
+            string toName = GetMerchantNameForTrace(toDoor, toShop, toObj, out string toHow);
 
-            _label.text = name;
-
-            if (target != null && target.TryGetBounds(out var b))
+            if (fromObj == null && toObj != null)
             {
-                var p = b.center;
-                p.y = b.max.y + 0.6f;
-                _label.transform.position = p;
+                UnityEngine.Debug.Log($"[MerchantTrace] HOVER_ENTER name={toName} how={toHow}", this);
+            }
+            else if (fromObj != null && toObj == null)
+            {
+                UnityEngine.Debug.Log($"[MerchantTrace] HOVER_EXIT name={fromName}", this);
+            }
+            else if (fromObj != null && toObj != null)
+            {
+                UnityEngine.Debug.Log($"[MerchantTrace] HOVER_SWITCH from={fromName} to={toName}", this);
             }
 
-            _label.gameObject.SetActive(true);
+            _lastHoverForTrace = toObj;
+            _lastHoverNameForTrace = toName;
         }
 
-        private void HideLabel()
+        private static string GetMerchantNameForTrace(MerchantDoorClickTarget doorTarget, MerchantShop shopTarget, UnityEngine.Object obj, out string how)
         {
-            if (_label != null)
-                _label.gameObject.SetActive(false);
+            how = "unknown";
+            string name = null;
+
+            try
+            {
+                if (doorTarget != null)
+                {
+                    name = doorTarget.GetDisplayName();
+                    how = "doorTarget.GetDisplayName";
+                }
+                else if (shopTarget != null)
+                {
+                    name = shopTarget.MerchantName;
+                    how = "shopTarget.MerchantName";
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                try
+                {
+                    if (shopTarget != null && shopTarget.gameObject != null)
+                    {
+                        name = shopTarget.gameObject.name;
+                        how = "shopTarget.gameObject.name";
+                    }
+                    else if (doorTarget != null && doorTarget.gameObject != null)
+                    {
+                        name = doorTarget.gameObject.name;
+                        how = "doorTarget.gameObject.name";
+                    }
+                    else if (obj != null)
+                    {
+                        name = obj.name;
+                        how = "obj.name";
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+                name = "<unnamed>";
+
+            return name;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
