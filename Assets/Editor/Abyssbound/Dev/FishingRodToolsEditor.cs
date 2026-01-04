@@ -1,22 +1,18 @@
 #if UNITY_EDITOR
 using System;
 using Abyss.Items;
-using Abyss.Shop;
 using Game.Systems;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Abyssbound.EditorTools.Dev
 {
     public static class FishingRodToolsEditor
     {
-        private const string FishingRodItemId = "tool_fishing_rod";
-        private const int DefaultPrice = 65;
+        private const string FishingRodItemId = ItemIds.FishingRodBasic;
 
-        private const string RodItemAssetPath = "Assets/Abyss/Items/Definitions/Item_FishingRod.asset";
-        private const string SkillingInventoryAssetPath = "Assets/Abyss/Shops/Inventories/ShopInventory_Skilling.asset";
+        // Canonical ItemDefinition location (single source of truth).
+        private const string RodItemAssetPath = "Assets/Resources/ItemDefinitions/BasicFishingRod.asset";
 
         [MenuItem("Tools/Abyssbound/Dev/Items/Grant Fishing Rod (Play Mode)")]
         public static void GrantFishingRodPlayMode()
@@ -35,11 +31,11 @@ namespace Abyssbound.EditorTools.Dev
             }
 
             inv.Add(FishingRodItemId, 1);
-            Debug.Log("[Dev][FishingRod] Granted 1x tool_fishing_rod");
+            Debug.Log($"[Dev][FishingRod] Granted 1x {FishingRodItemId}");
         }
 
-        [MenuItem("Tools/Abyssbound/Dev/Shops/Ensure Skilling Shop Sells Fishing Rod")]
-        public static void EnsureSkillingShopSellsRod()
+        [MenuItem("Tools/Abyssbound/Dev/Items/Ensure Fishing Rod ItemDefinition (Editor)")]
+        public static void EnsureFishingRodItemDefinition_Editor()
         {
             if (Application.isPlaying)
             {
@@ -47,10 +43,8 @@ namespace Abyssbound.EditorTools.Dev
                 return;
             }
 
-            EnsureFolder("Assets/Abyss/Items");
-            EnsureFolder("Assets/Abyss/Items/Definitions");
-            EnsureFolder("Assets/Abyss/Shops");
-            EnsureFolder("Assets/Abyss/Shops/Inventories");
+            EnsureFolder("Assets/Resources");
+            EnsureFolder("Assets/Resources/ItemDefinitions");
 
             var rodDef = FindItemDefinitionById(FishingRodItemId);
             if (rodDef == null)
@@ -60,103 +54,36 @@ namespace Abyssbound.EditorTools.Dev
                 rodDef.displayName = "Fishing Rod";
                 rodDef.description = "Used for fishing.";
                 rodDef.itemType = Abyss.Items.ItemType.Skilling;
-                rodDef.baseValue = DefaultPrice;
+                rodDef.baseValue = 65;
                 rodDef.rarity = Abyss.Items.ItemRarity.Common;
 
                 AssetDatabase.CreateAsset(rodDef, RodItemAssetPath);
                 EditorUtility.SetDirty(rodDef);
-                Debug.Log("[Dev][FishingRod] Created ItemDefinition tool_fishing_rod");
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                Debug.Log($"[Dev][FishingRod] Created ItemDefinition asset at '{RodItemAssetPath}' itemId={FishingRodItemId}");
+                return;
             }
 
-            var inv = AssetDatabase.LoadAssetAtPath<ShopInventory>(SkillingInventoryAssetPath);
-            if (inv == null)
-            {
-                inv = ScriptableObject.CreateInstance<ShopInventory>();
-                AssetDatabase.CreateAsset(inv, SkillingInventoryAssetPath);
-                EditorUtility.SetDirty(inv);
-                Debug.Log("[Dev][FishingRod] Created ShopInventory_Skilling");
-            }
-
-            bool added = EnsureInventoryEntry(inv, rodDef, DefaultPrice);
-
-            // Best-effort assign this inventory to any skilling merchant shops in the active scene.
-            var scene = SceneManager.GetActiveScene();
-            int assigned = 0;
+            bool changed = false;
             try
             {
-#if UNITY_2022_2_OR_NEWER
-                var shops = UnityEngine.Object.FindObjectsByType<MerchantShop>(FindObjectsSortMode.None);
-#else
-                var shops = UnityEngine.Object.FindObjectsOfType<MerchantShop>();
-#endif
-                foreach (var shop in shops)
+                if (!string.Equals(rodDef.itemId, FishingRodItemId, StringComparison.Ordinal))
                 {
-                    if (shop == null) continue;
-
-                    string key = (shop.MerchantName + " " + shop.gameObject.name).ToLowerInvariant();
-                    if (!key.Contains("skilling"))
-                        continue;
-
-                    shop.shopInventory = inv;
-                    if (shop.stock != null && shop.stock.Count > 0)
-                        shop.stock.Clear();
-
-                    EditorUtility.SetDirty(shop);
-                    assigned++;
+                    rodDef.itemId = FishingRodItemId;
+                    changed = true;
                 }
             }
             catch { }
 
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
-            if (scene.IsValid())
-                EditorSceneManager.MarkSceneDirty(scene);
-
-            Debug.Log($"[Dev][FishingRod] Skilling shop updated. addedEntry={added} assignedMerchants={assigned}");
-        }
-
-        private static bool EnsureInventoryEntry(ShopInventory inv, ItemDefinition item, int price)
-        {
-            if (inv == null || item == null)
-                return false;
-
-            if (inv.entries == null)
-                inv.entries = new System.Collections.Generic.List<ShopInventory.Entry>();
-
-            for (int i = 0; i < inv.entries.Count; i++)
+            if (changed)
             {
-                var e = inv.entries[i];
-                if (e == null) continue;
-
-                if (ReferenceEquals(e.item, item))
-                {
-                    if (e.price <= 0)
-                        e.price = Mathf.Max(1, price);
-
-                    EditorUtility.SetDirty(inv);
-                    return false;
-                }
-
-                try
-                {
-                    if (e.item != null && !string.IsNullOrWhiteSpace(e.item.itemId) &&
-                        string.Equals(e.item.itemId, item.itemId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (e.price <= 0)
-                            e.price = Mathf.Max(1, price);
-
-                        e.item = item;
-                        EditorUtility.SetDirty(inv);
-                        return false;
-                    }
-                }
-                catch { }
+                EditorUtility.SetDirty(rodDef);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
             }
 
-            inv.entries.Add(new ShopInventory.Entry { item = item, price = Mathf.Max(1, price) });
-            EditorUtility.SetDirty(inv);
-            return true;
+            Debug.Log($"[Dev][FishingRod] ItemDefinition present. itemId={rodDef.itemId} (no shop/merchant systems used)");
         }
 
         private static ItemDefinition FindItemDefinitionById(string itemId)

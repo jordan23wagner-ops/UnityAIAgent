@@ -25,7 +25,7 @@ namespace Abyssbound.Loot
         Alchemy,
         Mining,
         Woodcutting,
-        Forging,
+        Smithing,
         Fishing,
         Cooking,
     }
@@ -49,7 +49,7 @@ namespace Abyssbound.Loot
             StatType.Alchemy,
             StatType.Mining,
             StatType.Woodcutting,
-            StatType.Forging,
+            StatType.Smithing,
             StatType.Fishing,
             StatType.Cooking,
         };
@@ -72,7 +72,8 @@ namespace Abyssbound.Loot
                 case "Alchemy": stat = StatType.Alchemy; return true;
                 case "Mining": stat = StatType.Mining; return true;
                 case "Woodcutting": stat = StatType.Woodcutting; return true;
-                case "Forging": stat = StatType.Forging; return true;
+                case "Smithing":
+                case "Forging": stat = StatType.Smithing; return true;
                 case "Fishing": stat = StatType.Fishing; return true;
                 case "Cooking": stat = StatType.Cooking; return true;
 
@@ -94,7 +95,7 @@ namespace Abyssbound.Loot
                 case StatType.Alchemy: return "Alchemy";
                 case StatType.Mining: return "Mining";
                 case StatType.Woodcutting: return "Woodcutting";
-                case StatType.Forging: return "Forging";
+                case StatType.Smithing: return "Smithing";
                 case StatType.Fishing: return "Fishing";
                 case StatType.Cooking: return "Cooking";
 

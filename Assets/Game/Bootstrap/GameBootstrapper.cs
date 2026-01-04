@@ -545,7 +545,7 @@ public class GameBootstrapper : MonoBehaviour
         rt.anchorMin = new Vector2(0.5f, 0f);
         rt.anchorMax = new Vector2(0.5f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
-        rt.sizeDelta = new Vector2(320f, 22f);
+        rt.sizeDelta = new Vector2(420f, 22f);
         rt.anchoredPosition = new Vector2(0f, 10f);
         rt.localScale = Vector3.one;
     }
@@ -622,7 +622,7 @@ public class GameBootstrapper : MonoBehaviour
         rt.anchorMax = new Vector2(0.5f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
         rt.anchoredPosition = new Vector2(0f, 10f);
-        rt.sizeDelta = new Vector2(320f, 22f);
+        rt.sizeDelta = new Vector2(420f, 22f);
         rt.localScale = Vector3.one;
     }
 
@@ -639,7 +639,7 @@ public class GameBootstrapper : MonoBehaviour
         barRt.anchorMax = new Vector2(0.5f, 0f);
         barRt.pivot = new Vector2(0.5f, 0f);
         barRt.anchoredPosition = new Vector2(0f, 10f);
-        barRt.sizeDelta = new Vector2(320f, 22f);
+        barRt.sizeDelta = new Vector2(420f, 22f);
         barRt.localScale = Vector3.one;
 
         // Slider as a child that stretches to fill the HealthBar.

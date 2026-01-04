@@ -1,15 +1,25 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class HealthBarUI : MonoBehaviour
 {
     [SerializeField] private PlayerHealth target;
     [SerializeField] private Slider slider;
+    [SerializeField] private TMP_Text hpText;
+
+    private bool _warnedMissingText;
 
     private void Awake()
     {
         if (slider == null)
             slider = GetComponentInChildren<Slider>(true);
+
+        if (hpText == null)
+        {
+            try { hpText = transform.Find("HPText")?.GetComponent<TMP_Text>(); }
+            catch { hpText = null; }
+        }
     }
 
     private void OnEnable()
@@ -68,9 +78,17 @@ public class HealthBarUI : MonoBehaviour
         if (slider == null)
             return;
 
+        if (hpText == null && !_warnedMissingText)
+        {
+            _warnedMissingText = true;
+            Debug.LogWarning("[HealthBarUI] Missing HPText (expected child named 'HPText').", this);
+        }
+
         if (target == null)
         {
             slider.value = 0f;
+            if (hpText != null)
+                hpText.text = "HP ? / ?";
             return;
         }
 
@@ -79,5 +97,8 @@ public class HealthBarUI : MonoBehaviour
         slider.maxValue = target.MaxHealth;
         slider.wholeNumbers = false;
         slider.value = target.CurrentHealth;
+
+        if (hpText != null)
+            hpText.text = $"HP {target.CurrentHealth} / {target.MaxHealth}";
     }
 }

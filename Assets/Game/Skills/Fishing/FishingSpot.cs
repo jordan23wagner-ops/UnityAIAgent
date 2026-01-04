@@ -24,6 +24,19 @@ namespace Abyssbound.Skills.Fishing
             if (!showDebugVisuals)
                 return;
 
+            // If a previous session left a debug marker mis-positioned, snap it back under this spot.
+            try
+            {
+                var existingDebug = transform.Find("__FishingSpotDebug");
+                if (existingDebug != null)
+                {
+                    existingDebug.SetParent(transform, worldPositionStays: false);
+                    existingDebug.localPosition = new Vector3(0f, 0.1f, 0f);
+                    existingDebug.localRotation = Quaternion.identity;
+                }
+            }
+            catch { }
+
             // If any child already has a renderer, assume visuals are provided.
             try
             {
@@ -171,15 +184,26 @@ namespace Abyssbound.Skills.Fishing
                 return;
 
             marker.name = "__FishingSpotDebug";
+            // Parent first, but also set world position explicitly so we never leave this at world origin.
             marker.transform.SetParent(transform, worldPositionStays: false);
             marker.transform.localPosition = new Vector3(0f, 0.1f, 0f);
             marker.transform.localRotation = Quaternion.identity;
+            try
+            {
+                marker.transform.position = transform.position + new Vector3(0f, 0.1f, 0f);
+                marker.transform.rotation = Quaternion.identity;
+            }
+            catch { }
 
             // Remove the primitive collider so it doesn't interfere with interaction/physics.
             try
             {
                 var c = marker.GetComponent<Collider>();
-                if (c != null) Destroy(c);
+                if (c != null)
+                {
+                    try { c.enabled = false; } catch { }
+                    Destroy(c);
+                }
             }
             catch { }
 
@@ -188,18 +212,27 @@ namespace Abyssbound.Skills.Fishing
             var sizeXZ = new Vector2(1.25f, 1.25f);
             try
             {
-                var box = GetComponent<BoxCollider>();
-                if (box != null)
+                var sphere = GetComponent<SphereCollider>();
+                if (sphere != null)
                 {
-                    sizeXZ = new Vector2(Mathf.Max(0.1f, box.size.x), Mathf.Max(0.1f, box.size.z));
+                    var d = Mathf.Max(0.1f, sphere.radius * 2f);
+                    sizeXZ = new Vector2(d, d);
                 }
                 else
                 {
-                    var any = GetComponent<Collider>();
-                    if (any != null)
+                    var box = GetComponent<BoxCollider>();
+                    if (box != null)
                     {
-                        var b = any.bounds;
-                        sizeXZ = new Vector2(Mathf.Max(0.1f, b.size.x), Mathf.Max(0.1f, b.size.z));
+                        sizeXZ = new Vector2(Mathf.Max(0.1f, box.size.x), Mathf.Max(0.1f, box.size.z));
+                    }
+                    else
+                    {
+                        var any = GetComponent<Collider>();
+                        if (any != null)
+                        {
+                            var b = any.bounds;
+                            sizeXZ = new Vector2(Mathf.Max(0.1f, b.size.x), Mathf.Max(0.1f, b.size.z));
+                        }
                     }
                 }
             }

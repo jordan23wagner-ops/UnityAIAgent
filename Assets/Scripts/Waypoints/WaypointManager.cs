@@ -110,6 +110,19 @@ namespace Abyss.Waypoints
             }
         }
 
+        public void OpenMenu()
+        {
+            _menuOpen = true;
+            SetMenuOpen(true);
+
+            // Match the F6 open behavior.
+            _warnedTownUnavailableThisOpen = false;
+            RefreshDiscovery(force: true);
+
+            // Reduce click-to-move bleed-through when opened via world click.
+            SuppressGameplayClicksUntil = Time.unscaledTime + 0.10f;
+        }
+
         private static void SetMenuOpen(bool open)
         {
             IsMenuOpen = open;

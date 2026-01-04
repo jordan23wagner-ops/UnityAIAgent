@@ -446,7 +446,7 @@ namespace Abyssbound.Cooking.Editor
                 parent = new GameObject("[Cooking]");
 
             // Prefer upgrading an existing placeholder bonfire if present.
-            var existingPlaceholder = UnityEngine.Object.FindFirstObjectByType<BonfireInteractable>(FindObjectsInactive.Include);
+            var existingPlaceholder = UnityEngine.Object.FindFirstObjectByType<Abyssbound.WorldInteraction.BonfireInteractable>(FindObjectsInactive.Include);
             GameObject stationGo = null;
             bool createdOrMovedByTool = false;
 

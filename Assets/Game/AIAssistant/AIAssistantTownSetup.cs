@@ -51,10 +51,10 @@ public class AIAssistantTownSetup : MonoBehaviour
         created.Add(CreateMerchant("merchant_skilling", typeof(SkillingSuppliesMerchant), basePos + new Vector3(2*spacing,0,0), Color.blue));
         created.Add(CreateMerchant("merchant_workshop", typeof(WorkshopMerchant), basePos + new Vector3(3*spacing,0,0), Color.yellow));
 
-        created.Add(CreateInteractable("interactable_forge", typeof(ForgeInteractable), basePos + new Vector3(3*spacing,0,2.5f), Color.gray));
+        created.Add(CreateInteractable("interactable_forge", typeof(Abyssbound.WorldInteraction.ForgeInteractable), basePos + new Vector3(3*spacing,0,2.5f), Color.gray));
         created.Add(CreateInteractable("interactable_smithingstand", typeof(SmithingStandInteractable), basePos + new Vector3(3*spacing+1.5f,0,0), Color.magenta));
         created.Add(CreateInteractable("interactable_workshop", typeof(WorkshopInteractable), basePos + new Vector3(3*spacing,0,-2.5f), Color.cyan));
-        created.Add(CreateInteractable("interactable_bonfire", typeof(BonfireInteractable), basePos + new Vector3(3*spacing-1.5f,0,0), new Color(1f,0.5f,0f)));
+        created.Add(CreateInteractable("interactable_bonfire", typeof(Abyssbound.WorldInteraction.BonfireInteractable), basePos + new Vector3(3*spacing-1.5f,0,0), new Color(1f,0.5f,0f)));
 
         // --- Begin new logic for reliability and idempotency ---
         int shopsAdded = 0, collidersAdded = 0, repositioned = 0;

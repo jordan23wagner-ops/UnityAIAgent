@@ -2734,6 +2734,29 @@ namespace Abyss.Inventory
                     }
                 }
 
+                // Also collect skilling/world items from Resources so they resolve even if not present in any shop.
+                var defs = Resources.LoadAll<Abyss.Items.ItemDefinition>("ItemDefinitions");
+                if (defs != null)
+                {
+                    foreach (var def in defs)
+                    {
+                        if (def == null) continue;
+                        var id = ResolveItemId(def);
+                        if (string.IsNullOrWhiteSpace(id))
+                            continue;
+
+                        if (!map.TryGetValue(id, out var existing) || existing == null)
+                        {
+                            map[id] = def;
+                        }
+                        else
+                        {
+                            if (!HasIcon(existing) && HasIcon(def))
+                                map[id] = def;
+                        }
+                    }
+                }
+
                 var loaded = Resources.FindObjectsOfTypeAll<ItemDefinition>();
                 if (loaded != null)
                 {

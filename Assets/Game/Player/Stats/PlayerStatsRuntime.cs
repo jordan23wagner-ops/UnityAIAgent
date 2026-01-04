@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Abyss.Equipment;
 using Abyss.Items;
 using UnityEngine;
+using Abyssbound.Skills;
 
 using AbyssItemType = Abyss.Items.ItemType;
 using StatType = Abyssbound.Loot.StatType;
@@ -26,6 +27,7 @@ namespace Abyssbound.Stats
         private PlayerEquipment _equipment;
         private PlayerCombatStats _combat;
         private PlayerHealth _health;
+        private PlayerSkills _skills;
 
         private static Dictionary<string, ItemDefinition> s_DefById;
 
@@ -171,7 +173,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy: return Mathf.Max(0, leveled.alchemyXp);
                 case StatType.Mining: return Mathf.Max(0, leveled.miningXp);
                 case StatType.Woodcutting: return Mathf.Max(0, leveled.woodcuttingXp);
-                case StatType.Forging: return Mathf.Max(0, leveled.forgingXp);
+                case StatType.Smithing: return Mathf.Max(0, leveled.smithingXp);
                 case StatType.Fishing: return Mathf.Max(0, leveled.fishingXp);
                 case StatType.Cooking: return Mathf.Max(0, leveled.cookingXp);
                 default: return 0;
@@ -193,7 +195,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy: return Mathf.Max(1, leveled.alchemy);
                 case StatType.Mining: return Mathf.Max(1, leveled.mining);
                 case StatType.Woodcutting: return Mathf.Max(1, leveled.woodcutting);
-                case StatType.Forging: return Mathf.Max(1, leveled.forging);
+                case StatType.Smithing: return Mathf.Max(1, leveled.smithing);
                 case StatType.Fishing: return Mathf.Max(1, leveled.fishing);
                 case StatType.Cooking: return Mathf.Max(1, leveled.cooking);
                 default: return 1;
@@ -214,7 +216,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy: leveled.alchemyXp = xp; break;
                 case StatType.Mining: leveled.miningXp = xp; break;
                 case StatType.Woodcutting: leveled.woodcuttingXp = xp; break;
-                case StatType.Forging: leveled.forgingXp = xp; break;
+                case StatType.Smithing: leveled.smithingXp = xp; break;
                 case StatType.Fishing: leveled.fishingXp = xp; break;
                 case StatType.Cooking: leveled.cookingXp = xp; break;
             }
@@ -240,7 +242,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy: leveled.alchemy = computed; break;
                 case StatType.Mining: leveled.mining = computed; break;
                 case StatType.Woodcutting: leveled.woodcutting = computed; break;
-                case StatType.Forging: leveled.forging = computed; break;
+                case StatType.Smithing: leveled.smithing = computed; break;
                 case StatType.Fishing: leveled.fishing = computed; break;
                 case StatType.Cooking: leveled.cooking = computed; break;
             }
@@ -259,7 +261,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy:
                 case StatType.Mining:
                 case StatType.Woodcutting:
-                case StatType.Forging:
+                case StatType.Smithing:
                 case StatType.Fishing:
                 case StatType.Cooking:
                     return true;
@@ -338,7 +340,9 @@ namespace Abyssbound.Stats
             total.alchemy += gearBonus.alchemy;
             total.mining += gearBonus.mining;
             total.woodcutting += gearBonus.woodcutting;
-            total.forging += gearBonus.forging;
+            // Skills (Mining/Smithing/etc) should come from PlayerSkills, not primary stats.
+            // Smithing is currently the only skill wired into PlayerSkills.
+            total.smithing = GetSkillLevel(SkillType.Smithing);
             total.fishing += gearBonus.fishing;
             total.cooking += gearBonus.cooking;
 
@@ -347,6 +351,35 @@ namespace Abyssbound.Stats
             int baseDmg = _combat != null ? _combat.BaseDamage : 0;
             int baseHp = _health != null ? _health.BaseMaxHealth : 1;
             Derived = StatCalculator.ComputeDerived(TotalPrimary, baseDmg, baseHp, equipDamageBonus, equipMaxHpBonus, equipDrFlat);
+        }
+
+        private int GetSkillLevel(SkillType skillType)
+        {
+            var skills = GetSkills();
+            return skills != null ? skills.GetLevel(skillType) : 1;
+        }
+
+        private PlayerSkills GetSkills()
+        {
+            if (_skills != null)
+                return _skills;
+
+            try { _skills = GetComponent<PlayerSkills>(); } catch { _skills = null; }
+            if (_skills != null)
+                return _skills;
+
+            try
+            {
+                var player = GameObject.FindGameObjectWithTag("Player");
+                if (player != null)
+                    _skills = player.GetComponent<PlayerSkills>();
+            }
+            catch
+            {
+                _skills = null;
+            }
+
+            return _skills;
         }
 
         public void DumpToLog()

@@ -9,10 +9,7 @@ using UnityEngine.UI;
 public sealed class PlayerStatsHudPanel : MonoBehaviour
 {
     [Header("Text")]
-    [SerializeField] private TMP_Text dmgText;
-    [SerializeField] private TMP_Text hpText;
     [SerializeField] private TMP_Text drText;
-    [SerializeField] private TMP_Text primaryStatsText;
 
     [Header("Colors")]
     [SerializeField] private Color32 statsTextColor = new Color32(245, 215, 110, 255);
@@ -96,7 +93,8 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         rootRt.anchorMax = new Vector2(1f, 1f);
         rootRt.pivot = new Vector2(1f, 1f);
         rootRt.anchoredPosition = new Vector2(-20f, -60f);
-        rootRt.sizeDelta = new Vector2(240f, 320f);
+        // Compact panel: only DR (HP is shown in the health bar; DMG is shown by the existing DMG HUD box).
+        rootRt.sizeDelta = new Vector2(180f, 42f);
         rootRt.localScale = Vector3.one;
 
         // Background
@@ -141,11 +139,13 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
             img.raycastTarget = false;
         }
 
-        // Text children
-        var dmg = EnsureLineText(rootGo.transform, "Stats_DMG", new Vector2(10f, -8f));
-        var hp = EnsureLineText(rootGo.transform, "Stats_HP", new Vector2(10f, -38f));
-        var dr = EnsureLineText(rootGo.transform, "Stats_DR", new Vector2(10f, -68f));
-        var prim = EnsureBlockText(rootGo.transform, "Stats_Primary", new Vector2(10f, -98f), height: 210f);
+        // Text children (combat HUD only)
+        var dr = EnsureLineText(rootGo.transform, "Stats_DR", new Vector2(10f, -8f));
+
+        // If older versions left these behind, hide them so DMG isn't duplicated and skilling isn't shown here.
+        TryDisableChild(rootGo.transform, "Stats_DMG");
+        TryDisableChild(rootGo.transform, "Stats_HP");
+        TryDisableChild(rootGo.transform, "Stats_Primary");
 
         // Enforce order: BG first, then texts.
         try
@@ -160,17 +160,24 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         if (panel == null)
             panel = rootGo.AddComponent<PlayerStatsHudPanel>();
 
-        if (panel.dmgText == null)
-            panel.dmgText = dmg;
-        if (panel.hpText == null)
-            panel.hpText = hp;
         if (panel.drText == null)
             panel.drText = dr;
-        if (panel.primaryStatsText == null)
-            panel.primaryStatsText = prim;
 
         panel.ApplyStyle();
         panel.Refresh();
+    }
+
+    private static void TryDisableChild(Transform parent, string name)
+    {
+        if (parent == null || string.IsNullOrEmpty(name))
+            return;
+
+        Transform tf = null;
+        try { tf = parent.Find(name); } catch { tf = null; }
+        if (tf == null)
+            return;
+
+        try { tf.gameObject.SetActive(false); } catch { }
     }
 
     private static TextMeshProUGUI EnsureLineText(Transform parent, string name, Vector2 anchoredPos)
@@ -301,24 +308,9 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 
     private void ResolveTextRefsByName()
     {
-        if (dmgText == null)
-        {
-            try { dmgText = transform.Find("Stats_DMG")?.GetComponent<TMP_Text>(); } catch { dmgText = null; }
-        }
-
-        if (hpText == null)
-        {
-            try { hpText = transform.Find("Stats_HP")?.GetComponent<TMP_Text>(); } catch { hpText = null; }
-        }
-
         if (drText == null)
         {
             try { drText = transform.Find("Stats_DR")?.GetComponent<TMP_Text>(); } catch { drText = null; }
-        }
-
-        if (primaryStatsText == null)
-        {
-            try { primaryStatsText = transform.Find("Stats_Primary")?.GetComponent<TMP_Text>(); } catch { primaryStatsText = null; }
         }
     }
 
@@ -489,20 +481,10 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 
     private void ApplyStyle()
     {
-        ApplyTextStyle(dmgText, 22f, statsTextColor);
-        ApplyTextStyle(hpText, 22f, statsTextColor);
         ApplyTextStyle(drText, 22f, statsTextColor);
-        ApplyTextStyle(primaryStatsText, 16f, statsTextColor);
 
-        if (dmgText != null)
-            dmgText.text = "DMG: ?";
-        if (hpText != null)
-            hpText.text = "HP: ?/?";
         if (drText != null)
             drText.text = "DR: ?";
-
-        if (primaryStatsText != null)
-            primaryStatsText.text = BuildLeveledStatsString(default);
     }
 
     private static void ApplyTextStyle(TMP_Text t, float fontSize, Color32 color)
@@ -515,7 +497,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         if (t is TextMeshProUGUI ugui)
         {
             ugui.fontSize = fontSize;
-            ugui.alignment = TextAlignmentOptions.TopLeft;
+            ugui.alignment = TextAlignmentOptions.TopRight;
             ugui.textWrappingMode = TextWrappingModes.NoWrap;
             ugui.raycastTarget = false;
 
@@ -537,25 +519,12 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
     public void Refresh()
     {
         // Keep colors stable in Play Mode (avoid editor tweaks being overwritten by other runtime code).
-        if (dmgText != null) { try { dmgText.color = statsTextColor; } catch { } }
-        if (hpText != null) { try { hpText.color = statsTextColor; } catch { } }
         if (drText != null) { try { drText.color = statsTextColor; } catch { } }
-        if (primaryStatsText != null) { try { primaryStatsText.color = statsTextColor; } catch { } }
 
-        if (dmgText != null)
+        if (!_warnedMissingRefs && drText == null)
         {
-            if (combatStats != null)
-                dmgText.text = $"DMG: {combatStats.DamageFinal}";
-            else
-                dmgText.text = "DMG: ?";
-        }
-
-        if (hpText != null)
-        {
-            if (playerHealth != null)
-                hpText.text = $"HP: {playerHealth.CurrentHealth}/{playerHealth.MaxHealth}";
-            else
-                hpText.text = "HP: ?/?";
+            _warnedMissingRefs = true;
+            Debug.LogWarning("[HUD] PlayerStatsHudPanel missing text refs (DR).", this);
         }
 
         if (drText != null)
@@ -565,37 +534,5 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
             else
                 drText.text = "DR: ?";
         }
-
-        if (primaryStatsText != null)
-        {
-            Abyssbound.Stats.PlayerLeveledStats p = default;
-
-            if (statsRuntime != null)
-            {
-                // Leveled stats are progression-only; do not display gear bonus or totals.
-                try { p = statsRuntime.Leveled; } catch { p = default; }
-            }
-
-            primaryStatsText.text = BuildLeveledStatsString(p);
-        }
-    }
-
-    private static string BuildLeveledStatsString(in Abyssbound.Stats.PlayerLeveledStats p)
-    {
-        // Display exactly the requested OSRS-style progression stat list.
-        return
-            "Combat:\n" +
-            $"Attack: {p.attack}\n" +
-            $"Strength: {p.strength}\n" +
-            $"Defence: {p.defence}\n" +
-            $"Ranged: {p.ranged}\n" +
-            $"Magic: {p.magic}\n" +
-            "Skilling:\n" +
-            $"Alchemy: {p.alchemy}\n" +
-            $"Mining: {p.mining}\n" +
-            $"Woodcutting: {p.woodcutting}\n" +
-            $"Forging: {p.forging}\n" +
-            $"Fishing: {p.fishing}\n" +
-            $"Cooking: {p.cooking}";
     }
 }

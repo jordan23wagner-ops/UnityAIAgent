@@ -185,8 +185,11 @@ namespace Abyssbound.Skills.Gathering
                     Debug.Log($"[Fishing] +{actionXp} XP", this);
                 }
 
-                if (!string.IsNullOrWhiteSpace(yieldItemId) && yieldAmount > 0)
+                if (!string.IsNullOrWhiteSpace(yieldItemId))
                 {
+                    if (yieldAmount <= 0)
+                        yieldAmount = 1;
+
                     // 1) Yield rolled log
                     Debug.Log($"[Fishing] Yield rolled: {yieldItemId} x{yieldAmount}", this);
 
@@ -237,6 +240,25 @@ namespace Abyssbound.Skills.Gathering
                     else if (afterCount > beforeCount || afterStacks > beforeStacks)
                     {
                         Debug.Log($"[Fishing] Inventory add SUCCESS for {yieldItemId}", this);
+
+                        // QA: undeniable completion signal.
+                        try
+                        {
+                            var spotName = _activeFishingSpot != null ? _activeFishingSpot.gameObject.name : "(unknown spot)";
+                            var spotType = "(unknown)";
+                            try
+                            {
+                                var wi = _activeFishingSpot != null
+                                    ? _activeFishingSpot.GetComponent<Abyssbound.WorldInteraction.FishingSpotWorldInteractable>()
+                                    : null;
+                                if (wi != null && !string.IsNullOrWhiteSpace(wi.SpotType))
+                                    spotType = wi.SpotType;
+                            }
+                            catch { }
+
+                            Debug.Log($"[Fishing] spot={spotName} spotType={spotType} reward={yieldItemId}", this);
+                        }
+                        catch { }
 
                         // Rare bag upgrade drop from fishing (never T5).
                         try

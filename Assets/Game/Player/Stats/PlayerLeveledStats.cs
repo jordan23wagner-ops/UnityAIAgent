@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using Abyssbound.Loot;
+using UnityEngine.Serialization;
 
 namespace Abyssbound.Stats
 {
@@ -26,8 +27,8 @@ namespace Abyssbound.Stats
         public int miningXp;
         public int woodcutting;
         public int woodcuttingXp;
-        public int forging;
-        public int forgingXp;
+        [FormerlySerializedAs("forging")] public int smithing;
+        [FormerlySerializedAs("forgingXp")] public int smithingXp;
         public int fishing;
         public int fishingXp;
         public int cooking;
@@ -55,14 +56,14 @@ namespace Abyssbound.Stats
             alchemy = 1,
             mining = 1,
             woodcutting = 1,
-            forging = 1,
+            smithing = 1,
             fishing = 1,
             cooking = 1,
 
             alchemyXp = 0,
             miningXp = 0,
             woodcuttingXp = 0,
-            forgingXp = 0,
+            smithingXp = 0,
             fishingXp = 0,
             cookingXp = 0,
 
@@ -88,8 +89,8 @@ namespace Abyssbound.Stats
                 miningXp == 0 &&
                 woodcutting == 0 &&
                 woodcuttingXp == 0 &&
-                forging == 0 &&
-                forgingXp == 0 &&
+                smithing == 0 &&
+                smithingXp == 0 &&
                 fishing == 0 &&
                 fishingXp == 0 &&
                 cooking == 0 &&
@@ -110,7 +111,7 @@ namespace Abyssbound.Stats
                 alchemy = alchemy,
                 mining = mining,
                 woodcutting = woodcutting,
-                forging = forging,
+                smithing = smithing,
                 fishing = fishing,
                 cooking = cooking,
             };
@@ -130,7 +131,7 @@ namespace Abyssbound.Stats
             sb.Append("Alchemy: ").Append(alchemy).Append('\n');
             sb.Append("Mining: ").Append(mining).Append('\n');
             sb.Append("Woodcutting: ").Append(woodcutting).Append('\n');
-            sb.Append("Forging: ").Append(forging).Append('\n');
+            sb.Append("Smithing: ").Append(smithing).Append('\n');
             sb.Append("Fishing: ").Append(fishing).Append('\n');
             sb.Append("Cooking: ").Append(cooking);
             return sb.ToString();
@@ -152,7 +153,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy: alchemy += value; break;
                 case StatType.Mining: mining += value; break;
                 case StatType.Woodcutting: woodcutting += value; break;
-                case StatType.Forging: forging += value; break;
+                case StatType.Smithing: smithing += value; break;
                 case StatType.Fishing: fishing += value; break;
                 case StatType.Cooking: cooking += value; break;
             }

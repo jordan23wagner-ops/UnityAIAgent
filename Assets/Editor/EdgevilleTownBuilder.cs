@@ -401,10 +401,10 @@ namespace Abyss.EditorTools
             registry.EnsureSpawnRoot();
             registry.RebuildIndexFromScene();
 
-            EnsureAndPlaceInteractable(registry, "interactable_forge", typeof(ForgeInteractable), workshopBuilding, new Vector3(2.6f, 0f, 1.8f));
+            EnsureAndPlaceInteractable(registry, "interactable_forge", typeof(Abyssbound.WorldInteraction.ForgeInteractable), workshopBuilding, new Vector3(2.6f, 0f, 1.8f));
             EnsureAndPlaceInteractable(registry, "interactable_smithingstand", typeof(SmithingStandInteractable), workshopBuilding, new Vector3(3.8f, 0f, 0.0f));
             EnsureAndPlaceInteractable(registry, "interactable_workshop", typeof(WorkshopInteractable), workshopBuilding, new Vector3(2.6f, 0f, -1.8f));
-            EnsureAndPlaceInteractable(registry, "interactable_bonfire", typeof(BonfireInteractable), workshopBuilding, new Vector3(1.2f, 0f, 0.0f));
+            EnsureAndPlaceInteractable(registry, "interactable_bonfire", typeof(Abyssbound.WorldInteraction.BonfireInteractable), workshopBuilding, new Vector3(1.2f, 0f, 0.0f));
         }
 
         private static void EnsureAndPlaceInteractable(Game.Town.TownRegistry registry, string key, Type componentType, Transform workshopBuilding, Vector3 localOffset)

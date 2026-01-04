@@ -1,17 +1,28 @@
-using System;
 using System.Collections;
 using UnityEngine;
 using Abyssbound.WorldInteraction;
+using UnityEngine.Serialization;
+using Game.Systems;
+using Abyssbound.Skilling;
+using Abyssbound.Skills;
+using System;
 
 namespace Abyssbound.Mining
 {
     public sealed class MiningNode : WorldInteractable
     {
+        private const string BasicPickaxeId = "pickaxe_basic";
+        private const string BronzePickaxeId = "tool_bronze_pickaxe";
+
         [Header("Mining")]
-        [SerializeField] private float interactRange = 2.5f;
-        [SerializeField] private float mineSeconds = 2.0f;
-        [SerializeField] private float cooldownSeconds = 8.0f;
-        [SerializeField] private string oreItemId = "ore_copper";
+        [FormerlySerializedAs("mineSeconds")]
+        [SerializeField] private float mineDuration = 1.25f;
+
+        [FormerlySerializedAs("cooldownSeconds")]
+        [SerializeField] private float cooldownDuration = 3f;
+
+        [SerializeField] private int oreAmountMin = 1;
+        [SerializeField] private int oreAmountMax = 3;
 
         private bool isMining;
         private float nextReadyTime;
@@ -21,26 +32,64 @@ namespace Abyssbound.Mining
             SetDisplayName("Copper Rock");
         }
 
-        public override bool CanInteract(Vector3 interactorPos)
+        private void OnValidate()
         {
-            if (isMining)
+            // Keep tooltip text stable for designers.
+            if (string.IsNullOrWhiteSpace(DisplayName) || string.Equals(DisplayName, "Interactable", StringComparison.OrdinalIgnoreCase))
+                SetDisplayName("Copper Rock");
+        }
+
+        public override bool CanInteract(GameObject interactor, out string reason)
+        {
+            if (!base.CanInteract(interactor, out reason))
+            {
+                WorldInteractionFeedback.LogBlocked(reason, $"mine {DisplayName}", this);
                 return false;
+            }
+
+            if (isMining)
+            {
+                reason = "Already mining";
+                WorldInteractionFeedback.LogBlocked(reason, $"mine {DisplayName}", this);
+                return false;
+            }
 
             if (Time.time < nextReadyTime)
+            {
+                float remaining = Mathf.Max(0f, nextReadyTime - Time.time);
+                reason = $"Depleted ({remaining:0.0}s)";
+                WorldInteractionFeedback.LogBlocked(reason, $"mine {DisplayName}", this);
                 return false;
+            }
 
-            float d = Vector3.Distance(transform.position, interactorPos);
-            return d <= interactRange;
+            var inv = PlayerInventoryResolver.GetOrFind();
+            if (inv == null)
+            {
+                reason = "No inventory";
+                WorldInteractionFeedback.LogBlocked(reason, $"mine {DisplayName}", this);
+                return false;
+            }
+
+            if (!HasBasicPickaxe(inv))
+            {
+                reason = "missing Pickaxe";
+                WorldInteractionFeedback.LogBlocked(reason, $"mine {DisplayName}", this);
+                return false;
+            }
+
+            reason = null;
+            return true;
         }
 
         public override void Interact(GameObject interactor)
         {
-            var pos = interactor != null ? interactor.transform.position : transform.position;
-            if (!CanInteract(pos))
+            if (!CanInteract(interactor, out _))
                 return;
 
             if (!gameObject.activeInHierarchy)
                 return;
+
+            Debug.Log($"[Mining] Started mining {DisplayName}");
 
             StartCoroutine(MineRoutine(interactor));
         }
@@ -49,78 +98,85 @@ namespace Abyssbound.Mining
         {
             isMining = true;
 
-            yield return new WaitForSeconds(mineSeconds);
+            yield return new WaitForSeconds(mineDuration);
 
-            bool added = TryAddToInventory(interactor, oreItemId, 1);
-            if (!added)
+            int min = Mathf.Max(0, oreAmountMin);
+            int max = Mathf.Max(min, oreAmountMax);
+            int amount = UnityEngine.Random.Range(min, max + 1);
+
+            if (amount > 0)
             {
-                Debug.Log($"[Abyssbound] Mined ore: {oreItemId} x1");
+                var inv = PlayerInventoryResolver.GetOrFind();
+                if (inv != null)
+                {
+                    inv.Add(SkillingItemIds.CopperOre, amount);
+                }
+                else
+                {
+                    Debug.LogWarning("[Mining] No PlayerInventory found");
+                }
+
+                Debug.Log($"[Mining] Gained {amount}x Copper Ore");
+
+                var skills = PlayerSkills.FindOrCreateOnPlayer();
+                if (skills != null)
+                {
+                    int xp = amount * 8;
+                    skills.AddXp(SkillType.Mining, xp, source: "Mining");
+                }
             }
 
-            nextReadyTime = Time.time + cooldownSeconds;
+            nextReadyTime = Time.time + cooldownDuration;
             isMining = false;
         }
 
-        private static bool TryAddToInventory(GameObject interactor, string itemId, int amount)
+        private static bool HasBasicPickaxe(PlayerInventory inv)
         {
-            var inventoryType = FindTypeByName("PlayerInventory");
-            if (inventoryType == null)
-                return false;
+            if (inv == null) return false;
 
-            var method = inventoryType.GetMethod("AddItem", new[] { typeof(string), typeof(int) });
-            if (method == null)
-                return false;
-
-            object inventoryInstance = null;
-
-            if (interactor != null)
+            // Fast path: known IDs.
+            try
             {
-                try
-                {
-                    inventoryInstance = interactor.GetComponentInParent(inventoryType);
-                }
-                catch
-                {
-                    // ignore
-                }
+                if (inv.Has(BasicPickaxeId, 1))
+                    return true;
             }
-
-#pragma warning disable CS0618
-            if (inventoryInstance == null)
-                inventoryInstance = UnityEngine.Object.FindObjectOfType(inventoryType);
-#pragma warning restore CS0618
-
-            if (inventoryInstance == null)
-                return false;
+            catch { }
 
             try
             {
-                method.Invoke(inventoryInstance, new object[] { itemId, amount });
-                return true;
+                if (inv.Has(BronzePickaxeId, 1))
+                    return true;
             }
-            catch
-            {
-                return false;
-            }
-        }
+            catch { }
 
-        private static Type FindTypeByName(string typeName)
-        {
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            // Safe fallback: accept any inventory ID that looks like a pickaxe.
+            // (Avoid loosening to other tools.)
+            try
             {
-                Type[] types;
-                try { types = asm.GetTypes(); }
-                catch { continue; }
-
-                for (int i = 0; i < types.Length; i++)
+                var snap = inv.GetAllItemsSnapshot();
+                if (snap != null)
                 {
-                    var t = types[i];
-                    if (t != null && t.Name == typeName)
-                        return t;
+                    foreach (var kv in snap)
+                    {
+                        if (kv.Value <= 0) continue;
+                        var id = kv.Key;
+                        if (string.IsNullOrWhiteSpace(id)) continue;
+
+                        var lower = id.ToLowerInvariant();
+                        if (lower.Contains("pickaxe") && (lower.StartsWith("pickaxe_") || lower.StartsWith("tool_") || lower.EndsWith("_pickaxe")))
+                            return true;
+                    }
                 }
             }
+            catch { }
 
-            return null;
+            return false;
+        }
+
+        public override string GetHoverText()
+        {
+            // Hover tooltip should identify the resource type.
+            return DisplayName;
         }
     }
 }

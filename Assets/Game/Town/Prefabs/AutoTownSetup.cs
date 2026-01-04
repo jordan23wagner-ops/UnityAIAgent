@@ -27,10 +27,10 @@ public class AutoTownSetup : MonoBehaviour
         CreateMerchant("merchant_skilling", typeof(SkillingSuppliesMerchant), new Vector3(10,0,10));
         CreateMerchant("merchant_workshop", typeof(WorkshopMerchant), new Vector3(20,0,10));
 
-        CreateInteractable("interactable_forge", typeof(ForgeInteractable), new Vector3(20,0,12));
+        CreateInteractable("interactable_forge", typeof(Abyssbound.WorldInteraction.ForgeInteractable), new Vector3(20,0,12));
         CreateInteractable("interactable_smithingstand", typeof(SmithingStandInteractable), new Vector3(22,0,10));
         CreateInteractable("interactable_workshop", typeof(WorkshopInteractable), new Vector3(20,0,8));
-        CreateInteractable("interactable_bonfire", typeof(BonfireInteractable), new Vector3(18,0,10));
+        CreateInteractable("interactable_bonfire", typeof(Abyssbound.WorldInteraction.BonfireInteractable), new Vector3(18,0,10));
     }
 
     [ContextMenu("Nuke Town Spawns")]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Abyss.Items;
 using Abyssbound.Loot;
 using UnityEngine;
 
@@ -13,7 +14,7 @@ namespace Abyssbound.Skills.Fishing
         public StatType primarySkill = StatType.Fishing;
 
         [Tooltip("Optional tool itemId required to fish (legacy ItemDefinition itemId).")]
-        public string requiredToolItemId = "tool_fishing_rod";
+        public string requiredToolItemId = ItemIds.FishingRodBasic;
 
         [Header("Tiers (data-driven; no hardcoded count)")]
         public List<FishingTier> tiers = new List<FishingTier>();

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba3017be79c003c4bb6f2fe12e6a18cd, type: 3}
+  m_Name: BasicPickaxe
+  m_EditorClassIdentifier: Assembly-CSharp::Abyss.Items.ItemDefinition
+  itemId: pickaxe_basic
+  displayName: Basic Pickaxe
+  description: A simple pickaxe for mining.
+  icon: {fileID: 21300000, guid: a97bd38ca9c997941a68d8bb453d5449, type: 3}
+  rarity: 0
+  itemType: 2
+  baseValue: 0
+  equipmentSlot: 0
+  weaponHandedness: 0
+  DamageBonus: 0
+  MaxHealthBonus: 0
+  DamageReductionFlat: 0

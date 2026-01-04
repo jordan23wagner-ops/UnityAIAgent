@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,6 +7,7 @@ public static class HudFactory
 {
     private const string HudCanvasName = "Abyss_HUDCanvas";
     private const string PlayerHealthBarName = "Abyss_PlayerHealthBar";
+    private const string PlayerHealthBarTextName = "HPText";
 
     private static bool _loggedHudCanvasCreated;
     private static bool _loggedHealthBarLayout;
@@ -113,7 +115,8 @@ public static class HudFactory
         rootRt.anchorMin = new Vector2(0.5f, 0f);
         rootRt.anchorMax = new Vector2(0.5f, 0f);
         rootRt.pivot = new Vector2(0.5f, 0f);
-        rootRt.sizeDelta = new Vector2(320f, 22f);
+        // Wider so the in-bar HP text fits comfortably.
+        rootRt.sizeDelta = new Vector2(420f, 22f);
         rootRt.anchoredPosition = new Vector2(0f, 10f);
         rootRt.localScale = Vector3.one;
 
@@ -166,6 +169,38 @@ public static class HudFactory
         fillImg.color = new Color(0.85f, 0.1f, 0.1f, 0.9f);
         fillImg.raycastTarget = false;
         fillImg.type = Image.Type.Simple;
+
+        // HP Text (overlay, centered)
+        var hpTextGo = EnsureChild(rootGo.transform, PlayerHealthBarTextName);
+        var hpRt = EnsureRectTransform(hpTextGo);
+        hpRt.anchorMin = Vector2.zero;
+        hpRt.anchorMax = Vector2.one;
+        hpRt.pivot = new Vector2(0.5f, 0.5f);
+        hpRt.anchoredPosition = Vector2.zero;
+        hpRt.offsetMin = new Vector2(8f, 0f);
+        hpRt.offsetMax = new Vector2(-8f, 0f);
+        hpRt.localScale = Vector3.one;
+
+        var hpTmp = EnsureComponent<TextMeshProUGUI>(hpTextGo);
+        hpTmp.raycastTarget = false;
+        hpTmp.text = "HP ? / ?";
+        hpTmp.fontSize = 16f;
+        hpTmp.alignment = TextAlignmentOptions.Center;
+        hpTmp.textWrappingMode = TextWrappingModes.NoWrap;
+        hpTmp.color = new Color32(245, 215, 110, 255);
+
+        // High-contrast outline to stay readable over the red fill.
+        try
+        {
+            var mat = hpTmp.fontMaterial;
+            if (mat != null)
+            {
+                mat.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.22f);
+                mat.SetColor(ShaderUtilities.ID_OutlineColor, new Color32(0, 0, 0, 255));
+                hpTmp.fontMaterial = mat;
+            }
+        }
+        catch { }
 
         slider.targetGraphic = bgImg;
         slider.fillRect = fillRt;

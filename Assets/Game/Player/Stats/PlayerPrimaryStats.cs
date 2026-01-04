@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using Abyssbound.Loot;
+using UnityEngine.Serialization;
 
 namespace Abyssbound.Stats
 {
@@ -16,7 +17,7 @@ namespace Abyssbound.Stats
         public int alchemy;
         public int mining;
         public int woodcutting;
-        public int forging;
+        [FormerlySerializedAs("forging")] public int smithing;
         public int fishing;
         public int cooking;
 
@@ -39,7 +40,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy: alchemy += value; break;
                 case StatType.Mining: mining += value; break;
                 case StatType.Woodcutting: woodcutting += value; break;
-                case StatType.Forging: forging += value; break;
+                case StatType.Smithing: smithing += value; break;
                 case StatType.Fishing: fishing += value; break;
                 case StatType.Cooking: cooking += value; break;
             }
@@ -58,7 +59,7 @@ namespace Abyssbound.Stats
                 case StatType.Alchemy: return alchemy;
                 case StatType.Mining: return mining;
                 case StatType.Woodcutting: return woodcutting;
-                case StatType.Forging: return forging;
+                case StatType.Smithing: return smithing;
                 case StatType.Fishing: return fishing;
                 case StatType.Cooking: return cooking;
 
@@ -78,7 +79,7 @@ namespace Abyssbound.Stats
             sb.Append("Alchemy: ").Append(alchemy).Append('\n');
             sb.Append("Mining: ").Append(mining).Append('\n');
             sb.Append("Woodcutting: ").Append(woodcutting).Append('\n');
-            sb.Append("Forging: ").Append(forging).Append('\n');
+            sb.Append("Smithing: ").Append(smithing).Append('\n');
             sb.Append("Fishing: ").Append(fishing).Append('\n');
             sb.Append("Cooking: ").Append(cooking);
             return sb.ToString();

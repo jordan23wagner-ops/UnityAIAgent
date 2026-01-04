@@ -70,12 +70,22 @@ namespace Abyssbound.EditorTools
 
         private static void AutoApplyIfLocked()
         {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                return;
+            }
+
             if (!IsLocked)
                 return;
 
             // Delay again so scenes/hierarchy are ready.
             EditorApplication.delayCall += () =>
             {
+                if (EditorApplication.isPlayingOrWillChangePlaymode)
+                {
+                    return;
+                }
+
                 if (IsLocked)
                     ApplyLockState(true);
             };
@@ -83,6 +93,11 @@ namespace Abyssbound.EditorTools
 
         private static void ApplyLockState(bool locked)
         {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                return;
+            }
+
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid() || !scene.isLoaded)
             {
@@ -316,6 +331,11 @@ namespace Abyssbound.EditorTools
 
         private static void ScheduleUndo()
         {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                return;
+            }
+
             if (_undoScheduled)
                 return;
 
@@ -323,6 +343,11 @@ namespace Abyssbound.EditorTools
             EditorApplication.delayCall += () =>
             {
                 _undoScheduled = false;
+
+                if (EditorApplication.isPlayingOrWillChangePlaymode)
+                {
+                    return;
+                }
 
                 if (!IsLocked)
                     return;

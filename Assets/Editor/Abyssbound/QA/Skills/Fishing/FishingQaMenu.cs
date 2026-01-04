@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Abyss.Items;
 using Abyssbound.Skills.Fishing;
 using Abyssbound.Stats;
 using Game.Systems;
@@ -29,7 +30,7 @@ namespace Abyssbound.EditorTools.QA.Skills.Fishing
 
             var cfg = ScriptableObject.CreateInstance<FishingSkillConfigSO>();
             cfg.primarySkill = Abyssbound.Loot.StatType.Fishing;
-            cfg.requiredToolItemId = "tool_fishing_rod";
+            cfg.requiredToolItemId = ItemIds.FishingRodBasic;
             cfg.potSecondsPerCatch = 5f;
             cfg.potMaxStoredCatches = 12;
 
@@ -88,7 +89,7 @@ namespace Abyssbound.EditorTools.QA.Skills.Fishing
                 return;
             }
 
-            inv.Add("tool_fishing_rod", 1);
+            inv.Add(ItemIds.FishingRodBasic, 1);
         }
 
         // Old menu path: Tools/Abyssbound/QA/Skills/Fishing/Print Fishing Level & XP

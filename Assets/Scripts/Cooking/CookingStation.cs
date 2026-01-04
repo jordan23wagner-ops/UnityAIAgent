@@ -10,20 +10,11 @@ namespace Abyssbound.Cooking
     [DisallowMultipleComponent]
     public sealed class CookingStation : MonoBehaviour
     {
-        private const string PromptText = "Press E to Cook";
-
         [Header("UI")]
         [SerializeField] private CookingUIController cookingUiPrefab;
 
-        [Header("Interaction")]
-        [SerializeField] private float promptRange = 2.5f;
-
         [Header("Recipes")]
         [SerializeField] private List<CookingRecipeSO> recipes = new List<CookingRecipeSO>();
-
-        private bool _playerInRange;
-        private bool _promptShown;
-        private SimpleInteractPopup _popup;
 
         private Game.Input.PlayerInputAuthority _inputAuthority;
         private CookingUIController _uiInstance;
@@ -32,45 +23,15 @@ namespace Abyssbound.Cooking
         private void Awake()
         {
             ResolveInputAuthority();
-            ResolvePopup();
         }
 
         private void Update()
         {
-            // If UI is open, suppress prompt + local E-to-interact handling.
-            if (_uiInstance != null)
-            {
-                HidePrompt();
-                return;
-            }
-
-            if (!TryResolvePlayerPosition(out var playerPos))
-            {
-                HidePrompt();
-                return;
-            }
-
-            float range = Mathf.Max(0.1f, promptRange);
-            float distSq = (playerPos - transform.position).sqrMagnitude;
-            bool inRangeNow = distSq <= range * range;
-
-            if (inRangeNow != _playerInRange)
-            {
-                _playerInRange = inRangeNow;
-                if (!_playerInRange)
-                    HidePrompt();
-            }
-
-            if (_playerInRange)
-            {
-                ShowPrompt();
-
-                if (Input.GetKeyDown(KeyCode.E))
-                    Interact();
-            }
+            // Bonfire interaction is handled via click-to-interact WorldInteraction.
+            // No local prompts, and no keypress activation.
         }
 
-        public void Interact()
+        public void Open()
         {
             try
             {
@@ -117,7 +78,6 @@ namespace Abyssbound.Cooking
                 try { _uiInstance.OnClosed += HandleUiClosed; } catch { }
 
                 LockGameplayInput(true);
-                HidePrompt();
 
                 ui.Show(recipes);
 
@@ -144,10 +104,6 @@ namespace Abyssbound.Cooking
 
             // Ensure no stuck focus after close.
             try { EventSystem.current?.SetSelectedGameObject(null); } catch { }
-
-            // If the player is still in range, show the prompt again.
-            if (_playerInRange)
-                ShowPrompt();
         }
 
         private void LockGameplayInput(bool locked)
@@ -157,56 +113,7 @@ namespace Abyssbound.Cooking
             catch { }
         }
 
-        private void ShowPrompt()
-        {
-            if (_promptShown)
-                return;
 
-            ResolvePopup();
-            if (_popup == null)
-                return;
-
-            try
-            {
-                _popup.Show(PromptText);
-                _promptShown = true;
-            }
-            catch { }
-        }
-
-        private void HidePrompt()
-        {
-            if (!_promptShown)
-                return;
-
-            ResolvePopup();
-            if (_popup == null)
-                return;
-
-            try
-            {
-                _popup.Hide();
-            }
-            catch { }
-
-            _promptShown = false;
-        }
-
-        private void ResolvePopup()
-        {
-            if (_popup != null)
-                return;
-
-            try
-            {
-#if UNITY_2022_2_OR_NEWER
-                _popup = FindFirstObjectByType<SimpleInteractPopup>(FindObjectsInactive.Exclude);
-#else
-                _popup = FindObjectOfType<SimpleInteractPopup>();
-#endif
-            }
-            catch { _popup = null; }
-        }
 
         private void ResolveInputAuthority()
         {
