@@ -5,8 +5,10 @@ using Abyssbound.Loot;
 using Abyssbound.Progression;
 using UnityEngine;
 
-public class PlayerInventory : MonoBehaviour
+namespace Game.Systems
 {
+    public class PlayerInventory : MonoBehaviour
+    {
     private readonly Dictionary<string, int> _items = new();
 
     // Authoritative inventory slot capacity.
@@ -431,6 +433,8 @@ public class PlayerInventory : MonoBehaviour
         return _items.TryGetValue(itemId, out var count) ? count : 0;
     }
 
+    public int GetCount(string itemId) => Count(itemId);
+
     public bool TryConsume(string itemId, int amount = 1)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return false;
@@ -458,4 +462,5 @@ public class PlayerInventory : MonoBehaviour
         // Snapshot to prevent callers from mutating internal state.
         return new Dictionary<string, int>(_items);
     }
+}
 }

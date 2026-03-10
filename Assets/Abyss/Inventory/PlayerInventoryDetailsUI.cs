@@ -7,6 +7,7 @@ using TMPro;
 using Abyss.Items;
 using Abyssbound.Loot;
 using Abyssbound.Items.Use;
+using Game.Systems;
 
 using AbyssItemRarity = Abyss.Items.ItemRarity;
 using Abyssbound.BagUpgrades;

@@ -6,6 +6,7 @@ using Abyssbound.Skills.Gathering;
 using Abyssbound.Skills.Fishing;
 using Abyss.Equipment;
 using UnityEngine;
+using Game.Systems;
 
 #if UNITY_EDITOR
 using UnityEditor;

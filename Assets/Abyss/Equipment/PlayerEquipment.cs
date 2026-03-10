@@ -1,6 +1,7 @@
 using System;
 using Abyss.Items;
 using UnityEngine;
+using Game.Systems;
 
 using LootRegistryRuntime = Abyssbound.Loot.LootRegistryRuntime;
 using LootItemInstance = Abyssbound.Loot.ItemInstance;
@@ -28,6 +29,8 @@ namespace Abyss.Equipment
         [SerializeField] private string artifact;
 
         public event Action Changed;
+
+        public static readonly EquipmentSlot[] AllSlots = (EquipmentSlot[])Enum.GetValues(typeof(EquipmentSlot));
 
         public string Get(EquipmentSlot slot)
         {

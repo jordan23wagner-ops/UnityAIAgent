@@ -1,11 +1,13 @@
 using Abyssbound.Loot;
 using Abyssbound.Loot.SetDrops;
+using Abyssbound.Loot.World;
 using Abyssbound.BagUpgrades;
 using Abyssbound.Threat;
 using Abyssbound.Combat.Tiering;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Game.Systems;
 
 [DisallowMultipleComponent]
 public sealed class LootDropOnDeath : MonoBehaviour
@@ -56,6 +58,9 @@ public sealed class LootDropOnDeath : MonoBehaviour
     }
 
     private static ThreatLootContext s_ThreatLootContext;
+
+    [Header("World Drops")]
+    [SerializeField] private WorldDropConfigSO worldDropConfig;
 
     private EnemyHealth _health;
 
@@ -262,6 +267,31 @@ public sealed class LootDropOnDeath : MonoBehaviour
                 TryAddTierContentDrop(dead, tierContentLootTier, label2, i, lvl, derivedSeed, ref extra);
             }
         }
+
+        try
+        {
+            if (worldDropConfig != null)
+            {
+                var tier = Zone1LootTuning.ResolveTierFromTable(table);
+                var worldDrops = worldDropConfig.RollWorldDrops(tier);
+                if (worldDrops != null && worldDrops.Count > 0)
+                {
+                    if (extra == null) extra = new List<ItemInstance>();
+                    foreach (var wd in worldDrops)
+                    {
+                        extra.Add(new ItemInstance
+                        {
+                            baseItemId = wd.id,
+                            rarityId = "Common",
+                            itemLevel = 1,
+                            baseScalar = 1f,
+                            affixes = new()
+                        });
+                    }
+                }
+            }
+        }
+        catch { }
 
         // Optional Zone1 set-drop injection (Abyssal Initiate) — data-driven via SetDropConfigSO.
         // Adds extra rolled instances; does not replace the main roll.

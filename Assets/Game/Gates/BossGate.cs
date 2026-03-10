@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using Game.Systems;
 using UnityEngine.Events;
 
 public class BossGate : MonoBehaviour

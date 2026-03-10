@@ -10,6 +10,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 {
     [Header("Text")]
     [SerializeField] private TMP_Text drText;
+    [SerializeField] private TMP_Text primaryStatsText;
 
     [Header("Colors")]
     [SerializeField] private Color32 statsTextColor = new Color32(245, 215, 110, 255);
@@ -19,6 +20,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
     [SerializeField] private PlayerHealth playerHealth;
 
     [SerializeField] private PlayerStatsRuntime statsRuntime;
+    [SerializeField] private Abyssbound.Combat.PlayerDerivedStats derivedStats;
 
     private PlayerEquipment _equipment;
     private bool _warnedMissingRefs;
@@ -141,6 +143,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 
         // Text children (combat HUD only)
         var dr = EnsureLineText(rootGo.transform, "Stats_DR", new Vector2(10f, -8f));
+        var primary = EnsureBlockText(rootGo.transform, "Stats_Primary_RPG", new Vector2(10f, -40f), 80f);
 
         // If older versions left these behind, hide them so DMG isn't duplicated and skilling isn't shown here.
         TryDisableChild(rootGo.transform, "Stats_DMG");
@@ -162,6 +165,9 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
 
         if (panel.drText == null)
             panel.drText = dr;
+        
+        if (panel.primaryStatsText == null)
+            panel.primaryStatsText = primary;
 
         panel.ApplyStyle();
         panel.Refresh();
@@ -312,6 +318,10 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
         {
             try { drText = transform.Find("Stats_DR")?.GetComponent<TMP_Text>(); } catch { drText = null; }
         }
+        if (primaryStatsText == null)
+        {
+            try { primaryStatsText = transform.Find("Stats_Primary_RPG")?.GetComponent<TMP_Text>(); } catch { primaryStatsText = null; }
+        }
     }
 
     private void ResolveRefs()
@@ -401,6 +411,19 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
             }
         }
 
+        if (derivedStats == null)
+        {
+            try
+            {
+#if UNITY_2023_1_OR_NEWER
+                derivedStats = UnityEngine.Object.FindAnyObjectByType<Abyssbound.Combat.PlayerDerivedStats>(FindObjectsInactive.Exclude);
+#else
+                derivedStats = UnityEngine.Object.FindObjectOfType<Abyssbound.Combat.PlayerDerivedStats>();
+#endif
+            }
+            catch { derivedStats = null; }
+        }
+
         if (!_warnedMissingRefs && (combatStats == null || playerHealth == null))
         {
             _warnedMissingRefs = true;
@@ -476,12 +499,14 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
     private void OnEquipmentChanged()
     {
         ResolveRefs();
+        if (derivedStats != null) derivedStats.RefreshAllStats();
         Refresh();
     }
 
     private void ApplyStyle()
     {
         ApplyTextStyle(drText, 22f, statsTextColor);
+        ApplyTextStyle(primaryStatsText, 18f, statsTextColor);
 
         if (drText != null)
             drText.text = "DR: ?";
@@ -520,6 +545,7 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
     {
         // Keep colors stable in Play Mode (avoid editor tweaks being overwritten by other runtime code).
         if (drText != null) { try { drText.color = statsTextColor; } catch { } }
+        if (primaryStatsText != null) { try { primaryStatsText.color = statsTextColor; } catch { } }
 
         if (!_warnedMissingRefs && drText == null)
         {
@@ -533,6 +559,20 @@ public sealed class PlayerStatsHudPanel : MonoBehaviour
                 drText.text = $"DR: {playerHealth.TotalDamageReductionFlat}";
             else
                 drText.text = "DR: ?";
+        }
+
+        if (primaryStatsText != null)
+        {
+            if (derivedStats != null)
+            {
+                primaryStatsText.text = $"ATK: {derivedStats.TotalAttack}\n" +
+                                        $"STR: {derivedStats.TotalStrength}\n" +
+                                        $"DEF: {derivedStats.TotalDefence}";
+            }
+            else
+            {
+                primaryStatsText.text = "ATK: ?\nSTR: ?\nDEF: ?";
+            }
         }
     }
 }

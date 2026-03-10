@@ -76,10 +76,12 @@ namespace Abyssbound.Loot.SetDrops
         }
     }
 
+    /*
     public enum LootTier
     {
         Trash = 0,
         Elite = 1,
         Boss = 2,
     }
+    */
 }

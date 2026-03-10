@@ -1,0 +1,41 @@
+[
+  {
+    "enemyId": "enemy_goblin_scout",
+    "displayName": "Goblin Scout",
+    "description": "A weak goblin sent to patrol the area.",
+    "maxHealth": 30,
+    "damage": 5,
+    "moveSpeed": 4.0,
+    "attackRange": 1.2,
+    "attackCooldown": 1.0,
+    "expReward": 15,
+    "detectionRadius": 8.0,
+    "chaseRadius": 12.0
+  },
+  {
+    "enemyId": "enemy_skeleton_warrior",
+    "displayName": "Skeleton Warrior",
+    "description": "Animated bones holding a rusty sword.",
+    "maxHealth": 60,
+    "damage": 12,
+    "moveSpeed": 2.5,
+    "attackRange": 1.5,
+    "attackCooldown": 1.8,
+    "expReward": 35,
+    "detectionRadius": 10.0,
+    "chaseRadius": 15.0
+  },
+  {
+    "enemyId": "boss_zone1_chieftain",
+    "displayName": "Gorgak the Crusher",
+    "description": "The massive goblin chieftain of Zone 1.",
+    "maxHealth": 500,
+    "damage": 40,
+    "moveSpeed": 3.0,
+    "attackRange": 2.5,
+    "attackCooldown": 2.5,
+    "expReward": 500,
+    "detectionRadius": 15.0,
+    "chaseRadius": 30.0
+  }
+]

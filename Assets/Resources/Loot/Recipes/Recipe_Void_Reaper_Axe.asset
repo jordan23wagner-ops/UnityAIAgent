@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f041b352bf6f52843b73129bd35d2e83, type: 3}
+  m_Name: Recipe_Void_Reaper_Axe
+  m_EditorClassIdentifier: Assembly-CSharp::Abyssbound.Crafting.VoidForgeRecipeSO
+  recipeName: Void Reaper's Axe
+  resultItem: {fileID: 11400000, guid: d801b352bf6f52843b73129bd35d2e83, type: 3}
+  smithingLevelRequired: 40
+  ingredients:
+  - item: {fileID: 11400000, guid: 7a93549294314da4493016f00ed87b69, type: 3}
+    count: 10
+  - item: {fileID: 11400000, guid: f014540a17ccdc640b67f4e423848a2f, type: 3}
+    count: 1

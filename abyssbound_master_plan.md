@@ -54,13 +54,12 @@ Tone: darker OSRS – corrupt wilderness, abyssal themes, cursed ruins, and void
 
 ---
 
-## Progression & Zones
+## Progression & Open World
 
-- Progression is **linear in terms of unlocks**:
-  - You must clear Zone 1’s boss to unlock Zone 2, etc.
-- However, within a band, progression is **flexible**:
-  - A lucky drop or strong crafting can let you “punch above your weight”.
-  - You are allowed to try higher zones once they’re unlocked; survival is your problem.
+- **Massive Open World Design**: Very limited boundaries. There are no artificial walls stopping you from walking into end-game areas. The main overworld is entirely interconnected.
+- **Exclusive Zones (SpawnPK VIP Style)**: "Zones" are no longer linear progression gates. Instead, they act like elite "Donator Zones" in RSPS, but rather than costing real money, they require **super rare key drops** to access. Once inside, drop rates are absurdly boosted and elite bosses spawn.
+- **Survival-Based Progression**: If you have the skilling levels for high-tier food/potions (or incredible gear), you can tank hits from high-level enemies just to reach deeper waypoints in the open world.
+- You can grind for the best gear in your current area, or play risky and explore deeper areas early to unlock fast travel points.
 
 Each zone has:
 
@@ -93,6 +92,15 @@ Zone DoTs can be mitigated by:
   - High-tension runs.
   - “Corp runs” similar to OSRS.
   - Stories about insane recoveries or brutal losses.
+
+---
+
+## SpawnPK & RSPS Influences
+
+- **Untradeable OP Gear:** The absolute best items aren't just drops; they are crafted using heavily grinded rare materials, giving massive untradeable power spikes.
+- **Pet Infusion System:** Bosses/activities drop pets with passive buffs. These pets can be infused/combined to create overpowered hybrid variants.
+- **Dynamic Skilling / Catching:** Similar to "Imp Catching", scattered random world mechanics that provide spontaneous bursts of rare loot, currency, or materials.
+- **Open World Tanking:** You can skip zones and sprint to deep-world waypoints *if* your skilling, food, and high-level healing potions allow you to tank the hits.
 
 ---
 
